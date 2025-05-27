@@ -368,10 +368,19 @@ impl SubsystemHealth {
 }
 
 #[derive(Debug)]
+struct Namespace {
+    size: usize,
+    capacity: usize,
+    used: usize,
+}
+
+#[derive(Debug)]
 pub struct Subsystem {
+    oui: [u8; 3],
     caps: SubsystemCapabilities,
     ports: heapless::Vec<Port, 2>,
     ctlrs: heapless::Vec<Controller, 2>,
+    nss: heapless::Vec<Namespace, 1>,
     health: SubsystemHealth,
     mi: MICapability,
     sn: &'static str,
@@ -380,11 +389,34 @@ pub struct Subsystem {
 }
 
 impl Subsystem {
+    fn acquire_ieee_oui() -> [u8; 3] {
+        let mut oui = [0u8; 3];
+        // ac-de-48 is allocated as private, used as the example value in the
+        // IEEE Guidelines for use of EUI, OUI, and CID documentation
+        for (idx, val) in option_env!("NVME_MI_DEV_IEEE_OUI")
+            .unwrap_or("ac-de-48")
+            .split('-')
+            .take(oui.len())
+            .map(|v| {
+                u8::from_str_radix(v, 16).expect(
+                    "NVME_MI_DEV_IEEE_OUI must be set in the IEEE RA hexadecimal representation",
+                )
+            })
+            .enumerate()
+        {
+            // 4.5.3, Base v2.1
+            oui[oui.len() - 1 - idx] = val;
+        }
+        oui
+    }
+
     pub fn new() -> Self {
         Subsystem {
+            oui: Subsystem::acquire_ieee_oui(),
             caps: SubsystemCapabilities::new(),
             ports: heapless::Vec::new(),
             ctlrs: heapless::Vec::new(),
+            nss: heapless::Vec::new(),
             health: SubsystemHealth::new(),
             mi: MICapability::new(),
             sn: "1000",

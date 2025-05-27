@@ -9,6 +9,11 @@ use super::PortType;
 const ISCSI: crc::Crc<u32> = crc::Crc::<u32>::new(&crc::CRC_32_ISCSI);
 const MAX_FRAGMENTS: usize = 6;
 
+/* Octet-based bit index */
+const fn obi(octet: usize, bit: usize) -> usize {
+    8 * octet + bit
+}
+
 trait RequestHandler {
     async fn handle<A: AsyncRespChannel>(
         self,
@@ -658,14 +663,160 @@ impl AdminIdentifyRequest<[u8; 60]> {
     }
 }
 
+enum ControllerType {
+    Reserved = 0x00,
+    IOController = 0x01,
+    DiscoveryController = 0x02,
+    AdministrativeController = 0x03,
+}
+
+impl From<u8> for ControllerType {
+    fn from(val: u8) -> Self {
+        match val {
+            0x00 => Self::Reserved,
+            0x01 => Self::IOController,
+            0x02 => Self::DiscoveryController,
+            0x03 => Self::AdministrativeController,
+            _ => panic!("FIXME"),
+        }
+    }
+}
+
+impl From<ControllerType> for u8 {
+    fn from(val: ControllerType) -> Self {
+        val as Self
+    }
+}
+
 bitfield! {
     struct AdminIdentifyControllerResponse([u8]);
     u8;
-    u16, vid, set_vid: 15, 0;
-    u16, ssvid, set_ssvid: 31, 16;
-    sn, set_sn: 39, 32, 20;
-    mn, set_mn: 199, 192, 20;
-    fr, set_fr: 519, 512, 8;
+    u16, vid, set_vid: obi(1, 7), obi(0, 0);
+    u16, ssvid, set_ssvid: obi(3, 7), obi(2, 0);
+    sn, set_sn: obi(4, 7), obi(4, 0), 20;
+    mn, set_mn: obi(24, 7), obi(24, 0), 40;
+    fr, set_fr: obi(64, 7), obi(64, 0), 8;
+    rab, set_rab: obi(72, 7), obi(72, 0);
+    ieee, set_ieee: obi(73, 7), obi(73, 0), 3;
+    cmic_mports, set_cmic_mports: obi(76, 0);
+    cmic_mctrs, set_cmic_mctrs: obi(76, 1);
+    cmic_ft, set_cmic_ft: obi(76, 2);
+    cmic_anars, set_cmic_anars: obi(76, 3);
+    mdts, set_mdts: obi(77, 0);
+    u16, cntlid, set_cntlid: obi(79, 7), obi(78, 0);
+    u32, ver, set_ver: obi(83, 7), obi(80, 0);
+    u32, rtd3r, set_rtd3r: obi(87, 7), obi(84, 0);
+    u32, rtd3e, set_rtd3e: obi(91, 7), obi(88, 0);
+    oaes_nsan, set_oaes_nsan: obi(92, 8);
+    oaes_fan, set_oaes_fan: obi(92, 9);
+    oaes_anacn, set_oaes_anacn: obi(92, 11);
+    oaes_plean, set_oaes_plean: obi(92, 12);
+    oaes_lsian, set_oaes_lsian: obi(92, 13);
+    oaes_egean, set_oaes_egean: obi(92, 14);
+    oaes_nnss, set_oaes_nnss: obi(92, 15);
+    oaes_tthr, set_oaes_tthr: obi(92, 16);
+    oaes_rgcns, set_oaes_rgcns: obi(92, 17);
+    oaes_ansan, set_oaes_ansan: obi(92, 19);
+    oaes_zdcn, set_oaes_zdcn: obi(92, 27);
+    oaes_dlpcn, set_oaes_dlpcn: obi(92, 31);
+    ctratt_hids, set_ctratt_hids: obi(96, 0);
+    ctratt_nopspm, set_ctratt_nopspm: obi(96, 1);
+    ctratt_nsets, set_ctratt_nsets: obi(96, 2);
+    ctratt_rrlvls, set_ctratt_rrlvls: obi(96, 3);
+    ctratt_egs, set_ctratt_egs: obi(96, 4);
+    ctratt_plm, set_ctratt_plm: obi(96, 5);
+    ctratt_tbkas, set_ctratt_tbkas: obi(96, 6);
+    ctratt_ng, set_ctratt_ng: obi(96, 7);
+    ctratt_sqa, set_ctratt_sqa: obi(96, 8);
+    ctratt_ulist, set_ctratt_ulist: obi(96, 9);
+    ctratt_mds, set_ctratt_mds: obi(96, 10);
+    ctratt_fcm, set_ctratt_fcm: obi(96, 11);
+    ctratt_vcm, set_ctratt_vcm: obi(96, 12);
+    ctratt_deg, set_ctratt_deg: obi(96, 13);
+    ctratt_dnvms, set_ctratt_dnvms: obi(96, 14);
+    ctratt_elbas, set_ctratt_elbas: obi(96, 15);
+    ctratt_mem, set_ctratt_mem: obi(96, 16);
+    ctratt_hmbr, set_ctratt_hmbr: obi(96, 17);
+    ctratt_rhii, set_ctratt_rhii: obi(96, 18);
+    ctratt_fdps, set_ctratt_fdps: obi(96, 19);
+    from into ControllerType, cntrltype, set_cntrltype: obi(111, 7), obi(111, 0);
+    nvmsr_nvmesd, set_nvmsr_nvmesd: obi(253, 0);
+    nvmsr_nvmee, set_nvmsr_nvmee: obi(253, 1);
+    vwci_vwcr, set_vwci_vwcr: obi(254, 6), obi(254, 0);
+    vwci_vwcrv, set_vwci_vwcrv: obi(254, 7);
+    mec_twpme, set_mec_twpme: obi(255, 0);
+    mec_pcieme, set_mec_pcieme: obi(255, 1);
+    oacs_ssrs, set_oacs_ssrs: obi(256, 0);
+    oacs_fnvms, set_oacs_fnvms: obi(256, 1);
+    oacs_fwds, set_oacs_fwds: obi(256, 2);
+    oacs_nms, set_oacs_nms: obi(256, 3);
+    oacs_dsts, set_oacs_dsts: obi(256, 4);
+    oacs_dirs, set_oacs_dirs: obi(256, 5);
+    oacs_nsrs, set_oacs_nsrs: obi(256, 6);
+    oacs_vms, set_oacs_vms: obi(256, 7);
+    oacs_dbcs, set_oacs_dbcs: obi(256, 8);
+    oacs_glss, set_oacs_glss: obi(256, 9);
+    oacs_cfls, set_oacs_cfls: obi(256, 10);
+    oacs_hmlms, set_oacs_hmlms: obi(256, 11);
+    acl, set_acl: obi(258, 7), obi(258, 0);
+    aerl, set_aerl: obi(259, 7), obi(259, 0);
+    frmw_ffsro, set_frmw_ffsro: obi(260, 0);
+    frmw_nofs, set_frmw_nofs: obi(260, 3), obi(260, 1);
+    frmw_fawr, set_frmw_fawr: obi(260, 4);
+    frmw_smud, set_frmw_smud: obi(260, 5);
+    lpa_smarts, set_lpa_smarts: obi(261, 0);
+    lpa_cses, set_lpa_cses: obi(261, 1);
+    lpa_lpeds, set_lpa_lpeds: obi(261, 2);
+    lpa_ts, set_lpa_ts: obi(261, 3);
+    lpa_pes, set_lpa_pes: obi(261, 4);
+    lpa_mlps, set_lpa_mlps: obi(261, 5);
+    lpa_da4s, set_lpa_da4s: obi(261, 6);
+    elpe, set_elpe: obi(262, 7), obi(262, 0);
+    npss, set_npss: obi(263, 7), obi(263, 0);
+    avscc_vscf, setavscc_vscf: obi(264, 0);
+    u16, wctemp, set_wctemp: obi(267, 7), obi(266, 0);
+    u16, cctemp, set_cctemp: obi(269, 7), obi(268, 0);
+    fwug, set_fwug: obi(319, 7), obi(319, 0);
+    u16, kas, set_kas: obi(321, 7), obi(320, 0);
+    u16, cqt, set_cqt: obi(387, 7), obi(386, 0);
+    sqes_minsqes, set_sqes_minsqes: obi(512, 3), obi(512, 0);
+    sqes_maxsques, set_sqes_maxsqes: obi(512, 7), obi(512, 4);
+    cqes_mincqes, set_cqes_mincqes: obi(513, 3), obi(513, 0);
+    cqes_maxsques, set_cqes_maxcqes: obi(513, 7), obi(513, 4);
+    u16, maxcmd, set_maxcmd: obi(515, 7), obi(514, 0);
+    u32, nn, set_nn: obi(519, 7), obi(516, 0);
+    oncs_nvmcmps, set_oncs_nvmcmps: obi(520, 0);
+    oncs_nvmwusv, set_oncs_nvmwusv: obi(520, 1);
+    oncs_nvmdsmsv, set_oncs_nvmdsmsv: obi(520, 2);
+    oncs_nvmwzsv, set_oncs_nvmwzsv: obi(520, 3);
+    oncs_ssfs, set_oncs_ssfs: obi(520, 4);
+    oncs_reservs, set_oncs_reservs: obi(520, 5);
+    oncs_tss, set_oncs_tss: obi(520, 6);
+    oncs_nvmvfys, set_oncs_nvmvfys: obi(520, 7);
+    oncs_nvmcpys, set_oncs_nvmcpys: obi(520, 8);
+    oncs_nvmcsa, set_oncs_nvmcsa: obi(520, 9);
+    oncs_nvmafc, set_oncs_nvmasc: obi(520, 10);
+    oncs_maxwzd, set_oncs_maxwzd: obi(520, 11);
+    oncs_nszs, set_oncs_nszs: obi(520, 12);
+    fuses_fcws, set_fuses_fcws: obi(522, 0);
+    fna_fns, set_fna_fns: obi(524, 0);
+    fna_sens, set_fna_sens: obi(524, 1);
+    fna_cryes, set_fna_cryes: obi(524, 2);
+    fna_fnvmbs, set_fna_fnvmbs: obi(524, 3);
+    vwc_vwcp, set_vwc_vwcp: obi(525, 0);
+    vwc_fb, set_vwc_fb: obi(525, 2), obi(525, 1);
+    u16, awun, set_awun: obi(527, 7), obi(526, 0);
+    u16, awupf, set_awupf: obi(529, 7), obi(528, 0);
+    icsvscc_snvscf, set_icsvscc_snvscf: obi(530, 0);
+    nwpc_nwpwps, set_nwpc_nwpwps: obi(531, 0);
+    nwpc_wpupcs, set_nwpc_wpupcs: obi(531, 1);
+    nwpc_pwps, set_nwpc_pwps: obi(531, 2);
+    u32, mnan, set_mnan: obi(543, 7), obi(540, 0);
+    subnqn, set_subnqn: obi(768, 7), obi(768, 0), 256;
+    fcatt_dcms, set_fcat_dcms: obi(1802, 0);
+    fcat_nznsetids, set_fcat_nznsetids: obi(1802, 1);
+    msdbd, set_msdbd: obi(1803, 7), obi(1803, 0);
+    ofcs_dcs, set_ofcs_dcs: obi(1804, 0);
 }
 
 impl AdminIdentifyControllerResponse<[u8; 4096]> {
@@ -1252,17 +1403,67 @@ impl RequestHandler for AdminIdentifyRequest<[u8; 60]> {
 
                 aicr.set_vid(pprt.vid);
                 aicr.set_ssvid(pprt.svid);
+
                 for (idx, val) in subsys.sn.bytes().enumerate().filter(|args| args.0 < 20) {
                     aicr.set_sn(idx, val);
                 }
+
                 for (idx, val) in subsys.mn.bytes().enumerate().filter(|args| args.0 < 20) {
                     aicr.set_mn(idx, val);
                 }
+
                 for (idx, val) in subsys.fr.bytes().enumerate().filter(|args| args.0 < 8) {
                     aicr.set_fr(idx, val);
                 }
-                // TODO: "Set CNTRLTYPE field for Base v1.4 compliance: Bytes 111, Figure 132, MI v2.0"
-                // TODO: Set NVMSR fields for compliance; 1.4, MI v2.0"
+
+                for (idx, val) in subsys.oui.iter().enumerate() {
+                    aicr.set_ieee(idx, *val);
+                }
+
+                aicr.set_cmic_mports(subsys.ports.len() > 1);
+                aicr.set_cmic_mctrs(subsys.ctlrs.len() > 1);
+                aicr.set_cntlid(ctlr.id.0);
+                aicr.set_ctratt_nsets(false); // TODO: Tie to data model
+                aicr.set_ctratt_egs(false); // TODO: Tie to data model
+                aicr.set_ctratt_deg(false); // TODO: Tie to data model
+                aicr.set_ctratt_dnvms(false); // TODO: Tie to data model
+                aicr.set_cntrltype(ControllerType::AdministrativeController);
+                aicr.set_nvmsr_nvmesd(true); // TODO: Tie to data model
+                aicr.set_nvmsr_nvmee(false); // TODO: Tie to data model
+
+                // TODO: Improve accuracy with Port:MEP relationship
+                aicr.set_mec_twpme(
+                    subsys
+                        .ports
+                        .iter()
+                        .any(|p| matches!(p.typ, PortType::TwoWire(_))),
+                );
+
+                // TODO: Improve accuracy with Port:MEP relationship
+                aicr.set_mec_pcieme(
+                    subsys
+                        .ports
+                        .iter()
+                        .any(|p| matches!(p.typ, PortType::PCIe(_))),
+                );
+
+                // Non-zero value required for compliance by NVMe Base v1.2
+                // Recommended value from spec (Figure 312, NVMe Base v2.1)
+                aicr.set_wctemp(0x157u16);
+
+                // Non-zero value required for compliance by NVMe Base v1.2
+                // Arbitrary choice of WCTEMP recommended value
+                aicr.set_cctemp(0x157u16);
+
+                aicr.set_nn(
+                    subsys
+                        .nss
+                        .capacity()
+                        .try_into()
+                        .expect("Too many namespaces"),
+                );
+                aicr.set_mnan(0);
+
                 self.send_constrained_response(resp, &[&mh.0, &acrh.0], &aicr.0)
                     .await
             }
