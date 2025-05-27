@@ -643,15 +643,16 @@ bitfield! {
     struct AdminIdentifyRequest([u8]);
     impl Debug;
     u8;
-    u32, dofst, set_dofst: 191, 160;
-    u32, dlen, set_dlen: 223, 192;
-    from into ControllerOrNamespaceStructure, sqedw10_cns, set_sqedw10_cns: 295, 288;
-    sqedw10_rsvd, _: 307, 300;
-    u16, sqedw10_cntid, set_sqedw10_cntid: 323, 308;
-    u16, sqedw11_cnssid, set_sqedw11_cnssid: 339, 324;
-    sqedw11_rsvd, _: 347, 340;
-    sqedw11_csi, set_sqedw11_csi: 355, 348;
-    sqedw14_uidx, set_sqedw14_uidx: 426, 420;
+    u32, nsid, set_nsid: obi(3, 7), obi(0, 0);
+    u32, dofst, set_dofst: obi(23, 7), obi(20, 0);
+    u32, dlen, set_dlen: obi(27, 7), obi(24, 0);
+    from into ControllerOrNamespaceStructure, sqedw10_cns, set_sqedw10_cns: obi(36, 7), obi(36, 0);
+    sqedw10_rsvd, _: obi(37, 7), obi(37, 0);
+    u16, sqedw10_cntid, set_sqedw10_cntid: obi(39, 7), obi(38, 0);
+    u16, sqedw11_cnssid, set_sqedw11_cnssid: obi(41, 7), obi(40, 0);
+    sqedw11_rsvd, _: obi(42, 7), obi(42, 0);
+    sqedw11_csi, set_sqedw11_csi: obi(43, 7), obi(43, 0);
+    sqedw14_uidx, set_sqedw14_uidx: obi(52, 6), obi(52, 0);
 }
 
 impl AdminIdentifyRequest<[u8; 60]> {
@@ -820,6 +821,38 @@ bitfield! {
 }
 
 impl AdminIdentifyControllerResponse<[u8; 4096]> {
+    fn new() -> Self {
+        Self([0; 4096])
+    }
+}
+
+bitfield! {
+    struct AdminIdentifyNVMIdentifyNamespaceResponse([u8]);
+    u8;
+    u64, nsze, set_nsze: obi(7, 7), obi(0, 0);
+    u64, ncap, set_ncap: obi(15, 7), obi(8, 0);
+    u64, nuse, set_nuse: obi(23, 7), obi(16, 0);
+    nsfeat_thinp, set_nsfeat_thinp: obi(24, 0);
+    nsfeat_nsabp, set_nsfeat_nsabp: obi(24, 1);
+    nsfeat_dae, set_nsfeat_dae: obi(24, 2);
+    nsfeat_uidreuse, set_nsfeat_uidreuse: obi(24, 3);
+    nsfeat_optperf, set_nsfeat_optperf: obi(24, 4);
+    nlbaf, set_nlbaf: obi(25, 7), obi(25, 0);
+    flbas, set_flbas: obi(26, 7), obi(26, 0);
+    mc, set_mc: obi(27, 7), obi(27, 0);
+    dpc_pit1s, set_dpc_pit1s: obi(28, 0);
+    dpc_pit2s, set_dpc_pit2s: obi(28, 1);
+    dpc_pit3s, set_dpc_pit3s: obi(28, 2);
+    dpc_piifb, set_dpc_piifb: obi(28, 3);
+    dpc_piilb, set_dpc_piilb: obi(28, 4);
+    dps_pit, set_dps_pit: obi(29, 2), obi(29, 0);
+    dps_pip, set_dps_pip: obi(29, 3);
+    u16, lbaf0_ms, set_lbaf0_ms: obi(129, 7), obi(128, 0);
+    lbaf0_lbads, set_lbaf0_lbads: obi(130, 7), obi(130, 0);
+    lbaf0_rp, set_lbaf0_rp: obi(131, 1), obi(131, 0);
+}
+
+impl AdminIdentifyNVMIdentifyNamespaceResponse<[u8; 4096]> {
     fn new() -> Self {
         Self([0; 4096])
     }
@@ -1381,6 +1414,46 @@ impl RequestHandler for AdminIdentifyRequest<[u8; 60]> {
         acrh.set_cqedw3_status_dnr(false);
 
         match self.sqedw10_cns() {
+            ControllerOrNamespaceStructure::NVMIdentifyNamespace => {
+                assert!(subsys.nss.len() <= u32::MAX.try_into().unwrap());
+
+                if self.nsid() == u32::MAX {
+                    todo!("Deal with broadcast NSID");
+                }
+
+                if self.nsid() == 0 || self.nsid() > subsys.nss.capacity() as u32 {
+                    debug!("Invalid NSID: {}", self.nsid());
+                    return Err(ResponseStatus::InvalidParameter);
+                }
+
+                let Some(ns) = subsys.nss.get(self.nsid() as usize - 1) else {
+                    debug!("Unallocated NSID: {}", self.nsid());
+                    return Err(ResponseStatus::InvalidParameter);
+                };
+
+                let mut ainvminr = AdminIdentifyNVMIdentifyNamespaceResponse::new();
+
+                // 4.1.5.1 NVM Command Set Spec, v1.0c
+                // TODO: Ensure the associated controller is an IO controller
+                // FIXME: Improve determination algo
+                let active = subsys
+                    .ctlrs
+                    .iter()
+                    .flat_map(|c| c.active_ns.iter())
+                    .any(|&nsid| nsid.0 == self.nsid());
+                if active {
+                    ainvminr.set_nsze(ns.size.try_into().unwrap());
+                    ainvminr.set_ncap(ns.capacity.try_into().unwrap());
+                    ainvminr.set_nuse(ns.used.try_into().unwrap());
+                    ainvminr.set_nsfeat_thinp(ns.size == ns.capacity);
+                    ainvminr.set_nlbaf(0);
+                    ainvminr.set_mc(0);
+                    ainvminr.set_lbaf0_lbads(ns.block_order);
+                }
+
+                self.send_constrained_response(resp, &[&mh.0, &acrh.0], &ainvminr.0)
+                    .await
+            }
             ControllerOrNamespaceStructure::IdentifyController => {
                 let Some(ctlr) = subsys.ctlrs.iter().find(|c| c.id.0 == self.sqedw10_cntid())
                 else {

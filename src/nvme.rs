@@ -287,6 +287,7 @@ pub struct ControllerId(u16);
 pub struct Controller {
     id: ControllerId,
     port: PortId,
+    active_ns: heapless::Vec<NamespaceId, MAX_NAMESPACES>,
     temp: u16,
     temp_range: OperatingRange,
     capacity: u64,
@@ -302,6 +303,7 @@ impl Controller {
         Self {
             id,
             port,
+            active_ns: heapless::Vec::new(),
             temp: 293,
             temp_range: OperatingRange::new(UnitKind::Kelvin, 213, 400),
             capacity: 100,
@@ -319,6 +321,10 @@ impl Controller {
         };
 
         self.temp = k;
+    }
+
+    pub fn attach_namespace(&mut self, nsid: NamespaceId) -> Result<(), NamespaceId> {
+        self.active_ns.push(nsid)
     }
 }
 
@@ -367,11 +373,32 @@ impl SubsystemHealth {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct NamespaceId(u32);
+
 #[derive(Debug)]
-struct Namespace {
+pub struct Namespace {
     size: usize,
     capacity: usize,
     used: usize,
+    block_order: u8,
+}
+
+impl Namespace {
+    pub fn new(capacity: usize) -> Self {
+        Self {
+            size: capacity,
+            capacity,
+            used: 0,
+            block_order: 9,
+        }
+    }
+}
+
+impl Default for Namespace {
+    fn default() -> Self {
+        Self::new(1024)
+    }
 }
 
 const MAX_CONTROLLERS: usize = 2;
@@ -445,6 +472,16 @@ impl Subsystem {
         self.ctlrs
             .get_mut(id.0 as usize)
             .expect("Invalid ControllerId provided")
+    }
+
+    pub fn add_namespace(&mut self, capacity: usize) -> Result<NamespaceId, u8> {
+        debug_assert!(self.nss.len() <= u32::MAX.try_into().unwrap());
+        let nsid = NamespaceId((self.nss.len() + 1).try_into().unwrap());
+        let ns = Namespace::new(capacity);
+        match self.nss.push(ns) {
+            Ok(_) => Ok(nsid),
+            Err(_) => Err(0x16), // Namespace Identifier Unavailable
+        }
     }
 }
 
