@@ -373,7 +373,7 @@ impl SubsystemHealth {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NamespaceId(u32);
 
 #[derive(Debug)]
@@ -402,7 +402,7 @@ impl Default for Namespace {
 }
 
 const MAX_CONTROLLERS: usize = 2;
-const MAX_NAMESPACES: usize = 1;
+const MAX_NAMESPACES: usize = 2;
 const MAX_PORTS: usize = 2;
 
 #[derive(Debug)]

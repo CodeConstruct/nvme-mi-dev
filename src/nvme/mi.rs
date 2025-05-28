@@ -2,7 +2,7 @@ use heapless::Vec;
 use log::debug;
 use mctp::{AsyncRespChannel, MCTP_TYPE_NVME};
 
-use crate::nvme::{PCIeLinkSpeed, UnitKind};
+use crate::nvme::{MAX_NAMESPACES, NamespaceId, PCIeLinkSpeed, UnitKind};
 
 use super::PortType;
 
@@ -858,6 +858,18 @@ impl AdminIdentifyNVMIdentifyNamespaceResponse<[u8; 4096]> {
     }
 }
 
+bitfield! {
+    struct AdminIdentifyActiveNamespaceIDListResponse([u8]);
+    u8;
+    u32, nsid, set_nsid: obi(4, 7), obi(0, 0), 1024;
+}
+
+impl AdminIdentifyActiveNamespaceIDListResponse<[u8; 4096]> {
+    fn new() -> Self {
+        Self([0; 4096])
+    }
+}
+
 async fn send_response(resp: &mut impl AsyncRespChannel, bufs: &[&[u8]]) {
     let mut digest = ISCSI.digest();
     digest.update(&[0x80 | 0x04]);
@@ -1538,6 +1550,27 @@ impl RequestHandler for AdminIdentifyRequest<[u8; 60]> {
                 aicr.set_mnan(0);
 
                 self.send_constrained_response(resp, &[&mh.0, &acrh.0], &aicr.0)
+                    .await
+            }
+            ControllerOrNamespaceStructure::ActiveNamespaceIDList => {
+                // 5.1.13.2.2, Base v2.1
+                let mut active: heapless::Vec<u32, MAX_NAMESPACES> = subsys
+                    .ctlrs
+                    .iter()
+                    .flat_map(|c| c.active_ns.iter())
+                    .map(|nsid| nsid.0)
+                    .filter(|nsid| *nsid > self.nsid())
+                    .collect();
+                active.sort_unstable();
+                // IndexSet iterator is insertion-order:
+                // https://docs.rs/heapless/0.8.0/heapless/struct.IndexSet.html#method.iter
+                let unique: heapless::FnvIndexSet<u32, MAX_NAMESPACES> =
+                    active.iter().copied().collect();
+                let mut aianidlr = AdminIdentifyActiveNamespaceIDListResponse::new();
+                for (index, nsid) in unique.iter().enumerate() {
+                    aianidlr.set_nsid(index, *nsid);
+                }
+                self.send_constrained_response(resp, &[&mh.0, &acrh.0], &aianidlr.0)
                     .await
             }
             ControllerOrNamespaceStructure::NVMSubsystemControllerList => {
