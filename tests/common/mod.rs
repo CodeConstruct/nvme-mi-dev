@@ -151,6 +151,12 @@ impl<'a> RelaxedRespChannel<'a> {
     }
 }
 
+impl Drop for RelaxedRespChannel<'_> {
+    fn drop(&mut self) {
+        assert!(self.sent);
+    }
+}
+
 impl mctp::AsyncRespChannel for RelaxedRespChannel<'_> {
     type ReqChannel<'a>
         = MockNVMeMIAsyncReqChannel
