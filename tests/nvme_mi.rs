@@ -1,15 +1,16 @@
 mod common;
 
-use crate::common::ExpectedRespChannel;
-use crate::common::RESP_INVALID_COMMAND_SIZE;
-use crate::common::new_simple_subsystem;
-use crate::common::setup;
+use common::DeviceType;
+use common::ExpectedRespChannel;
+use common::RESP_INVALID_COMMAND_SIZE;
+use common::new_device;
+use common::setup;
 
 #[test]
 fn short_header_object() {
     setup();
 
-    let (mut mep, mut subsys) = new_simple_subsystem();
+    let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS0a0a);
 
     #[rustfmt::skip]
     const REQ: [u8; 10] = [
@@ -29,19 +30,20 @@ mod read_nvme_mi_data_structure {
     use nvme_mi_dev::nvme::Subsystem;
     use nvme_mi_dev::nvme::TwoWirePort;
 
+    use crate::common::DeviceType;
     use crate::common::ExpectedRespChannel;
     use crate::common::RESP_INVALID_COMMAND_INPUT_DATA_SIZE;
     use crate::common::RESP_INVALID_COMMAND_SIZE;
     use crate::common::RESP_INVALID_PARAMETER;
     use crate::common::RelaxedRespChannel;
-    use crate::common::new_simple_subsystem;
+    use crate::common::new_device;
     use crate::common::setup;
 
     #[test]
     fn short_request() {
         setup();
 
-        let (mut mep, mut subsys) = new_simple_subsystem();
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 15] = [
@@ -60,7 +62,7 @@ mod read_nvme_mi_data_structure {
     fn long_request() {
         setup();
 
-        let (mut mep, mut subsys) = new_simple_subsystem();
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 23] = [
@@ -80,7 +82,7 @@ mod read_nvme_mi_data_structure {
     fn nvm_subsystem_information() {
         setup();
 
-        let (mut mep, mut subsys) = new_simple_subsystem();
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 19] = [
@@ -114,7 +116,7 @@ mod read_nvme_mi_data_structure {
     fn port_information_invalid() {
         setup();
 
-        let (mut mep, mut subsys) = new_simple_subsystem();
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 19] = [
@@ -133,7 +135,7 @@ mod read_nvme_mi_data_structure {
     fn port_information_pcie() {
         setup();
 
-        let (mut mep, mut subsys) = new_simple_subsystem();
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 19] = [
@@ -167,7 +169,7 @@ mod read_nvme_mi_data_structure {
     fn port_information_twowire() {
         setup();
 
-        let (mut mep, mut subsys) = new_simple_subsystem();
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 19] = [
@@ -201,7 +203,7 @@ mod read_nvme_mi_data_structure {
     fn controller_list_all() {
         setup();
 
-        let (mut mep, mut subsys) = new_simple_subsystem();
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 19] = [
@@ -228,7 +230,7 @@ mod read_nvme_mi_data_structure {
     fn controller_list_single_partial_empty() {
         setup();
 
-        let (mut mep, mut subsys) = new_simple_subsystem();
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 19] = [
@@ -323,7 +325,7 @@ mod read_nvme_mi_data_structure {
     fn controller_information_single_valid() {
         setup();
 
-        let (mut mep, mut subsys) = new_simple_subsystem();
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 19] = [
@@ -346,7 +348,7 @@ mod read_nvme_mi_data_structure {
     fn controller_information_single_invalid() {
         setup();
 
-        let (mut mep, mut subsys) = new_simple_subsystem();
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 19] = [
@@ -368,14 +370,14 @@ mod nvm_subsystem_status_health_poll {
     };
 
     use crate::common::{
-        ExpectedRespChannel, RESP_INVALID_COMMAND_SIZE, new_simple_subsystem, setup,
+        DeviceType, ExpectedRespChannel, RESP_INVALID_COMMAND_SIZE, new_device, setup,
     };
 
     #[test]
     fn short_request() {
         setup();
 
-        let (mut mep, mut subsys) = new_simple_subsystem();
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS0a0a);
         #[rustfmt::skip]
         const REQ: [u8; 15] = [
             0x08, 0x00, 0x00,
@@ -392,7 +394,7 @@ mod nvm_subsystem_status_health_poll {
     fn long_request() {
         setup();
 
-        let (mut mep, mut subsys) = new_simple_subsystem();
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 23] = [
@@ -412,7 +414,7 @@ mod nvm_subsystem_status_health_poll {
     fn clear_status() {
         setup();
 
-        let (mut mep, mut subsys) = new_simple_subsystem();
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 19] = [

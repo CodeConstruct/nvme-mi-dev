@@ -1,13 +1,13 @@
 mod common;
 
 mod prohibited {
-    use crate::common::{ExpectedRespChannel, RESP_INVALID_COMMAND, new_simple_subsystem, setup};
+    use crate::common::{DeviceType, ExpectedRespChannel, RESP_INVALID_COMMAND, new_device, setup};
 
     #[test]
     fn delete_io_submission_queue() {
         setup();
 
-        let (mut mep, mut subsys) = new_simple_subsystem();
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -47,25 +47,20 @@ mod prohibited {
 }
 
 mod identify {
-    use nvme_mi_dev::nvme::ManagementEndpoint;
-    use nvme_mi_dev::nvme::PCIePort;
-    use nvme_mi_dev::nvme::PortType;
-    use nvme_mi_dev::nvme::Subsystem;
-    use nvme_mi_dev::nvme::TwoWirePort;
-
+    use crate::common::DeviceType;
     use crate::common::ExpectedField;
     use crate::common::ExpectedRespChannel;
     use crate::common::RESP_INVALID_COMMAND_SIZE;
     use crate::common::RESP_INVALID_PARAMETER;
     use crate::common::RelaxedRespChannel;
-    use crate::common::new_simple_subsystem;
+    use crate::common::new_device;
     use crate::common::setup;
 
     #[test]
     fn controller_short() {
         setup();
 
-        let (mut mep, mut subsys) = new_simple_subsystem();
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 67] = [
@@ -107,7 +102,7 @@ mod identify {
     fn controller_long() {
         setup();
 
-        let (mut mep, mut subsys) = new_simple_subsystem();
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 75] = [
@@ -152,7 +147,7 @@ mod identify {
     fn controller_unnatural_dofst() {
         setup();
 
-        let (mut mep, mut subsys) = new_simple_subsystem();
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -194,7 +189,7 @@ mod identify {
     fn controller_large_dofst() {
         setup();
 
-        let (mut mep, mut subsys) = new_simple_subsystem();
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -236,7 +231,7 @@ mod identify {
     fn controller_unnatural_dlen() {
         setup();
 
-        let (mut mep, mut subsys) = new_simple_subsystem();
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -278,7 +273,7 @@ mod identify {
     fn controller_large_dlen() {
         setup();
 
-        let (mut mep, mut subsys) = new_simple_subsystem();
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -320,7 +315,7 @@ mod identify {
     fn controller_uncontained_range() {
         setup();
 
-        let (mut mep, mut subsys) = new_simple_subsystem();
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -362,7 +357,7 @@ mod identify {
     fn controller_improper_dlen() {
         setup();
 
-        let (mut mep, mut subsys) = new_simple_subsystem();
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -404,7 +399,7 @@ mod identify {
     fn controller() {
         setup();
 
-        let (mut mep, mut subsys) = new_simple_subsystem();
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -454,7 +449,7 @@ mod identify {
     fn nvm_subsystem_controller_list() {
         setup();
 
-        let (mut mep, mut subsys) = new_simple_subsystem();
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -503,7 +498,7 @@ mod identify {
     fn namespace_invalid_nsid() {
         setup();
 
-        let (mut mep, mut subsys) = new_simple_subsystem();
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -546,7 +541,7 @@ mod identify {
     fn namespace_broadcast_nsid() {
         setup();
 
-        let (mut mep, mut subsys) = new_simple_subsystem();
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -588,7 +583,7 @@ mod identify {
     fn namespace_unallocated_nsid() {
         setup();
 
-        let (mut mep, mut subsys) = new_simple_subsystem();
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -630,8 +625,7 @@ mod identify {
     fn namespace_inactive() {
         setup();
 
-        let (mut mep, mut subsys) = new_simple_subsystem();
-        subsys.add_namespace(1024).unwrap();
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS1a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -679,18 +673,7 @@ mod identify {
     fn namespace_active() {
         setup();
 
-        let mut subsys = Subsystem::new();
-        let ppid = subsys.add_port(PortType::PCIe(PCIePort::new())).unwrap();
-        let ctlrid = subsys.add_controller(ppid).unwrap();
-        let twpid = subsys
-            .add_port(PortType::TwoWire(TwoWirePort::new()))
-            .unwrap();
-        let mut mep = ManagementEndpoint::new(twpid);
-        let nsid = subsys.add_namespace(1024).unwrap();
-        subsys
-            .controller_mut(ctlrid)
-            .attach_namespace(nsid)
-            .unwrap();
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS1a1a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [

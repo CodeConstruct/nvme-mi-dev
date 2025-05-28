@@ -203,14 +203,44 @@ pub fn setup() {
     }
 }
 
-pub fn new_simple_subsystem() -> (ManagementEndpoint, Subsystem) {
+pub enum DeviceType {
+    // Ports: 1 PCIe, 1 Two-wire
+    // Controllers: 1 Admin
+    // Namespaces: 0 Allocated, 0 Active
+    P1p1tC1aNS0a0a,
+
+    // Ports: 1 PCIe, 1 Two-wire
+    // Controllers: 1 Admin
+    // Namespaces: 1 Allocated, 0 Active
+    P1p1tC1aNS1a0a,
+
+    // Ports: 1 PCIe, 1 Two-wire
+    // Controllers: 1 Admin
+    // Namespaces: 1 Allocated, 1 Active
+    P1p1tC1aNS1a1a,
+}
+
+pub fn new_device(typ: DeviceType) -> (ManagementEndpoint, Subsystem) {
     let mut subsys = Subsystem::new();
     let ppid = subsys.add_port(PortType::PCIe(PCIePort::new())).unwrap();
-    subsys.add_controller(ppid).unwrap();
+    let ctlrid = subsys.add_controller(ppid).unwrap();
     let twpid = subsys
         .add_port(PortType::TwoWire(TwoWirePort::new()))
         .unwrap();
     let mep = ManagementEndpoint::new(twpid);
+    match typ {
+        DeviceType::P1p1tC1aNS0a0a => {}
+        DeviceType::P1p1tC1aNS1a0a => {
+            subsys.add_namespace(1024).unwrap();
+        }
+        DeviceType::P1p1tC1aNS1a1a => {
+            let nsid = subsys.add_namespace(1024).unwrap();
+            subsys
+                .controller_mut(ctlrid)
+                .attach_namespace(nsid)
+                .unwrap();
+        }
+    };
     (mep, subsys)
 }
 
