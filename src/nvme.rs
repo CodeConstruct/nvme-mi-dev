@@ -374,13 +374,17 @@ struct Namespace {
     used: usize,
 }
 
+const MAX_CONTROLLERS: usize = 2;
+const MAX_NAMESPACES: usize = 1;
+const MAX_PORTS: usize = 2;
+
 #[derive(Debug)]
 pub struct Subsystem {
     oui: [u8; 3],
     caps: SubsystemCapabilities,
-    ports: heapless::Vec<Port, 2>,
-    ctlrs: heapless::Vec<Controller, 2>,
-    nss: heapless::Vec<Namespace, 1>,
+    ports: heapless::Vec<Port, MAX_PORTS>,
+    ctlrs: heapless::Vec<Controller, MAX_CONTROLLERS>,
+    nss: heapless::Vec<Namespace, MAX_NAMESPACES>,
     health: SubsystemHealth,
     mi: MICapability,
     sn: &'static str,
