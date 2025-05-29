@@ -9,6 +9,8 @@ crc = "3.2.1"
 heapless = "0.8.0"
 log = "0.4.22"
 mctp = { git = "http://github.com/CodeConstruct/mctp-rs", rev = "f77acd5e211628ab18373d8b7601bbf32b21c033", package = "mctp", default-features = false }
+uuid = { version = "1.17.0", default-features = false }
+sha1 = { version = "0.10.6", default-features = false }
 
 [dev-dependencies]
 smol = "2.0.2"

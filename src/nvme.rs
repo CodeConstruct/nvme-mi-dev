@@ -1,5 +1,8 @@
 pub mod mi;
 
+use sha1::{Digest, Sha1};
+use uuid::Uuid;
+
 #[allow(dead_code)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u8)]
@@ -373,8 +376,44 @@ impl SubsystemHealth {
     }
 }
 
+#[derive(Debug)]
+#[repr(u8)]
+pub enum CommandSetIdentifier {
+    NVMCommandSet = 0,
+    KeyValueCommandSet = 1,
+    ZonedNamespaceCommandSet = 2,
+    SubsystemLocalMemoryCommandSet = 3,
+    ComputationalProgramsCommandSet = 4,
+}
+
+impl CommandSetIdentifier {
+    fn id(&self) -> u8 {
+        // https://doc.rust-lang.org/reference/items/enumerations.html#r-items.enum.discriminant.access-memory
+        unsafe { *(self as *const Self as *const u8) }
+    }
+}
+
+// NSID
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NamespaceId(u32);
+
+// NID: 5.1.13.2.3, Base v2.1
+#[derive(Debug)]
+#[repr(u8)]
+pub enum NamespaceIdentifierType {
+    Reserved = 0,
+    IEUID([u8; 8]) = 1,
+    NGUID([u8; 16]) = 2,
+    NUUID(Uuid) = 3,
+    CSI(CommandSetIdentifier) = 4,
+}
+
+impl NamespaceIdentifierType {
+    fn id(&self) -> u8 {
+        // https://doc.rust-lang.org/reference/items/enumerations.html#r-items.enum.discriminant.access-memory
+        unsafe { *(self as *const Self as *const u8) }
+    }
+}
 
 #[derive(Debug)]
 pub struct Namespace {
@@ -382,22 +421,33 @@ pub struct Namespace {
     capacity: usize,
     used: usize,
     block_order: u8,
+    nids: [NamespaceIdentifierType; 2],
 }
 
 impl Namespace {
-    pub fn new(capacity: usize) -> Self {
+    fn generate_uuid(nsid: NamespaceId) -> Uuid {
+        // TODO: Switch implementation to getrandom crate once we persist NSs
+        let sde = env!("SOURCE_DATE_EPOCH");
+        let mut hasher = Sha1::new();
+        hasher.update(sde);
+        hasher.update(nsid.0.to_be_bytes());
+        let digest = hasher.finalize();
+        let mut data = [0u8; 16];
+        data.clone_from_slice(&digest[..16]);
+        uuid::Builder::from_sha1_bytes(data).into_uuid()
+    }
+
+    pub fn new(id: Uuid, capacity: usize) -> Self {
         Self {
             size: capacity,
             capacity,
             used: 0,
             block_order: 9,
+            nids: [
+                NamespaceIdentifierType::NUUID(id),
+                NamespaceIdentifierType::CSI(CommandSetIdentifier::NVMCommandSet),
+            ],
         }
-    }
-}
-
-impl Default for Namespace {
-    fn default() -> Self {
-        Self::new(1024)
     }
 }
 
@@ -477,7 +527,7 @@ impl Subsystem {
     pub fn add_namespace(&mut self, capacity: usize) -> Result<NamespaceId, u8> {
         debug_assert!(self.nss.len() <= u32::MAX.try_into().unwrap());
         let nsid = NamespaceId((self.nss.len() + 1).try_into().unwrap());
-        let ns = Namespace::new(capacity);
+        let ns = Namespace::new(Namespace::generate_uuid(nsid), capacity);
         match self.nss.push(ns) {
             Ok(_) => Ok(nsid),
             Err(_) => Err(0x16), // Namespace Identifier Unavailable

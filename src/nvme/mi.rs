@@ -2,9 +2,9 @@ use heapless::Vec;
 use log::debug;
 use mctp::{AsyncRespChannel, MCTP_TYPE_NVME};
 
-use crate::nvme::{MAX_NAMESPACES, NamespaceId, PCIeLinkSpeed, UnitKind};
+use crate::nvme::{MAX_NAMESPACES, PCIeLinkSpeed, UnitKind};
 
-use super::PortType;
+use super::{NamespaceIdentifierType, PortType};
 
 const ISCSI: crc::Crc<u32> = crc::Crc::<u32>::new(&crc::CRC_32_ISCSI);
 const MAX_FRAGMENTS: usize = 6;
@@ -860,13 +860,58 @@ impl AdminIdentifyNVMIdentifyNamespaceResponse<[u8; 4096]> {
 
 bitfield! {
     struct AdminIdentifyActiveNamespaceIDListResponse([u8]);
-    u8;
-    u32, nsid, set_nsid: obi(4, 7), obi(0, 0), 1024;
+    u32;
+    nsid, set_nsid: obi(4, 7), obi(0, 0), 1024;
 }
 
 impl AdminIdentifyActiveNamespaceIDListResponse<[u8; 4096]> {
     fn new() -> Self {
         Self([0; 4096])
+    }
+}
+
+bitfield! {
+    struct AdminIdentifyNamespaceIdentificationDescriptorResponse([u8]);
+    u8;
+    nidt, set_nidt: obi(0, 7), obi(0, 0);
+    nidl, set_nidl: obi(1, 7), obi(1, 0);
+    nid, set_nid: obi(4, 7), obi(4, 0), 16;
+}
+
+impl AdminIdentifyNamespaceIdentificationDescriptorResponse<[u8; 20]> {
+    fn new() -> Self {
+        Self([0u8; 20])
+    }
+
+    fn encode(&mut self, typ: &NamespaceIdentifierType) -> &[u8] {
+        match typ {
+            NamespaceIdentifierType::Reserved => {
+                panic!("Refusing to encode reserved value");
+            }
+            NamespaceIdentifierType::IEUID(_) => {
+                todo!("Support IEUID");
+            }
+            NamespaceIdentifierType::NGUID(_) => {
+                todo!("Support NGUID");
+            }
+            NamespaceIdentifierType::NUUID(uuid) => {
+                self.set_nidt(typ.id());
+                let uuidb = uuid.into_bytes();
+                let len = uuidb.len();
+                debug_assert!(len == 16);
+                self.set_nidl(len as u8);
+                for (i, v) in uuidb.iter().enumerate() {
+                    self.set_nid(i, *v);
+                }
+                &self.0[..len + 4]
+            }
+            NamespaceIdentifierType::CSI(csi) => {
+                self.set_nidt(typ.id());
+                self.set_nidl(1);
+                self.set_nid(0, csi.id());
+                &self.0[..5]
+            }
+        }
     }
 }
 
@@ -1571,6 +1616,37 @@ impl RequestHandler for AdminIdentifyRequest<[u8; 60]> {
                     aianidlr.set_nsid(index, *nsid);
                 }
                 self.send_constrained_response(resp, &[&mh.0, &acrh.0], &aianidlr.0)
+                    .await
+            }
+            ControllerOrNamespaceStructure::NamespaceIdentificationDescriptorList => {
+                // 5.1.13.2.3, Base v2.1
+                if self.nsid() >= u32::MAX - 1 {
+                    debug!("Unacceptable NSID for Namespace Identification Descriptor List");
+                    return Err(ResponseStatus::InvalidParameter);
+                }
+
+                if self.nsid() == 0 || self.nsid() > subsys.nss.capacity() as u32 {
+                    debug!("Invalid NSID: {}", self.nsid());
+                    return Err(ResponseStatus::InvalidParameter);
+                }
+
+                let Some(ns) = subsys.nss.get(self.nsid() as usize - 1) else {
+                    debug!("Unallocated NSID: {}", self.nsid());
+                    return Err(ResponseStatus::InvalidParameter);
+                };
+
+                // TODO: Reduce the amount of copying happening here
+                let mut buf = [0u8; 4096];
+                let mut ainsidlr = AdminIdentifyNamespaceIdentificationDescriptorResponse::new();
+                let mut idx = 0;
+                for nid in ns.nids.iter() {
+                    let encoded = ainsidlr.encode(nid);
+                    let end = idx + encoded.len();
+                    buf[idx..end].copy_from_slice(encoded);
+                    idx += encoded.len();
+                }
+
+                self.send_constrained_response(resp, &[&mh.0, &acrh.0], &buf)
                     .await
             }
             ControllerOrNamespaceStructure::NVMSubsystemControllerList => {
