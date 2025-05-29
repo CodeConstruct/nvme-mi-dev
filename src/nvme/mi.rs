@@ -1705,6 +1705,19 @@ impl RequestHandler for AdminIdentifyRequest<[u8; 60]> {
                 self.send_constrained_response(resp, &[&mh.0, &acrh.0], &cl.0)
                     .await
             }
+            ControllerOrNamespaceStructure::SecondaryControllerList => {
+                let Some(ctlr) = subsys.ctlrs.first() else {
+                    // TODO: Set PEL
+                    return Err(ResponseStatus::InvalidParameter);
+                };
+
+                if !ctlr.secondaries.is_empty() {
+                    todo!("Support listing secondary controllers");
+                }
+
+                self.send_constrained_response(resp, &[&mh.0, &acrh.0], &[0u8; 4096])
+                    .await
+            }
             _ => {
                 debug!("Unimplemented CNS: {:?}", self.sqedw10_cns());
                 Err(ResponseStatus::InternalError)

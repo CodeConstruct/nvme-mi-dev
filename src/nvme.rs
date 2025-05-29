@@ -287,9 +287,15 @@ impl OperatingRange {
 pub struct ControllerId(u16);
 
 #[derive(Debug)]
+pub struct SecondaryController {
+    id: ControllerId,
+}
+
+#[derive(Debug)]
 pub struct Controller {
     id: ControllerId,
     port: PortId,
+    secondaries: heapless::Vec<SecondaryController, 0>,
     active_ns: heapless::Vec<NamespaceId, MAX_NAMESPACES>,
     temp: u16,
     temp_range: OperatingRange,
@@ -306,6 +312,7 @@ impl Controller {
         Self {
             id,
             port,
+            secondaries: heapless::Vec::new(),
             active_ns: heapless::Vec::new(),
             temp: 293,
             temp_range: OperatingRange::new(UnitKind::Kelvin, 213, 400),

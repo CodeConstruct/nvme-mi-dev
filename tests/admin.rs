@@ -1308,4 +1308,52 @@ mod identify {
         let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
         smol::block_on(async { mep.handle_async(&mut subsys, &REQ, true, resp).await });
     }
+
+    #[test]
+    fn secondary_controller_list() {
+        setup();
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS1a0a);
+
+        #[rustfmt::skip]
+        const REQ: [u8; 71] = [
+            0x10, 0x00, 0x00,
+            0x06, 0x00, 0x00, 0x00,
+
+            // SQE DWORD 1
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // DOFST
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x10, 0x00, 0x00,
+
+            // Reserved
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // SQE DWORD 10
+            0x15, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // MIC
+            0x3d, 0x35, 0x1f, 0x8a
+        ];
+
+        #[rustfmt::skip]
+        let resp_fields: Vec<ExpectedField> = vec![
+            (0, &[0x90]),
+            (19, &[0; 4096]),
+        ];
+
+        let resp = RelaxedRespChannel::new(resp_fields);
+        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, true, resp).await });
+    }
 }
