@@ -1356,7 +1356,8 @@ impl RequestHandler for AdminCommandRequestHeader<[u8; 4]> {
         debug!("{:x?}", self);
 
         if self.cflgs_ish() {
-            todo!("Support ignore shutdown state");
+            debug!("Support ignore shutdown state");
+            return Err(ResponseStatus::InternalError);
         }
 
         if self.ctlid() > 0 {
@@ -1495,7 +1496,8 @@ impl RequestHandler for AdminIdentifyRequest<[u8; 60]> {
                 assert!(subsys.nss.len() <= u32::MAX.try_into().unwrap());
 
                 if self.nsid() == u32::MAX {
-                    todo!("Deal with broadcast NSID");
+                    debug!("Support with broadcast NSID");
+                    return Err(ResponseStatus::InternalError);
                 }
 
                 if self.nsid() == 0 || self.nsid() > subsys.nss.capacity() as u32 {
@@ -1765,7 +1767,8 @@ impl super::ManagementEndpoint {
         };
 
         if mh.csi() {
-            todo!("Support second command slot");
+            debug!("Support second command slot");
+            return;
         }
 
         if mh.ror() {
