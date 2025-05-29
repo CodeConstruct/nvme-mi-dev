@@ -515,7 +515,7 @@ bitfield! {
     cflgs_dlenv, set_cflgs_dlenv: 8;
     cflgs_dofstv, set_cflgs_dofstv: 9;
     cflgs_ish, set_cflgs_ish: 10;
-    u16, ctrlid, set_ctrlid: 31, 16;
+    u16, ctlid, set_ctlid: 31, 16;
 }
 
 impl AdminCommandRequestHeader<[u8; 4]> {
@@ -1359,6 +1359,14 @@ impl RequestHandler for AdminCommandRequestHeader<[u8; 4]> {
             todo!("Support ignore shutdown state");
         }
 
+        if self.ctlid() > 0 {
+            if subsys.ctlrs.len() > 1 {
+                todo!("Support for selecting controllers via CTLID");
+            }
+            debug!("Invalid CTLID: {}", self.ctlid());
+            return Err(ResponseStatus::InvalidParameter);
+        }
+
         let opcode = self.opcode();
         match opcode {
             AdminCommandOpcode::Identify => {
@@ -1524,8 +1532,7 @@ impl RequestHandler for AdminIdentifyRequest<[u8; 60]> {
                     .await
             }
             ControllerOrNamespaceStructure::IdentifyController => {
-                let Some(ctlr) = subsys.ctlrs.iter().find(|c| c.id.0 == self.sqedw10_cntid())
-                else {
+                let Some(ctlr) = subsys.ctlrs.first() else {
                     // TODO: Set PEL
                     return Err(ResponseStatus::InvalidParameter);
                 };
