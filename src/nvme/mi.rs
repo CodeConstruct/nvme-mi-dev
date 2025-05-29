@@ -915,6 +915,18 @@ impl AdminIdentifyNamespaceIdentificationDescriptorResponse<[u8; 20]> {
     }
 }
 
+bitfield! {
+    struct AdminIdentifyAllocatedNamespaceIDListResponse([u8]);
+    u32;
+    nsid, set_nsid: obi(3, 7), obi(0, 0), 1024;
+}
+
+impl AdminIdentifyAllocatedNamespaceIDListResponse<[u8; 4096]> {
+    fn new() -> Self {
+        Self([0; 4096])
+    }
+}
+
 async fn send_response(resp: &mut impl AsyncRespChannel, bufs: &[&[u8]]) {
     let mut digest = ISCSI.digest();
     digest.update(&[0x80 | 0x04]);
@@ -1647,6 +1659,24 @@ impl RequestHandler for AdminIdentifyRequest<[u8; 60]> {
                 }
 
                 self.send_constrained_response(resp, &[&mh.0, &acrh.0], &buf)
+                    .await
+            }
+            ControllerOrNamespaceStructure::AllocatedNamespaceIDList => {
+                // 5.1.13.2.9, Base v2.1
+                if self.nsid() >= u32::MAX - 1 {
+                    debug!("Invalid NSID");
+                    return Err(ResponseStatus::InvalidParameter);
+                }
+
+                let mut aiansidl = AdminIdentifyAllocatedNamespaceIDListResponse::new();
+                assert!(subsys.nss.len() < aiansidl.0.len() / core::mem::size_of::<u32>());
+                let start = self.nsid() + 1;
+                let end = subsys.nss.len() as u32;
+                for (idx, nsid) in (start..=end).enumerate() {
+                    aiansidl.set_nsid(idx, nsid);
+                }
+
+                self.send_constrained_response(resp, &[&mh.0, &acrh.0], &aiansidl.0)
                     .await
             }
             ControllerOrNamespaceStructure::NVMSubsystemControllerList => {
