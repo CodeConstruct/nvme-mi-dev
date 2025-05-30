@@ -851,6 +851,7 @@ bitfield! {
     dpc_piilb, set_dpc_piilb: obi(28, 4);
     dps_pit, set_dps_pit: obi(29, 2), obi(29, 0);
     dps_pip, set_dps_pip: obi(29, 3);
+    u128, nvmcap, set_nvmcap: obi(63, 7), obi(48, 0);
     u16, lbaf0_ms, set_lbaf0_ms: obi(129, 7), obi(128, 0);
     lbaf0_lbads, set_lbaf0_lbads: obi(130, 7), obi(130, 0);
     lbaf0_rp, set_lbaf0_rp: obi(131, 1), obi(131, 0);
@@ -1529,6 +1530,7 @@ impl RequestHandler for AdminIdentifyRequest<[u8; 60]> {
                     ainvminr.set_nlbaf(0);
                     ainvminr.set_mc(0);
                     ainvminr.set_lbaf0_lbads(ns.block_order);
+                    ainvminr.set_nvmcap(2_u128.pow(ns.block_order as u32) * ns.size as u128);
                 }
 
                 self.send_constrained_response(resp, &[&mh.0, &acrh.0], &ainvminr.0)

@@ -58,6 +58,7 @@ mod identify {
     use crate::common::RESP_INVALID_COMMAND_SIZE;
     use crate::common::RESP_INVALID_PARAMETER;
     use crate::common::RelaxedRespChannel;
+    use crate::common::TestDevice;
     use crate::common::new_device;
     use crate::common::setup;
     use mctp::MsgIC;
@@ -1132,6 +1133,69 @@ mod identify {
 
         let resp = RelaxedRespChannel::new(resp_fields);
         smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+    }
+
+    #[test]
+    fn namespace_identify_large_size() {
+        setup();
+
+        let mut t = TestDevice::new();
+        let ctlrid = t.subsys.add_controller(t.ppid).unwrap();
+        // TODO lbads is assumed from current Namespace::new()
+        let lbads = 9;
+        let blocks = u64::MAX;
+        let nvmcap = (blocks as u128) * 2_u128.pow(lbads);
+        let nsid = t.subsys.add_namespace(blocks).unwrap();
+        let ctrl = t.subsys.controller_mut(ctlrid);
+        ctrl.attach_namespace(nsid).unwrap();
+
+        #[rustfmt::skip]
+        const REQ: [u8; 71] = [
+            0x10, 0x00, 0x00,
+            0x06, 0x00, 0x00, 0x00,
+
+            // SQE DWORD 1
+            0x01, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // DOFST
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x10, 0x00, 0x00,
+
+            // Reserved
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // SQE DWORD 10
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // MIC
+            0x49, 0xb0, 0xa7, 0x22
+        ];
+
+        let blocks_repr = blocks.to_le_bytes();
+        let nvmcap_repr = (nvmcap as u128).to_le_bytes();
+
+        #[rustfmt::skip]
+        let resp_fields: Vec<ExpectedField> = vec![
+            // NSZE
+            (19+0, &blocks_repr),
+            // NCAP
+            (19+8, &blocks_repr),
+            // NVMCAP
+            (19+48, &nvmcap_repr),
+        ];
+
+        let resp = RelaxedRespChannel::new(resp_fields);
+        smol::block_on(async { t.mep.handle_async(&mut t.subsys, &REQ, MsgIC(true), resp).await });
     }
 
     #[test]
