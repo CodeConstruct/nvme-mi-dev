@@ -1026,9 +1026,12 @@ impl RequestHandler for NVMeMICommandHeader<[u8; 4]> {
                 let mut mr = NVMeManagementResponse::new();
                 mr.set_status(ResponseStatus::Success);
 
-                let Some(ctlr) = subsys.ctlrs.first() else {
-                    panic!("An NVMe Subsystem requires at least one controller");
-                };
+                // Implementation-specific strategy is to pick the first controller.
+                let ctlr = subsys
+                    .ctlrs
+                    .first()
+                    .expect("Device needs at least one controller");
+
                 let mut nvmshds = NVMSubsystemHealthDataStructure::new();
 
                 let Some(port) = subsys.ports.iter().find(|p| p.id == ctlr.port) else {
@@ -1050,9 +1053,6 @@ impl RequestHandler for NVMeMICommandHeader<[u8; 4]> {
                 nvmshds.set_nss_atf(subsys.health.nss.atf);
 
                 // Derive ASCBT from spare vs capacity
-                assert!(!subsys.ctlrs.is_empty());
-                // Implementation-specific strategy is to pick the first controller.
-                let ctlr = &subsys.ctlrs[0];
                 if ctlr.spare > ctlr.capacity {
                     debug!(
                         "spare capacity {} exceeds drive capacity {}",
@@ -1532,10 +1532,10 @@ impl RequestHandler for AdminIdentifyRequest<[u8; 60]> {
                     .await
             }
             ControllerOrNamespaceStructure::IdentifyController => {
-                let Some(ctlr) = subsys.ctlrs.first() else {
-                    // TODO: Set PEL
-                    return Err(ResponseStatus::InvalidParameter);
-                };
+                let ctlr = subsys
+                    .ctlrs
+                    .first()
+                    .expect("Device needs at least one controller");
 
                 let mut aicr = AdminIdentifyControllerResponse::new();
 
@@ -1706,10 +1706,10 @@ impl RequestHandler for AdminIdentifyRequest<[u8; 60]> {
                     .await
             }
             ControllerOrNamespaceStructure::SecondaryControllerList => {
-                let Some(ctlr) = subsys.ctlrs.first() else {
-                    // TODO: Set PEL
-                    return Err(ResponseStatus::InvalidParameter);
-                };
+                let ctlr = subsys
+                    .ctlrs
+                    .first()
+                    .expect("Device needs at least one controller");
 
                 if !ctlr.secondaries.is_empty() {
                     todo!("Support listing secondary controllers");
