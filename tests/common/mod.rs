@@ -123,6 +123,7 @@ impl mctp::AsyncRespChannel for ExpectedRespChannel<'_> {
     }
 }
 
+/// A tuple of `(byte_offset, expected_slice)`
 pub type ExpectedField<'a> = (usize, &'a [u8]);
 pub struct RelaxedRespChannel<'a> {
     fields: Vec<ExpectedField<'a>>,
