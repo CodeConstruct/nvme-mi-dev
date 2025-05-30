@@ -406,9 +406,9 @@ impl NamespaceIdentifierType {
 
 #[derive(Debug)]
 pub struct Namespace {
-    size: usize,
-    capacity: usize,
-    used: usize,
+    size: u64,
+    capacity: u64,
+    used: u64,
     block_order: u8,
     nids: [NamespaceIdentifierType; 2],
 }
@@ -422,7 +422,7 @@ impl Namespace {
         uuid::Builder::from_random_bytes(digest).into_uuid()
     }
 
-    pub fn new(id: Uuid, capacity: usize) -> Self {
+    pub fn new(id: Uuid, capacity: u64) -> Self {
         Self {
             size: capacity,
             capacity,
@@ -563,7 +563,7 @@ impl Subsystem {
             .expect("Invalid ControllerId provided")
     }
 
-    pub fn add_namespace(&mut self, capacity: usize) -> Result<NamespaceId, u8> {
+    pub fn add_namespace(&mut self, capacity: u64) -> Result<NamespaceId, u8> {
         debug_assert!(self.nss.len() <= u32::MAX.try_into().unwrap());
         let nsid = NamespaceId((self.nss.len() + 1).try_into().unwrap());
         let ns = Namespace::new(

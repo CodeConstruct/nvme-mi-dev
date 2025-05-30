@@ -1522,9 +1522,9 @@ impl RequestHandler for AdminIdentifyRequest<[u8; 60]> {
                     .flat_map(|c| c.active_ns.iter())
                     .any(|&nsid| nsid.0 == self.nsid());
                 if active {
-                    ainvminr.set_nsze(ns.size.try_into().unwrap());
-                    ainvminr.set_ncap(ns.capacity.try_into().unwrap());
-                    ainvminr.set_nuse(ns.used.try_into().unwrap());
+                    ainvminr.set_nsze(ns.size);
+                    ainvminr.set_ncap(ns.capacity);
+                    ainvminr.set_nuse(ns.used);
                     ainvminr.set_nsfeat_thinp(ns.size == ns.capacity);
                     ainvminr.set_nlbaf(0);
                     ainvminr.set_mc(0);
