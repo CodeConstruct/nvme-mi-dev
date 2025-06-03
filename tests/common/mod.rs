@@ -1,7 +1,9 @@
 extern crate simplelog;
 
 use log::LevelFilter;
-use nvme_mi_dev::nvme::{ManagementEndpoint, PCIePort, PortType, Subsystem, TwoWirePort};
+use nvme_mi_dev::nvme::{
+    ManagementEndpoint, PCIePort, PortType, Subsystem, SubsystemInfo, TwoWirePort,
+};
 use simplelog::{ColorChoice, Config, TermLogger, TerminalMode};
 
 pub struct MockNVMeMIAsyncReqChannel {}
@@ -221,7 +223,7 @@ pub enum DeviceType {
 }
 
 pub fn new_device(typ: DeviceType) -> (ManagementEndpoint, Subsystem) {
-    let mut subsys = Subsystem::new();
+    let mut subsys = Subsystem::new(SubsystemInfo::invalid());
     let ppid = subsys.add_port(PortType::PCIe(PCIePort::new())).unwrap();
     let ctlrid = subsys.add_controller(ppid).unwrap();
     let twpid = subsys

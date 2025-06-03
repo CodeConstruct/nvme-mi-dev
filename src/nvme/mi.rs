@@ -1295,10 +1295,10 @@ impl RequestHandler for NVMeMIDataStructure<[u8; 8]> {
                 ci.set_pri_pcifn(pprt.f.to_le());
                 ci.set_pri_pcidn(pprt.d.to_le());
                 ci.set_pri_pcibn(pprt.b.to_le());
-                ci.set_pcivid(pprt.vid.to_le());
-                ci.set_pcidid(pprt.did.to_le());
-                ci.set_pcisvid(pprt.svid.to_le());
-                ci.set_pcisdid(pprt.sdid.to_le());
+                ci.set_pcivid(subsys.info.pci_vid.to_le());
+                ci.set_pcidid(subsys.info.pci_did.to_le());
+                ci.set_pcisvid(subsys.info.pci_svid.to_le());
+                ci.set_pcisdid(subsys.info.pci_sdid.to_le());
                 ci.set_pciesn(pprt.seg);
 
                 debug_assert!(ci.0.len() < u16::MAX as usize);
@@ -1541,19 +1541,8 @@ impl RequestHandler for AdminIdentifyRequest<[u8; 60]> {
 
                 let mut aicr = AdminIdentifyControllerResponse::new();
 
-                let Some(port) = subsys.ports.iter().find(|p| p.id == ctlr.port) else {
-                    panic!(
-                        "Inconsistent port association for controller {:?}: {:?}",
-                        ctlr.id, ctlr.port
-                    );
-                };
-
-                let PortType::PCIe(pprt) = port.typ else {
-                    panic!("Non-PCIe port associated with controller {:?}", ctlr.id);
-                };
-
-                aicr.set_vid(pprt.vid);
-                aicr.set_ssvid(pprt.svid);
+                aicr.set_vid(subsys.info.pci_vid);
+                aicr.set_ssvid(subsys.info.pci_svid);
 
                 for (idx, val) in subsys.sn.bytes().enumerate().filter(|args| args.0 < 20) {
                     aicr.set_sn(idx, val);
@@ -1567,7 +1556,8 @@ impl RequestHandler for AdminIdentifyRequest<[u8; 60]> {
                     aicr.set_fr(idx, val);
                 }
 
-                for (idx, val) in subsys.oui.iter().enumerate() {
+                // 4.5.3, Base v2.1
+                for (idx, val) in subsys.info.ieee_oui.iter().rev().enumerate() {
                     aicr.set_ieee(idx, *val);
                 }
 

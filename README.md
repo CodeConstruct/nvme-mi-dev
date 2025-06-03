@@ -11,12 +11,12 @@ creates two namespaces in a subsystem with one controller, one PCIe port, and
 one two-wire port. One of the namespaces is attached to the controller:
 
 ```rust
-use nvme_mi_dev::nvme::{ManagementEndpoint, PCIePort, PortType, Subsystem, TwoWirePort};
+use nvme_mi_dev::nvme::{ManagementEndpoint, PCIePort, PortType, Subsystem, SubsystemInfo, TwoWirePort};
 
 async fn nvme_mi<'a>(router: &'a Router<'a>) -> std::io::Result<()> {
     let mut l = router.listener(mctp::MCTP_TYPE_NVME)?;
 
-    let mut subsys = Subsystem::new();
+    let mut subsys = Subsystem::new(SubsystemInfo::environment());
     let ppid = subsys
         .add_port(PortType::PCIe(PCIePort::new()))
         .expect("Unable to create PCIe port");
@@ -63,7 +63,7 @@ queries based on the properties of the provided model.
 
 As the NVMe specifications largely relate to hardware specifications and
 implementations, the model needs some input to customise it to the vendor. The
-following environment variables should be set at build time:
+following environment variables can be used at build time:
 
 - `NVME_MI_DEV_IEEE_OUI`
 

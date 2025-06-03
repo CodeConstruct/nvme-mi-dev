@@ -64,10 +64,6 @@ pub struct PCIePort {
     b: u16,
     d: u16,
     f: u16,
-    vid: u16,
-    did: u16,
-    svid: u16,
-    sdid: u16,
     seg: u8,
     mps: PCIePayloadSize,
     cls: PCIeLinkSpeed,
@@ -76,29 +72,11 @@ pub struct PCIePort {
 }
 
 impl PCIePort {
-    fn acquire_pci_ids() -> (u16, u16, u16, u16) {
-        // ffff is the value returned by an aborted access
-        let vid = u16::from_str_radix(option_env!("NVME_MI_DEV_PCI_VID").unwrap_or("ffff"), 16)
-            .expect("NVME_MI_DEV_PCI_VID must be set to a 16-bit value in base-16 representation");
-        let did = u16::from_str_radix(option_env!("NVME_MI_DEV_PCI_DID").unwrap_or("ffff"), 16)
-            .expect("NVME_MI_DEV_PCI_DID must be set to a 16-bit value in base-16 representation");
-        let svid = u16::from_str_radix(option_env!("NVME_MI_DEV_PCI_SVID").unwrap_or("ffff"), 16)
-            .expect("NVME_MI_DEV_PCI_SVID must be set to a 16-bit value in base-16 representation");
-        let sdid = u16::from_str_radix(option_env!("NVME_MI_DEV_PCI_SDID").unwrap_or("ffff"), 16)
-            .expect("NVME_MI_DEV_PCI_SDID must be set to a 16-bit value in base-16 representation");
-        (vid, did, svid, sdid)
-    }
-
     pub fn new() -> Self {
-        let (vid, did, svid, sdid) = PCIePort::acquire_pci_ids();
         Self {
             b: 0,
             d: 0,
             f: 0,
-            vid,
-            did,
-            svid,
-            sdid,
             seg: 0,
             mps: PCIePayloadSize::Payload128B,
             cls: PCIeLinkSpeed::GTS2P5,
@@ -432,11 +410,9 @@ pub struct Namespace {
 }
 
 impl Namespace {
-    fn generate_uuid(nsid: NamespaceId) -> Uuid {
-        // TODO: Switch implementation to getrandom crate once we persist NSs
-        let sde = env!("SOURCE_DATE_EPOCH");
+    fn generate_uuid(seed: &[u8], nsid: NamespaceId) -> Uuid {
         let mut hasher = Sha1::new();
-        hasher.update(sde);
+        hasher.update(seed);
         hasher.update(nsid.0.to_be_bytes());
         let digest = hasher.finalize();
         let mut data = [0u8; 16];
@@ -462,21 +438,21 @@ const MAX_CONTROLLERS: usize = 2;
 const MAX_NAMESPACES: usize = 2;
 const MAX_PORTS: usize = 2;
 
-#[derive(Debug)]
-pub struct Subsystem {
-    oui: [u8; 3],
-    caps: SubsystemCapabilities,
-    ports: heapless::Vec<Port, MAX_PORTS>,
-    ctlrs: heapless::Vec<Controller, MAX_CONTROLLERS>,
-    nss: heapless::Vec<Namespace, MAX_NAMESPACES>,
-    health: SubsystemHealth,
-    mi: MICapability,
-    sn: &'static str,
-    mn: &'static str,
-    fr: &'static str,
+#[derive(Clone, Copy, Debug)]
+pub struct SubsystemInfo {
+    pub pci_vid: u16,
+    pub pci_did: u16,
+    pub pci_svid: u16,
+    pub pci_sdid: u16,
+    pub ieee_oui: [u8; 3],
+    pub instance: [u8; 16],
 }
 
-impl Subsystem {
+impl SubsystemInfo {
+    fn acquire_source_date_epoch() -> u64 {
+        env!("SOURCE_DATE_EPOCH").parse::<u64>().unwrap_or(0)
+    }
+
     fn acquire_ieee_oui() -> [u8; 3] {
         let mut oui = [0u8; 3];
         // ac-de-48 is allocated as private, used as the example value in the
@@ -492,15 +468,69 @@ impl Subsystem {
             })
             .enumerate()
         {
-            // 4.5.3, Base v2.1
-            oui[oui.len() - 1 - idx] = val;
+            oui[idx] = val;
         }
         oui
     }
 
-    pub fn new() -> Self {
+    fn acquire_pci_ids() -> (u16, u16, u16, u16) {
+        // ffff is the value returned by an aborted access
+        let vid = u16::from_str_radix(option_env!("NVME_MI_DEV_PCI_VID").unwrap_or("ffff"), 16)
+            .expect("NVME_MI_DEV_PCI_VID must be set to a 16-bit value in base-16 representation");
+        let did = u16::from_str_radix(option_env!("NVME_MI_DEV_PCI_DID").unwrap_or("ffff"), 16)
+            .expect("NVME_MI_DEV_PCI_DID must be set to a 16-bit value in base-16 representation");
+        let svid = u16::from_str_radix(option_env!("NVME_MI_DEV_PCI_SVID").unwrap_or("ffff"), 16)
+            .expect("NVME_MI_DEV_PCI_SVID must be set to a 16-bit value in base-16 representation");
+        let sdid = u16::from_str_radix(option_env!("NVME_MI_DEV_PCI_SDID").unwrap_or("ffff"), 16)
+            .expect("NVME_MI_DEV_PCI_SDID must be set to a 16-bit value in base-16 representation");
+        (vid, did, svid, sdid)
+    }
+
+    pub fn invalid() -> Self {
+        Self {
+            pci_vid: 0xffff,
+            pci_did: 0xffff,
+            pci_svid: 0xffff,
+            pci_sdid: 0xffff,
+            ieee_oui: [0xac, 0xde, 0x48],
+            instance: [0; 16],
+        }
+    }
+
+    pub fn environment() -> Self {
+        let (vid, did, svid, sdid) = SubsystemInfo::acquire_pci_ids();
+        let sde = SubsystemInfo::acquire_source_date_epoch().to_le_bytes();
+        let mut instance = [0u8; 16];
+        instance[..sde.len()].copy_from_slice(&sde);
+        Self {
+            pci_vid: vid,
+            pci_did: did,
+            pci_svid: svid,
+            pci_sdid: sdid,
+            ieee_oui: SubsystemInfo::acquire_ieee_oui(),
+            instance,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Subsystem {
+    info: SubsystemInfo,
+    caps: SubsystemCapabilities,
+    ports: heapless::Vec<Port, MAX_PORTS>,
+    ctlrs: heapless::Vec<Controller, MAX_CONTROLLERS>,
+    nss: heapless::Vec<Namespace, MAX_NAMESPACES>,
+    health: SubsystemHealth,
+    mi: MICapability,
+    sn: &'static str,
+    mn: &'static str,
+    fr: &'static str,
+}
+
+impl Subsystem {
+    pub fn new(info: SubsystemInfo) -> Self {
         Subsystem {
-            oui: Subsystem::acquire_ieee_oui(),
+            info,
             caps: SubsystemCapabilities::new(),
             ports: heapless::Vec::new(),
             ctlrs: heapless::Vec::new(),
@@ -534,16 +564,13 @@ impl Subsystem {
     pub fn add_namespace(&mut self, capacity: usize) -> Result<NamespaceId, u8> {
         debug_assert!(self.nss.len() <= u32::MAX.try_into().unwrap());
         let nsid = NamespaceId((self.nss.len() + 1).try_into().unwrap());
-        let ns = Namespace::new(Namespace::generate_uuid(nsid), capacity);
+        let ns = Namespace::new(
+            Namespace::generate_uuid(&self.info.instance, nsid),
+            capacity,
+        );
         match self.nss.push(ns) {
             Ok(_) => Ok(nsid),
             Err(_) => Err(0x16), // Namespace Identifier Unavailable
         }
-    }
-}
-
-impl Default for Subsystem {
-    fn default() -> Self {
-        Self::new()
     }
 }

@@ -28,6 +28,7 @@ mod read_nvme_mi_data_structure {
     use nvme_mi_dev::nvme::PCIePort;
     use nvme_mi_dev::nvme::PortType;
     use nvme_mi_dev::nvme::Subsystem;
+    use nvme_mi_dev::nvme::SubsystemInfo;
     use nvme_mi_dev::nvme::TwoWirePort;
 
     use crate::common::DeviceType;
@@ -256,7 +257,7 @@ mod read_nvme_mi_data_structure {
     #[test]
     fn controller_list_multiple() {
         setup();
-        let mut subsys = Subsystem::new();
+        let mut subsys = Subsystem::new(SubsystemInfo::invalid());
         let ppid = subsys.add_port(PortType::PCIe(PCIePort::new())).unwrap();
         subsys.add_controller(ppid).unwrap();
         subsys.add_controller(ppid).unwrap();
@@ -291,7 +292,7 @@ mod read_nvme_mi_data_structure {
     fn controller_list_multiple_partial_populated() {
         setup();
 
-        let mut subsys = Subsystem::new();
+        let mut subsys = Subsystem::new(SubsystemInfo::invalid());
         let ppid = subsys.add_port(PortType::PCIe(PCIePort::new())).unwrap();
         subsys.add_controller(ppid).unwrap();
         subsys.add_controller(ppid).unwrap();
@@ -366,7 +367,7 @@ mod read_nvme_mi_data_structure {
 
 mod nvm_subsystem_status_health_poll {
     use nvme_mi_dev::nvme::{
-        ManagementEndpoint, PCIePort, PortType, Subsystem, Temperature, TwoWirePort,
+        ManagementEndpoint, PCIePort, PortType, Subsystem, SubsystemInfo, Temperature, TwoWirePort,
     };
 
     use crate::common::{
@@ -442,7 +443,7 @@ mod nvm_subsystem_status_health_poll {
     fn ctemp_excursion_saturate_low() {
         setup();
 
-        let mut subsys = Subsystem::new();
+        let mut subsys = Subsystem::new(SubsystemInfo::invalid());
         let ppid = subsys.add_port(PortType::PCIe(PCIePort::new())).unwrap();
         let ctlrid = subsys.add_controller(ppid).unwrap();
         let twpid = subsys
@@ -478,7 +479,7 @@ mod nvm_subsystem_status_health_poll {
     fn ctemp_saturate_low() {
         setup();
 
-        let mut subsys = Subsystem::new();
+        let mut subsys = Subsystem::new(SubsystemInfo::invalid());
         let ppid = subsys.add_port(PortType::PCIe(PCIePort::new())).unwrap();
         let ctlrid = subsys.add_controller(ppid).unwrap();
         let twpid = subsys
@@ -514,7 +515,7 @@ mod nvm_subsystem_status_health_poll {
     fn ctemp_low() {
         setup();
 
-        let mut subsys = Subsystem::new();
+        let mut subsys = Subsystem::new(SubsystemInfo::invalid());
         let ppid = subsys.add_port(PortType::PCIe(PCIePort::new())).unwrap();
         let ctlrid = subsys.add_controller(ppid).unwrap();
         let twpid = subsys
@@ -550,7 +551,7 @@ mod nvm_subsystem_status_health_poll {
     fn ctemp_zero() {
         setup();
 
-        let mut subsys = Subsystem::new();
+        let mut subsys = Subsystem::new(SubsystemInfo::invalid());
         let ppid = subsys.add_port(PortType::PCIe(PCIePort::new())).unwrap();
         let ctlrid = subsys.add_controller(ppid).unwrap();
         let twpid = subsys
@@ -586,7 +587,7 @@ mod nvm_subsystem_status_health_poll {
     fn ctemp_high() {
         setup();
 
-        let mut subsys = Subsystem::new();
+        let mut subsys = Subsystem::new(SubsystemInfo::invalid());
         let ppid = subsys.add_port(PortType::PCIe(PCIePort::new())).unwrap();
         let ctlrid = subsys.add_controller(ppid).unwrap();
         let twpid = subsys
@@ -622,7 +623,7 @@ mod nvm_subsystem_status_health_poll {
     fn ctemp_saturate_high() {
         setup();
 
-        let mut subsys = Subsystem::new();
+        let mut subsys = Subsystem::new(SubsystemInfo::invalid());
         let ppid = subsys.add_port(PortType::PCIe(PCIePort::new())).unwrap();
         let ctlrid = subsys.add_controller(ppid).unwrap();
         let twpid = subsys
@@ -658,7 +659,7 @@ mod nvm_subsystem_status_health_poll {
     fn ctemp_excursion_saturate_high() {
         setup();
 
-        let mut subsys = Subsystem::new();
+        let mut subsys = Subsystem::new(SubsystemInfo::invalid());
         let ppid = subsys.add_port(PortType::PCIe(PCIePort::new())).unwrap();
         let ctlrid = subsys.add_controller(ppid).unwrap();
         let twpid = subsys
