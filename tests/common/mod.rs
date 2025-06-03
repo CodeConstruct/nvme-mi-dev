@@ -7,7 +7,7 @@ extern crate simplelog;
 use log::LevelFilter;
 use mctp::MsgIC;
 use nvme_mi_dev::nvme::{
-    ManagementEndpoint, PCIePort, PortType, Subsystem, SubsystemInfo, TwoWirePort,
+    ManagementEndpoint, PCIePort, PortId, PortType, Subsystem, SubsystemInfo, TwoWirePort,
 };
 use simplelog::{ColorChoice, Config, TermLogger, TerminalMode};
 
@@ -204,28 +204,42 @@ pub enum DeviceType {
     P1p1tC1aNS1a1a,
 }
 
+pub struct TestDevice {
+    pub ppid: PortId,
+    pub mep: ManagementEndpoint,
+    pub subsys: Subsystem,
+}
+
+impl TestDevice {
+    pub fn new() -> Self {
+        let mut subsys = Subsystem::new(SubsystemInfo::invalid());
+        let ppid = subsys.add_port(PortType::PCIe(PCIePort::new())).unwrap();
+        let twpid = subsys
+            .add_port(PortType::TwoWire(TwoWirePort::new()))
+            .unwrap();
+        let mep = ManagementEndpoint::new(twpid);
+        Self { ppid, mep, subsys }
+    }
+}
+
 pub fn new_device(typ: DeviceType) -> (ManagementEndpoint, Subsystem) {
-    let mut subsys = Subsystem::new(SubsystemInfo::invalid());
-    let ppid = subsys.add_port(PortType::PCIe(PCIePort::new())).unwrap();
-    let ctlrid = subsys.add_controller(ppid).unwrap();
-    let twpid = subsys
-        .add_port(PortType::TwoWire(TwoWirePort::new()))
-        .unwrap();
-    let mep = ManagementEndpoint::new(twpid);
+    let mut tdev = TestDevice::new();
+
+    let ctlrid = tdev.subsys.add_controller(tdev.ppid).unwrap();
     match typ {
         DeviceType::P1p1tC1aNS0a0a => {}
         DeviceType::P1p1tC1aNS1a0a => {
-            subsys.add_namespace(1024).unwrap();
+            tdev.subsys.add_namespace(1024).unwrap();
         }
         DeviceType::P1p1tC1aNS1a1a => {
-            let nsid = subsys.add_namespace(1024).unwrap();
-            subsys
+            let nsid = tdev.subsys.add_namespace(1024).unwrap();
+            tdev.subsys
                 .controller_mut(ctlrid)
                 .attach_namespace(nsid)
                 .unwrap();
         }
     };
-    (mep, subsys)
+    (tdev.mep, tdev.subsys)
 }
 
 #[rustfmt::skip]
