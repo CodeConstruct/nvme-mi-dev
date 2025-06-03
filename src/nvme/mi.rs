@@ -1689,8 +1689,8 @@ impl RequestHandler for AdminIdentifyRequest<[u8; 60]> {
                 for (idx, ctlr) in subsys
                     .ctlrs
                     .iter()
+                    .filter(|v| v.id.0 >= self.sqedw10_cntid())
                     .enumerate()
-                    .filter(|args| args.1.id.0 >= self.sqedw10_cntid())
                 {
                     cl.set_ids(idx, ctlr.id.0.to_le());
                 }
