@@ -1,6 +1,6 @@
 pub mod mi;
 
-use sha1::{Digest, Sha1};
+use hmac::Mac;
 use uuid::Uuid;
 
 #[allow(dead_code)]
@@ -411,13 +411,11 @@ pub struct Namespace {
 
 impl Namespace {
     fn generate_uuid(seed: &[u8], nsid: NamespaceId) -> Uuid {
-        let mut hasher = Sha1::new();
-        hasher.update(seed);
-        hasher.update(nsid.0.to_be_bytes());
-        let digest = hasher.finalize();
-        let mut data = [0u8; 16];
-        data.clone_from_slice(&digest[..16]);
-        uuid::Builder::from_sha1_bytes(data).into_uuid()
+        let mut hasher = hmac::Hmac::<sha2::Sha256>::new_from_slice(seed).unwrap();
+        hasher.update(&nsid.0.to_be_bytes());
+        let digest = hasher.finalize().into_bytes();
+        let digest: [u8; 16] = digest[..16].try_into().unwrap();
+        uuid::Builder::from_random_bytes(digest).into_uuid()
     }
 
     pub fn new(id: Uuid, capacity: usize) -> Self {
