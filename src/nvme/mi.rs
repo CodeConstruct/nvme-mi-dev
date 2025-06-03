@@ -1544,15 +1544,15 @@ impl RequestHandler for AdminIdentifyRequest<[u8; 60]> {
                 aicr.set_vid(subsys.info.pci_vid);
                 aicr.set_ssvid(subsys.info.pci_svid);
 
-                for (idx, val) in subsys.sn.bytes().enumerate().filter(|args| args.0 < 20) {
+                for (idx, val) in subsys.sn.bytes().take(20).enumerate() {
                     aicr.set_sn(idx, val);
                 }
 
-                for (idx, val) in subsys.mn.bytes().enumerate().filter(|args| args.0 < 20) {
+                for (idx, val) in subsys.mn.bytes().take(20).enumerate() {
                     aicr.set_mn(idx, val);
                 }
 
-                for (idx, val) in subsys.fr.bytes().enumerate().filter(|args| args.0 < 8) {
+                for (idx, val) in subsys.fr.bytes().take(8).enumerate() {
                     aicr.set_fr(idx, val);
                 }
 
