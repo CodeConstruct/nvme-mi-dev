@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2025 Code Construct
  */
+use mctp::MsgIC;
 mod common;
 
 use common::DeviceType;
@@ -24,10 +25,11 @@ fn short_header_object() {
     ];
 
     let resp = ExpectedRespChannel::new(&RESP_INVALID_COMMAND_SIZE);
-    smol::block_on(async { mep.handle_async(&mut subsys, &REQ, true, resp).await });
+    smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
 }
 
 mod read_nvme_mi_data_structure {
+    use mctp::MsgIC;
     use nvme_mi_dev::nvme::ManagementEndpoint;
     use nvme_mi_dev::nvme::PCIePort;
     use nvme_mi_dev::nvme::PortType;
@@ -60,7 +62,7 @@ mod read_nvme_mi_data_structure {
         ];
 
         let resp = ExpectedRespChannel::new(&RESP_INVALID_COMMAND_SIZE);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, true, resp).await });
+        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
     }
 
     #[test]
@@ -80,7 +82,7 @@ mod read_nvme_mi_data_structure {
         ];
 
         let resp = ExpectedRespChannel::new(&RESP_INVALID_COMMAND_INPUT_DATA_SIZE);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, true, resp).await });
+        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
     }
 
     #[test]
@@ -114,7 +116,7 @@ mod read_nvme_mi_data_structure {
         ];
 
         let resp = ExpectedRespChannel::new(&RESP);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, true, resp).await });
+        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
     }
 
     #[test]
@@ -133,7 +135,7 @@ mod read_nvme_mi_data_structure {
         ];
 
         let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, true, resp).await })
+        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await })
     }
 
     #[test]
@@ -167,7 +169,7 @@ mod read_nvme_mi_data_structure {
         ];
 
         let resp = ExpectedRespChannel::new(&RESP);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, true, resp).await })
+        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await })
     }
 
     #[test]
@@ -201,7 +203,7 @@ mod read_nvme_mi_data_structure {
         ];
 
         let resp = ExpectedRespChannel::new(&RESP);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, true, resp).await })
+        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await })
     }
 
     #[test]
@@ -228,7 +230,7 @@ mod read_nvme_mi_data_structure {
         ];
 
         let resp = ExpectedRespChannel::new(&RESP);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, true, resp).await })
+        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await })
     }
 
     #[test]
@@ -255,7 +257,7 @@ mod read_nvme_mi_data_structure {
         ];
 
         let resp = ExpectedRespChannel::new(&RESP);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, true, resp).await })
+        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await })
     }
 
     #[test]
@@ -289,7 +291,7 @@ mod read_nvme_mi_data_structure {
         ];
 
         let resp = ExpectedRespChannel::new(&RESP);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, true, resp).await })
+        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await })
     }
 
     #[test]
@@ -323,7 +325,7 @@ mod read_nvme_mi_data_structure {
         ];
 
         let resp = ExpectedRespChannel::new(&RESP);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, true, resp).await })
+        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await })
     }
 
     #[test]
@@ -346,7 +348,7 @@ mod read_nvme_mi_data_structure {
         let resp_data: Vec<(usize, &[u8])> = vec![(0, &[0x88, 0x00, 0x00, 0x00, 0x20, 0x00, 0x00])];
 
         let resp = RelaxedRespChannel::new(resp_data);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, true, resp).await })
+        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await })
     }
 
     #[test]
@@ -365,11 +367,12 @@ mod read_nvme_mi_data_structure {
         ];
 
         let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, true, resp).await })
+        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await })
     }
 }
 
 mod nvm_subsystem_status_health_poll {
+    use mctp::MsgIC;
     use nvme_mi_dev::nvme::{
         ManagementEndpoint, PCIePort, PortType, Subsystem, SubsystemInfo, Temperature, TwoWirePort,
     };
@@ -392,7 +395,7 @@ mod nvm_subsystem_status_health_poll {
         ];
 
         let resp = ExpectedRespChannel::new(&RESP_INVALID_COMMAND_SIZE);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, true, resp).await })
+        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await })
     }
 
     #[test]
@@ -412,7 +415,7 @@ mod nvm_subsystem_status_health_poll {
         ];
 
         let resp = ExpectedRespChannel::new(&RESP_INVALID_COMMAND_SIZE);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, true, resp).await });
+        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
     }
 
     #[test]
@@ -440,7 +443,7 @@ mod nvm_subsystem_status_health_poll {
         ];
 
         let resp = ExpectedRespChannel::new(&RESP);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, true, resp).await });
+        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
     }
 
     #[test]
@@ -476,7 +479,7 @@ mod nvm_subsystem_status_health_poll {
         ];
 
         let resp = ExpectedRespChannel::new(&RESP);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, true, resp).await });
+        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
     }
 
     #[test]
@@ -512,7 +515,7 @@ mod nvm_subsystem_status_health_poll {
         ];
 
         let resp = ExpectedRespChannel::new(&RESP);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, true, resp).await });
+        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
     }
 
     #[test]
@@ -548,7 +551,7 @@ mod nvm_subsystem_status_health_poll {
         ];
 
         let resp = ExpectedRespChannel::new(&RESP);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, true, resp).await });
+        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
     }
 
     #[test]
@@ -584,7 +587,7 @@ mod nvm_subsystem_status_health_poll {
         ];
 
         let resp = ExpectedRespChannel::new(&RESP);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, true, resp).await });
+        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
     }
 
     #[test]
@@ -620,7 +623,7 @@ mod nvm_subsystem_status_health_poll {
         ];
 
         let resp = ExpectedRespChannel::new(&RESP);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, true, resp).await });
+        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
     }
 
     #[test]
@@ -656,7 +659,7 @@ mod nvm_subsystem_status_health_poll {
         ];
 
         let resp = ExpectedRespChannel::new(&RESP);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, true, resp).await });
+        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
     }
 
     #[test]
@@ -692,6 +695,6 @@ mod nvm_subsystem_status_health_poll {
         ];
 
         let resp = ExpectedRespChannel::new(&RESP);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, true, resp).await });
+        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
     }
 }

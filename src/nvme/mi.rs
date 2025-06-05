@@ -4,7 +4,7 @@
  */
 use heapless::Vec;
 use log::debug;
-use mctp::{AsyncRespChannel, MCTP_TYPE_NVME};
+use mctp::{AsyncRespChannel, MsgIC};
 
 use crate::nvme::{MAX_NAMESPACES, PCIeLinkSpeed, UnitKind};
 
@@ -950,10 +950,7 @@ async fn send_response(resp: &mut impl AsyncRespChannel, bufs: &[&[u8]]) {
         return;
     }
 
-    if let Err(e) = resp
-        .send_vectored(MCTP_TYPE_NVME, true, bufs.as_slice())
-        .await
-    {
+    if let Err(e) = resp.send_vectored(MsgIC(true), bufs.as_slice()).await {
         debug!("Failed to send NVMe-MI response: {:?}", e);
     }
 }
@@ -1727,10 +1724,10 @@ impl super::ManagementEndpoint {
         &mut self,
         subsys: &mut super::Subsystem,
         msg: &[u8],
-        ic: bool,
+        ic: MsgIC,
         mut resp: A,
     ) {
-        if !ic {
+        if !ic.0 {
             debug!("NVMe-MI requires IC set for OOB messages");
             return;
         }
@@ -1784,7 +1781,7 @@ impl super::ManagementEndpoint {
 
             let icv = digest.finalize().to_le_bytes();
             let respv = [mh.0.as_slice(), ss.as_slice(), icv.as_slice()];
-            if let Err(e) = resp.send_vectored(MCTP_TYPE_NVME, true, &respv).await {
+            if let Err(e) = resp.send_vectored(MsgIC(true), &respv).await {
                 debug!("Failed to send NVMe-MI error response: {e:?}");
             }
         }

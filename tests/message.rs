@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2025 Code Construct
  */
+use mctp::MsgIC;
 mod common;
 
 use common::DeviceType;
@@ -17,7 +18,7 @@ fn invalid_ic_bit() {
     let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS0a0a);
     let resp = NeverRespChannel::new("Response sent for request with bad IC bit");
 
-    smol::block_on(async { mep.handle_async(&mut subsys, &[], false, resp).await });
+    smol::block_on(async { mep.handle_async(&mut subsys, &[], MsgIC(false), resp).await });
 }
 
 #[test]
@@ -28,7 +29,7 @@ fn invalid_ic_object() {
     let resp = NeverRespChannel::new("Response sent for request with invalid IC object");
 
     const REQ: [u8; 3] = [0x00, 0x00, 0x00];
-    smol::block_on(async { mep.handle_async(&mut subsys, &REQ, true, resp).await });
+    smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
 }
 
 #[test]
@@ -39,7 +40,7 @@ fn invalid_ic_value() {
     let resp = NeverRespChannel::new("Response sent for request with invalid IC value");
 
     const REQ: [u8; 4] = [!0x36, !0xff, !0x11, !0x17];
-    smol::block_on(async { mep.handle_async(&mut subsys, &REQ, true, resp).await });
+    smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
 }
 
 #[test]
@@ -55,7 +56,7 @@ fn invalid_message_header_object() {
         0x00, 0x00,
         0x23, 0x70, 0x9d, 0x75
     ];
-    smol::block_on(async { mep.handle_async(&mut subsys, &REQ, true, resp).await });
+    smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
 }
 
 #[test]
@@ -71,5 +72,5 @@ fn invalid_message_header_ror() {
         0x80, 0x00, 0x00,
         0x48, 0xc4, 0xc2, 0xea
     ];
-    smol::block_on(async { mep.handle_async(&mut subsys, &REQ, true, resp).await });
+    smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
 }

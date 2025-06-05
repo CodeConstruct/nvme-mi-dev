@@ -5,6 +5,7 @@
 extern crate simplelog;
 
 use log::LevelFilter;
+use mctp::MsgIC;
 use nvme_mi_dev::nvme::{
     ManagementEndpoint, PCIePort, PortType, Subsystem, SubsystemInfo, TwoWirePort,
 };
@@ -16,7 +17,7 @@ impl mctp::AsyncReqChannel for MockNVMeMIAsyncReqChannel {
     async fn send_vectored(
         &mut self,
         _typ: mctp::MsgType,
-        _integrity_check: bool,
+        _integrity_check: MsgIC,
         _bufs: &[&[u8]],
     ) -> mctp::Result<()> {
         Result::Ok(())
@@ -25,13 +26,8 @@ impl mctp::AsyncReqChannel for MockNVMeMIAsyncReqChannel {
     async fn recv<'f>(
         &mut self,
         buf: &'f mut [u8],
-    ) -> mctp::Result<(&'f mut [u8], mctp::MsgType, mctp::Tag, bool)> {
-        mctp::Result::Ok((
-            buf,
-            mctp::MCTP_TYPE_NVME,
-            mctp::Tag::Unowned(mctp::TagValue(0)),
-            true,
-        ))
+    ) -> mctp::Result<(mctp::MsgType, MsgIC, &'f mut [u8])> {
+        mctp::Result::Ok((mctp::MCTP_TYPE_NVME, MsgIC(true), buf))
     }
 
     fn remote_eid(&self) -> mctp::Eid {
@@ -57,8 +53,7 @@ impl mctp::AsyncRespChannel for NeverRespChannel {
 
     async fn send_vectored(
         &mut self,
-        _typ: mctp::MsgType,
-        _integrity_check: bool,
+        _integrity_check: MsgIC,
         _bufs: &[&[u8]],
     ) -> mctp::Result<()> {
         unreachable!("{}", self.msg);
@@ -70,10 +65,6 @@ impl mctp::AsyncRespChannel for NeverRespChannel {
 
     fn req_channel(&self) -> mctp::Result<Self::ReqChannel<'_>> {
         todo!()
-    }
-
-    async fn send(&mut self, typ: mctp::MsgType, buf: &[u8]) -> mctp::Result<()> {
-        self.send_vectored(typ, false, &[buf]).await
     }
 }
 
@@ -104,12 +95,7 @@ impl mctp::AsyncRespChannel for ExpectedRespChannel<'_> {
     where
         Self: 'a;
 
-    async fn send_vectored(
-        &mut self,
-        _typ: mctp::MsgType,
-        _integrity_check: bool,
-        bufs: &[&[u8]],
-    ) -> mctp::Result<()> {
+    async fn send_vectored(&mut self, _integrity_check: MsgIC, bufs: &[&[u8]]) -> mctp::Result<()> {
         self.sent = true;
 
         assert!(
@@ -134,10 +120,6 @@ impl mctp::AsyncRespChannel for ExpectedRespChannel<'_> {
 
     fn req_channel(&self) -> mctp::Result<Self::ReqChannel<'_>> {
         todo!()
-    }
-
-    async fn send(&mut self, typ: mctp::MsgType, buf: &[u8]) -> mctp::Result<()> {
-        self.send_vectored(typ, false, &[buf]).await
     }
 }
 
@@ -169,12 +151,7 @@ impl mctp::AsyncRespChannel for RelaxedRespChannel<'_> {
     where
         Self: 'a;
 
-    async fn send_vectored(
-        &mut self,
-        _typ: mctp::MsgType,
-        _integrity_check: bool,
-        bufs: &[&[u8]],
-    ) -> mctp::Result<()> {
+    async fn send_vectored(&mut self, _integrity_check: MsgIC, bufs: &[&[u8]]) -> mctp::Result<()> {
         self.sent = true;
         let reified: Vec<u8> = bufs.iter().flat_map(|b| b.iter()).copied().collect();
         for (offset, data) in self.fields.iter() {
