@@ -215,6 +215,7 @@ pub struct CompositeControllerStatusFlags {
 
 #[derive(Debug)]
 pub struct ManagementEndpoint {
+    #[expect(dead_code)]
     port: PortId,
     ccsf: CompositeControllerStatusFlags,
 }
@@ -270,6 +271,7 @@ pub struct ControllerId(u16);
 
 #[derive(Debug)]
 pub struct SecondaryController {
+    #[expect(dead_code)]
     id: ControllerId,
 }
 
