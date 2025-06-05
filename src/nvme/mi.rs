@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: GPL-3.0-only
+/*
+ * Copyright (c) 2025 Code Construct
+ */
 use heapless::Vec;
 use log::debug;
 use mctp::{AsyncRespChannel, MCTP_TYPE_NVME};
