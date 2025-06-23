@@ -45,7 +45,7 @@ async fn nvme_mi<'a>(router: &'a Router<'a>) -> std::io::Result<()> {
 
     let mut buf = [0u8; 4224];
     loop {
-        let Ok((msg, resp, _tag, _typ, ic)) = l.recv(&mut buf).await else {
+        let Ok((_typ, ic, msg, resp)) = l.recv(&mut buf).await else {
             debug!("recv() failed");
             continue;
         };

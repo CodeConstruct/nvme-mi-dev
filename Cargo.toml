@@ -10,7 +10,7 @@ crc = "3.2.1"
 heapless = "0.8.0"
 hmac = { version = "0.12.1", default-features = false }
 log = "0.4.22"
-mctp = { git = "http://github.com/CodeConstruct/mctp-rs", rev = "0ae21b3e52eccca5ebee8796a317be9806851416", package = "mctp", default-features = false }
+mctp = { version = "0.2.0", default-features = false }
 sha2 = { version = "0.10.9", default-features = false }
 uuid = { version = "1.17.0", default-features = false }
 
