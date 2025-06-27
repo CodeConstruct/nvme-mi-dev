@@ -7,6 +7,11 @@ pub mod mi;
 use hmac::Mac;
 use uuid::Uuid;
 
+const MAX_CONTROLLERS: usize = 2;
+const MAX_NAMESPACES: usize = 2;
+const MAX_PORTS: usize = 2;
+const MAX_NIDTS: usize = 2;
+
 #[allow(dead_code)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u8)]
@@ -97,19 +102,12 @@ impl Default for PCIePort {
 }
 
 #[allow(dead_code)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum SMBusFrequency {
-    FreqNotSupported = 0x00,
-    Freq100kHz = 0x01,
-    Freq400kHz = 0x02,
-    Freq1MHz = 0x03,
-}
-
-impl From<SMBusFrequency> for u8 {
-    fn from(freq: SMBusFrequency) -> Self {
-        freq as Self
-    }
+    FreqNotSupported,
+    Freq100kHz,
+    Freq400kHz,
+    Freq1MHz,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -367,43 +365,21 @@ impl SubsystemHealth {
     }
 }
 
-#[derive(Debug)]
-#[repr(u8)]
+#[derive(Clone, Copy, Debug)]
 pub enum CommandSetIdentifier {
-    NVMCommandSet = 0,
-    KeyValueCommandSet = 1,
-    ZonedNamespaceCommandSet = 2,
-    SubsystemLocalMemoryCommandSet = 3,
-    ComputationalProgramsCommandSet = 4,
+    NVMCommandSet,
+    KeyValueCommandSet,
+    ZonedNamespaceCommandSet,
+    SubsystemLocalMemoryCommandSet,
+    ComputationalProgramsCommandSet,
 }
 
-impl CommandSetIdentifier {
-    fn id(&self) -> u8 {
-        // https://doc.rust-lang.org/reference/items/enumerations.html#r-items.enum.discriminant.access-memory
-        unsafe { *(self as *const Self as *const u8) }
-    }
-}
-
-// NSID
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct NamespaceId(u32);
-
-// NID: 5.1.13.2.3, Base v2.1
-#[derive(Debug)]
-#[repr(u8)]
+#[derive(Clone, Copy, Debug)]
 pub enum NamespaceIdentifierType {
-    Reserved = 0,
-    IEUID([u8; 8]) = 1,
-    NGUID([u8; 16]) = 2,
-    NUUID(Uuid) = 3,
-    CSI(CommandSetIdentifier) = 4,
-}
-
-impl NamespaceIdentifierType {
-    fn id(&self) -> u8 {
-        // https://doc.rust-lang.org/reference/items/enumerations.html#r-items.enum.discriminant.access-memory
-        unsafe { *(self as *const Self as *const u8) }
-    }
+    IEUID([u8; 8]),
+    NGUID([u8; 16]),
+    NUUID(Uuid),
+    CSI(CommandSetIdentifier),
 }
 
 #[derive(Debug)]
@@ -414,6 +390,10 @@ pub struct Namespace {
     block_order: u8,
     nids: [NamespaceIdentifierType; 2],
 }
+
+// NSID
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NamespaceId(u32);
 
 impl Namespace {
     fn generate_uuid(seed: &[u8], nsid: NamespaceId) -> Uuid {
@@ -437,10 +417,6 @@ impl Namespace {
         }
     }
 }
-
-const MAX_CONTROLLERS: usize = 2;
-const MAX_NAMESPACES: usize = 2;
-const MAX_PORTS: usize = 2;
 
 #[derive(Clone, Copy, Debug)]
 pub struct SubsystemInfo {

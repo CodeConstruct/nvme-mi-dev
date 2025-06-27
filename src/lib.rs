@@ -3,10 +3,9 @@
  * Copyright (c) 2025 Code Construct
  */
 #![no_std]
-// bitfield needs this to cope with large structure sizes?
-#![recursion_limit = "512"]
 
 pub mod nvme;
+mod wire;
 
-#[macro_use]
-extern crate bitfield;
+extern crate deku;
+extern crate num_derive;
