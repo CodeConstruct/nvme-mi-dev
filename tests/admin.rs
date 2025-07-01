@@ -446,6 +446,14 @@ mod identify {
             (23, &[0x31, 0x30, 0x30, 0x30]), // SN
             (43, &[0x4d, 0x49, 0x44, 0x45, 0x56]), // MN
             (83, &[0x30, 0x30, 0x2e, 0x30, 0x30, 0x2e, 0x30, 0x31]), // FR
+            (95, &[0x01]), // CMIC
+            (98, &[0x00, 0x00]), // CNTLID
+            (130, &[0x03]), // CNTRLTYPE
+            (272, &[0x01]), // NVMSR
+            (274, &[0x03]), // MEC
+            (285, &[0x57, 0x01]), // WCTEMP
+            (287, &[0x57, 0x01]), // CCTEMP
+            (535, &[0x02]), // NN
         ];
 
         let resp = RelaxedRespChannel::new(resp_fields);
