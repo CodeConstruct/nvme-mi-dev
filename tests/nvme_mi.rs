@@ -7,9 +7,29 @@ mod common;
 
 use common::DeviceType;
 use common::ExpectedRespChannel;
-use common::RESP_INVALID_COMMAND_SIZE;
 use common::new_device;
 use common::setup;
+
+#[rustfmt::skip]
+pub const RESP_INVALID_PARAMETER: [u8; 11] = [
+    0x88, 0x00, 0x00,
+    0x04, 0x00, 0x00, 0x00,
+    0xd7, 0x64, 0x55, 0x59
+];
+
+#[rustfmt::skip]
+pub const RESP_INVALID_COMMAND_SIZE: [u8; 11] = [
+    0x88, 0x00, 0x00,
+    0x05, 0x00, 0x00, 0x00,
+    0x6f, 0xce, 0x10, 0x84
+];
+
+#[rustfmt::skip]
+pub const RESP_INVALID_COMMAND_INPUT_DATA_SIZE: [u8; 11] = [
+    0x88, 0x00, 0x00,
+    0x06, 0x00, 0x00, 0x00,
+    0x56, 0x47, 0x32, 0xe6
+];
 
 #[test]
 fn short_header_object() {
@@ -37,11 +57,11 @@ mod read_nvme_mi_data_structure {
     use nvme_mi_dev::nvme::SubsystemInfo;
     use nvme_mi_dev::nvme::TwoWirePort;
 
+    use super::RESP_INVALID_COMMAND_INPUT_DATA_SIZE;
+    use super::RESP_INVALID_COMMAND_SIZE;
+    use super::RESP_INVALID_PARAMETER;
     use crate::common::DeviceType;
     use crate::common::ExpectedRespChannel;
-    use crate::common::RESP_INVALID_COMMAND_INPUT_DATA_SIZE;
-    use crate::common::RESP_INVALID_COMMAND_SIZE;
-    use crate::common::RESP_INVALID_PARAMETER;
     use crate::common::RelaxedRespChannel;
     use crate::common::new_device;
     use crate::common::setup;
@@ -377,9 +397,8 @@ mod nvm_subsystem_status_health_poll {
         ManagementEndpoint, PCIePort, PortType, Subsystem, SubsystemInfo, Temperature, TwoWirePort,
     };
 
-    use crate::common::{
-        DeviceType, ExpectedRespChannel, RESP_INVALID_COMMAND_SIZE, new_device, setup,
-    };
+    use super::RESP_INVALID_COMMAND_SIZE;
+    use crate::common::{DeviceType, ExpectedRespChannel, new_device, setup};
 
     #[test]
     fn short_request() {

@@ -4,8 +4,30 @@
  */
 mod common;
 
+#[rustfmt::skip]
+pub const RESP_INVALID_COMMAND: [u8; 11] = [
+    0x90, 0x00, 0x00,
+    0x03, 0x00, 0x00, 0x00,
+    0xe8, 0xdb, 0x23, 0x92
+];
+
+#[rustfmt::skip]
+pub const RESP_INVALID_PARAMETER: [u8; 11] = [
+    0x90, 0x00, 0x00,
+    0x04, 0x00, 0x00, 0x00,
+    0x22, 0x63, 0x23, 0x8b
+];
+
+#[rustfmt::skip]
+pub const RESP_INVALID_COMMAND_SIZE: [u8; 11] = [
+    0x90, 0x00, 0x00,
+    0x05, 0x00, 0x00, 0x00,
+    0x9a, 0xc9, 0x66, 0x56
+];
+
 mod prohibited {
-    use crate::common::{DeviceType, ExpectedRespChannel, RESP_INVALID_COMMAND, new_device, setup};
+    use super::RESP_INVALID_COMMAND;
+    use crate::common::{DeviceType, ExpectedRespChannel, new_device, setup};
     use mctp::MsgIC;
 
     #[test]
@@ -52,11 +74,11 @@ mod prohibited {
 }
 
 mod identify {
+    use super::RESP_INVALID_COMMAND_SIZE;
+    use super::RESP_INVALID_PARAMETER;
     use crate::common::DeviceType;
     use crate::common::ExpectedField;
     use crate::common::ExpectedRespChannel;
-    use crate::common::RESP_INVALID_COMMAND_SIZE;
-    use crate::common::RESP_INVALID_PARAMETER;
     use crate::common::RelaxedRespChannel;
     use crate::common::TestDevice;
     use crate::common::new_device;
@@ -1203,7 +1225,11 @@ mod identify {
         ];
 
         let resp = RelaxedRespChannel::new(resp_fields);
-        smol::block_on(async { t.mep.handle_async(&mut t.subsys, &REQ, MsgIC(true), resp).await });
+        smol::block_on(async {
+            t.mep
+                .handle_async(&mut t.subsys, &REQ, MsgIC(true), resp)
+                .await
+        });
     }
 
     #[test]

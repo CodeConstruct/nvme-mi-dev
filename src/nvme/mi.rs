@@ -1769,13 +1769,14 @@ impl super::ManagementEndpoint {
             return;
         }
 
+        let nmimt = mh.nmimt();
         if let Err(status) = mh.handle(self, subsys, rest, &mut resp).await {
             let mut digest = ISCSI.digest();
             digest.update(&[0x80 | 0x04]);
 
             let mut mh = MessageHeader::new();
             mh.set_ror(true);
-            mh.set_nmimt(mh.nmimt());
+            mh.set_nmimt(nmimt);
             digest.update(&mh.0);
 
             let ss: [u8; 4] = [status.into(), 0, 0, 0];
