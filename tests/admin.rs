@@ -1212,12 +1212,12 @@ mod identify {
         ];
 
         let blocks_repr = blocks.to_le_bytes();
-        let nvmcap_repr = (nvmcap as u128).to_le_bytes();
+        let nvmcap_repr = nvmcap.to_le_bytes();
 
         #[rustfmt::skip]
         let resp_fields: Vec<ExpectedField> = vec![
             // NSZE
-            (19+0, &blocks_repr),
+            (19, &blocks_repr),
             // NCAP
             (19+8, &blocks_repr),
             // NVMCAP

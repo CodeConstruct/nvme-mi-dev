@@ -40,6 +40,7 @@ pub struct NeverRespChannel {
 }
 
 impl NeverRespChannel {
+    #[allow(dead_code)]
     pub fn new(msg: &'static str) -> Self {
         NeverRespChannel { msg }
     }
@@ -74,6 +75,7 @@ pub struct ExpectedRespChannel<'a> {
 }
 
 impl<'a> ExpectedRespChannel<'a> {
+    #[allow(dead_code)]
     pub fn new(resp: &'a [u8]) -> Self {
         Self { resp, sent: false }
     }
@@ -131,6 +133,7 @@ pub struct RelaxedRespChannel<'a> {
 }
 
 impl<'a> RelaxedRespChannel<'a> {
+    #[allow(dead_code)]
     pub fn new(mut fields: Vec<ExpectedField<'a>>) -> Self {
         fields.sort_by(|a, b| Ord::cmp(&a.0, &b.0));
         Self {
@@ -158,10 +161,7 @@ impl mctp::AsyncRespChannel for RelaxedRespChannel<'_> {
         for (offset, data) in self.fields.iter() {
             assert!(
                 reified.iter().skip(*offset).zip(*data).all(|p| p.0 == p.1),
-                "Field match failed at offset {}: expected {:x?} in response\n{:x?}",
-                offset,
-                data,
-                reified
+                "Field match failed at offset {offset}: expected {data:x?} in response\n{reified:x?}"
             );
         }
         Ok(())
@@ -187,6 +187,7 @@ pub fn setup() {
     }
 }
 
+#[allow(dead_code)]
 pub enum DeviceType {
     // Ports: 1 PCIe, 1 Two-wire
     // Controllers: 1 Admin

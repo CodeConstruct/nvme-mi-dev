@@ -952,7 +952,7 @@ async fn send_response(resp: &mut impl AsyncRespChannel, bufs: &[&[u8]]) {
     }
 
     if let Err(e) = resp.send_vectored(MsgIC(true), bufs.as_slice()).await {
-        debug!("Failed to send NVMe-MI response: {:?}", e);
+        debug!("Failed to send NVMe-MI response: {e:?}");
     }
 }
 
@@ -964,7 +964,7 @@ impl RequestHandler for MessageHeader<[u8; 3]> {
         rest: &[u8],
         resp: &mut A,
     ) -> Result<(), ResponseStatus> {
-        debug!("{:x?}", self);
+        debug!("{self:x?}");
         // TODO: Command and Feature Lockdown handling
         // TODO: Handle subsystem reset, section 8.1, v2.0
         match self.nmimt() {
@@ -1000,7 +1000,7 @@ impl RequestHandler for NVMeMICommandHeader<[u8; 4]> {
         rest: &[u8],
         resp: &mut A,
     ) -> Result<(), ResponseStatus> {
-        debug!("{:x?}", self);
+        debug!("{self:x?}");
         match self.opcode() {
             CommandOpcode::ReadNVMeMIDataStructure => {
                 let Some((ds, rest)) = NVMeMIDataStructure::extract(rest) else {
@@ -1073,7 +1073,9 @@ impl RequestHandler for NVMeMICommandHeader<[u8; 4]> {
 
                 nvmshds.set_sw_ndr_n(!subsys.health.nss.rd);
                 nvmshds.set_sw_amro_n(!ctlr.ro);
+                #[expect(clippy::nonminimal_bool)]
                 nvmshds.set_sw_vmbf_n(!false);
+                #[expect(clippy::nonminimal_bool)]
                 nvmshds.set_sw_pmrro_n(!false);
 
                 // Derive CTEMP from controller temperature via conversions
@@ -1142,7 +1144,7 @@ impl RequestHandler for NVMeMIDataStructure<[u8; 8]> {
         rest: &[u8],
         resp: &mut A,
     ) -> Result<(), ResponseStatus> {
-        debug!("{:x?}", self);
+        debug!("{self:x?}");
 
         if !rest.is_empty() {
             debug!("Lost coherence decoding NVMe-MI message");
@@ -1355,7 +1357,7 @@ impl RequestHandler for AdminCommandRequestHeader<[u8; 4]> {
         rest: &[u8],
         resp: &mut A,
     ) -> Result<(), ResponseStatus> {
-        debug!("{:x?}", self);
+        debug!("{self:x?}");
 
         if self.cflgs_ish() {
             debug!("Support ignore shutdown state");
@@ -1380,7 +1382,7 @@ impl RequestHandler for AdminCommandRequestHeader<[u8; 4]> {
                 id.handle(mep, subsys, rest, resp).await
             }
             opcode if MI_PROHIBITED_ADMIN_COMMANDS.contains(&opcode) => {
-                debug!("Prohibited MI admin command opcode: {:?}", opcode);
+                debug!("Prohibited MI admin command opcode: {opcode:?}");
                 Err(ResponseStatus::InvalidCommandOpcode)
             }
             _ => {
@@ -1407,27 +1409,24 @@ impl AdminIdentifyRequest<[u8; 60]> {
 
         let dofst = self.dofst() as usize;
         if dofst & 3 != 0 {
-            debug!("Unnatural DOFST value: {:?}", dofst);
+            debug!("Unnatural DOFST value: {dofst:?}");
             return Err(ResponseStatus::InvalidParameter);
         }
 
         if dofst >= data.len() {
-            debug!(
-                "DOFST value exceeds unconstrained response length: {:?}",
-                dofst
-            );
+            debug!("DOFST value exceeds unconstrained response length: {dofst:?}");
             return Err(ResponseStatus::InvalidParameter);
         }
 
         let dlen = self.dlen() as usize;
 
         if dlen & 3 != 0 {
-            debug!("Unnatural DLEN value: {:?}", dlen);
+            debug!("Unnatural DLEN value: {dlen:?}");
             return Err(ResponseStatus::InvalidParameter);
         }
 
         if dlen > 4096 {
-            debug!("DLEN too large: {:?}", dlen);
+            debug!("DLEN too large: {dlen:?}");
             return Err(ResponseStatus::InvalidParameter);
         }
 
@@ -1442,7 +1441,7 @@ impl AdminIdentifyRequest<[u8; 60]> {
         }
 
         if dlen == 0 {
-            debug!("DLEN cleared for command with data response: {:?}", dlen);
+            debug!("DLEN cleared for command with data response: {dlen:?}");
             return Err(ResponseStatus::InvalidParameter);
         }
 
@@ -1471,7 +1470,7 @@ impl RequestHandler for AdminIdentifyRequest<[u8; 60]> {
         rest: &[u8],
         resp: &mut A,
     ) -> Result<(), ResponseStatus> {
-        debug!("{:x?}", self);
+        debug!("{self:x?}");
 
         if !rest.is_empty() {
             debug!("Invalid request size for Admin Identify");

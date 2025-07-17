@@ -11,6 +11,6 @@ fn main() {
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        println!("cargo::rustc-env=SOURCE_DATE_EPOCH={}", sde);
+        println!("cargo::rustc-env=SOURCE_DATE_EPOCH={sde}");
     }
 }
