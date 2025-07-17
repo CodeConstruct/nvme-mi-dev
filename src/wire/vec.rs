@@ -46,7 +46,8 @@ where
             return Err(deku_error!(
                 DekuError::InvalidParam,
                 "Provided capacity is larger than vector capacity",
-                "{cap} exceeds {}",
+                "{} exceeds {}",
+                cap,
                 S
             ));
         }
