@@ -92,6 +92,16 @@ trait Encode<const S: usize>: DekuContainerWrite {
     }
 }
 
+/// # Safety
+///
+/// Must only be implemented for enums with attribute #[repr(T)]
+unsafe trait Discriminant<T: Copy> {
+    fn id(&self) -> T {
+        // https://doc.rust-lang.org/reference/items/enumerations.html#r-items.enum.discriminant.access-memory
+        unsafe { *(self as *const Self as *const T) }
+    }
+}
+
 #[derive(Debug, DekuRead, DekuWrite, PartialEq, FromPrimitive, ToPrimitive)]
 #[deku(endian = "endian", ctx = "endian: Endian", id_type = "u8")]
 #[repr(u8)]
@@ -177,13 +187,7 @@ impl TryFrom<u8> for MessageType {
         }
     }
 }
-
-impl MessageType {
-    fn id(&self) -> u8 {
-        // https://doc.rust-lang.org/reference/items/enumerations.html#r-items.enum.discriminant.access-memory
-        unsafe { *(self as *const Self as *const u8) }
-    }
-}
+unsafe impl Discriminant<u8> for MessageType {}
 
 #[derive(Debug, DekuRead, DekuWrite, PartialEq, Eq)]
 #[deku(id_type = "u8", endian = "endian", ctx = "endian: Endian")]
@@ -424,6 +428,7 @@ enum AdminCommandRequestType {
     ProgramActivationManagement = 0x88,    // P
     MemoryRangeSetManagement = 0x89,       // P
 }
+unsafe impl Discriminant<u8> for AdminCommandRequestType {}
 
 #[derive(Debug, DekuRead, DekuWrite)]
 #[deku(endian = "little")]
@@ -449,6 +454,7 @@ enum AdminIdentifyCnsRequestType {
     NvmSubsystemControllerList = 0x13,
     SecondaryControllerList = 0x15,
 }
+unsafe impl Discriminant<u8> for AdminIdentifyCnsRequestType {}
 
 // Base v2.1 Figure 101
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -464,26 +470,14 @@ enum CqeStatusCodeType {
     #[expect(dead_code)]
     VendorSpecific = 0x07,
 }
-
-impl CqeStatusCodeType {
-    fn id(&self) -> u8 {
-        // https://doc.rust-lang.org/reference/items/enumerations.html#r-items.enum.discriminant.access-memory
-        unsafe { *(self as *const Self as *const u8) }
-    }
-}
+unsafe impl Discriminant<u8> for CqeStatusCodeType {}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u8)]
 enum CqeGenericCommandStatus {
     SuccessfulCompletion = 0x00,
 }
-
-impl CqeGenericCommandStatus {
-    fn id(&self) -> u8 {
-        // https://doc.rust-lang.org/reference/items/enumerations.html#r-items.enum.discriminant.access-memory
-        unsafe { *(self as *const Self as *const u8) }
-    }
-}
+unsafe impl Discriminant<u8> for CqeGenericCommandStatus {}
 
 #[derive(Debug, DekuRead, DekuWrite)]
 #[deku(endian = "little")]
