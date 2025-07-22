@@ -262,7 +262,7 @@ dependencies = [
 [[package]]
 name = "deku"
 version = "0.19.1"
-source = "git+https://github.com/CodeConstruct/deku.git?tag=cc%2Fdeku-v0.19.1%2Fno-alloc-3#d68915c71e1b3ac76726328803eeffc773fb9871"
+source = "git+https://github.com/CodeConstruct/deku.git?tag=cc%2Fdeku-v0.19.1%2Fno-alloc-6#e1e2eb703ea7f8d68fb7ff01140ca16e021cb11c"
 dependencies = [
  "deku_derive",
  "no_std_io2",
@@ -272,7 +272,7 @@ dependencies = [
 [[package]]
 name = "deku_derive"
 version = "0.19.1"
-source = "git+https://github.com/CodeConstruct/deku.git?tag=cc%2Fdeku-v0.19.1%2Fno-alloc-3#d68915c71e1b3ac76726328803eeffc773fb9871"
+source = "git+https://github.com/CodeConstruct/deku.git?tag=cc%2Fdeku-v0.19.1%2Fno-alloc-6#e1e2eb703ea7f8d68fb7ff01140ca16e021cb11c"
 dependencies = [
  "darling",
  "proc-macro2",
