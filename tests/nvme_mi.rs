@@ -35,7 +35,7 @@ pub const RESP_INVALID_COMMAND_INPUT_DATA_SIZE: [u8; 11] = [
 fn short_header_object() {
     setup();
 
-    let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS0a0a);
+    let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
 
     #[rustfmt::skip]
     const REQ: [u8; 10] = [
@@ -51,7 +51,7 @@ fn short_header_object() {
 mod read_nvme_mi_data_structure {
     use mctp::MsgIC;
     use nvme_mi_dev::nvme::ManagementEndpoint;
-    use nvme_mi_dev::nvme::PCIePort;
+    use nvme_mi_dev::nvme::PciePort;
     use nvme_mi_dev::nvme::PortType;
     use nvme_mi_dev::nvme::Subsystem;
     use nvme_mi_dev::nvme::SubsystemInfo;
@@ -70,7 +70,7 @@ mod read_nvme_mi_data_structure {
     fn short_request() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 15] = [
@@ -89,7 +89,7 @@ mod read_nvme_mi_data_structure {
     fn long_request() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 23] = [
@@ -109,7 +109,7 @@ mod read_nvme_mi_data_structure {
     fn nvm_subsystem_information() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 19] = [
@@ -143,7 +143,7 @@ mod read_nvme_mi_data_structure {
     fn port_information_invalid() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 19] = [
@@ -162,7 +162,7 @@ mod read_nvme_mi_data_structure {
     fn port_information_pcie() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 19] = [
@@ -196,7 +196,7 @@ mod read_nvme_mi_data_structure {
     fn port_information_twowire() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 19] = [
@@ -230,7 +230,7 @@ mod read_nvme_mi_data_structure {
     fn controller_list_all() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 19] = [
@@ -257,7 +257,7 @@ mod read_nvme_mi_data_structure {
     fn controller_list_single_partial_empty() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 19] = [
@@ -284,7 +284,7 @@ mod read_nvme_mi_data_structure {
     fn controller_list_multiple() {
         setup();
         let mut subsys = Subsystem::new(SubsystemInfo::invalid());
-        let ppid = subsys.add_port(PortType::PCIe(PCIePort::new())).unwrap();
+        let ppid = subsys.add_port(PortType::Pcie(PciePort::new())).unwrap();
         subsys.add_controller(ppid).unwrap();
         subsys.add_controller(ppid).unwrap();
         let twpid = subsys
@@ -319,7 +319,7 @@ mod read_nvme_mi_data_structure {
         setup();
 
         let mut subsys = Subsystem::new(SubsystemInfo::invalid());
-        let ppid = subsys.add_port(PortType::PCIe(PCIePort::new())).unwrap();
+        let ppid = subsys.add_port(PortType::Pcie(PciePort::new())).unwrap();
         subsys.add_controller(ppid).unwrap();
         subsys.add_controller(ppid).unwrap();
         let twpid = subsys
@@ -352,7 +352,7 @@ mod read_nvme_mi_data_structure {
     fn controller_information_single_valid() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 19] = [
@@ -375,7 +375,7 @@ mod read_nvme_mi_data_structure {
     fn controller_information_single_invalid() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 19] = [
@@ -394,7 +394,7 @@ mod read_nvme_mi_data_structure {
 mod nvm_subsystem_status_health_poll {
     use mctp::MsgIC;
     use nvme_mi_dev::nvme::{
-        ManagementEndpoint, PCIePort, PortType, Subsystem, SubsystemInfo, Temperature, TwoWirePort,
+        ManagementEndpoint, PciePort, PortType, Subsystem, SubsystemInfo, Temperature, TwoWirePort,
     };
 
     use super::RESP_INVALID_COMMAND_SIZE;
@@ -404,7 +404,7 @@ mod nvm_subsystem_status_health_poll {
     fn short_request() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
         #[rustfmt::skip]
         const REQ: [u8; 15] = [
             0x08, 0x00, 0x00,
@@ -421,7 +421,7 @@ mod nvm_subsystem_status_health_poll {
     fn long_request() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 23] = [
@@ -441,7 +441,7 @@ mod nvm_subsystem_status_health_poll {
     fn clear_status() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 19] = [
@@ -470,7 +470,7 @@ mod nvm_subsystem_status_health_poll {
         setup();
 
         let mut subsys = Subsystem::new(SubsystemInfo::invalid());
-        let ppid = subsys.add_port(PortType::PCIe(PCIePort::new())).unwrap();
+        let ppid = subsys.add_port(PortType::Pcie(PciePort::new())).unwrap();
         let ctlrid = subsys.add_controller(ppid).unwrap();
         let twpid = subsys
             .add_port(PortType::TwoWire(TwoWirePort::new()))
@@ -506,7 +506,7 @@ mod nvm_subsystem_status_health_poll {
         setup();
 
         let mut subsys = Subsystem::new(SubsystemInfo::invalid());
-        let ppid = subsys.add_port(PortType::PCIe(PCIePort::new())).unwrap();
+        let ppid = subsys.add_port(PortType::Pcie(PciePort::new())).unwrap();
         let ctlrid = subsys.add_controller(ppid).unwrap();
         let twpid = subsys
             .add_port(PortType::TwoWire(TwoWirePort::new()))
@@ -542,7 +542,7 @@ mod nvm_subsystem_status_health_poll {
         setup();
 
         let mut subsys = Subsystem::new(SubsystemInfo::invalid());
-        let ppid = subsys.add_port(PortType::PCIe(PCIePort::new())).unwrap();
+        let ppid = subsys.add_port(PortType::Pcie(PciePort::new())).unwrap();
         let ctlrid = subsys.add_controller(ppid).unwrap();
         let twpid = subsys
             .add_port(PortType::TwoWire(TwoWirePort::new()))
@@ -578,7 +578,7 @@ mod nvm_subsystem_status_health_poll {
         setup();
 
         let mut subsys = Subsystem::new(SubsystemInfo::invalid());
-        let ppid = subsys.add_port(PortType::PCIe(PCIePort::new())).unwrap();
+        let ppid = subsys.add_port(PortType::Pcie(PciePort::new())).unwrap();
         let ctlrid = subsys.add_controller(ppid).unwrap();
         let twpid = subsys
             .add_port(PortType::TwoWire(TwoWirePort::new()))
@@ -614,7 +614,7 @@ mod nvm_subsystem_status_health_poll {
         setup();
 
         let mut subsys = Subsystem::new(SubsystemInfo::invalid());
-        let ppid = subsys.add_port(PortType::PCIe(PCIePort::new())).unwrap();
+        let ppid = subsys.add_port(PortType::Pcie(PciePort::new())).unwrap();
         let ctlrid = subsys.add_controller(ppid).unwrap();
         let twpid = subsys
             .add_port(PortType::TwoWire(TwoWirePort::new()))
@@ -650,7 +650,7 @@ mod nvm_subsystem_status_health_poll {
         setup();
 
         let mut subsys = Subsystem::new(SubsystemInfo::invalid());
-        let ppid = subsys.add_port(PortType::PCIe(PCIePort::new())).unwrap();
+        let ppid = subsys.add_port(PortType::Pcie(PciePort::new())).unwrap();
         let ctlrid = subsys.add_controller(ppid).unwrap();
         let twpid = subsys
             .add_port(PortType::TwoWire(TwoWirePort::new()))
@@ -686,7 +686,7 @@ mod nvm_subsystem_status_health_poll {
         setup();
 
         let mut subsys = Subsystem::new(SubsystemInfo::invalid());
-        let ppid = subsys.add_port(PortType::PCIe(PCIePort::new())).unwrap();
+        let ppid = subsys.add_port(PortType::Pcie(PciePort::new())).unwrap();
         let ctlrid = subsys.add_controller(ppid).unwrap();
         let twpid = subsys
             .add_port(PortType::TwoWire(TwoWirePort::new()))

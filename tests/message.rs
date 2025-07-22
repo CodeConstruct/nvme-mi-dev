@@ -15,7 +15,7 @@ use crate::common::setup;
 fn invalid_ic_bit() {
     common::setup();
 
-    let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS0a0a);
+    let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
     let resp = NeverRespChannel::new("Response sent for request with bad IC bit");
 
     smol::block_on(async { mep.handle_async(&mut subsys, &[], MsgIC(false), resp).await });
@@ -25,7 +25,7 @@ fn invalid_ic_bit() {
 fn invalid_ic_object() {
     setup();
 
-    let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS0a0a);
+    let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
     let resp = NeverRespChannel::new("Response sent for request with invalid IC object");
 
     const REQ: [u8; 3] = [0x00, 0x00, 0x00];
@@ -36,7 +36,7 @@ fn invalid_ic_object() {
 fn invalid_ic_value() {
     setup();
 
-    let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS0a0a);
+    let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
     let resp = NeverRespChannel::new("Response sent for request with invalid IC value");
 
     const REQ: [u8; 4] = [!0x36, !0xff, !0x11, !0x17];
@@ -47,7 +47,7 @@ fn invalid_ic_value() {
 fn invalid_message_header_object() {
     setup();
 
-    let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS0a0a);
+    let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
     let resp =
         NeverRespChannel::new("Response sent for request with invalid message header object");
 
@@ -63,7 +63,7 @@ fn invalid_message_header_object() {
 fn invalid_message_header_ror() {
     setup();
 
-    let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aNS0a0a);
+    let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
     let resp =
         NeverRespChannel::new("Response sent for request with invalid message header ROR value");
 
