@@ -1207,14 +1207,6 @@ impl RequestHandler for AdminCommandRequestHeader {
             return Err(ResponseStatus::InternalError);
         }
 
-        if ctx.ctlid > 0 {
-            if subsys.ctlrs.len() > 1 {
-                todo!("Support for selecting controllers via CTLID");
-            }
-            debug!("Invalid CTLID: {}", ctx.ctlid);
-            return Err(ResponseStatus::InvalidParameter);
-        }
-
         match &self.op {
             AdminCommandRequestType::Identify(identify) => {
                 identify.handle(ctx, mep, subsys, rest, resp).await
@@ -1387,10 +1379,10 @@ impl RequestHandler for AdminIdentifyRequest {
                     .await
             }
             AdminIdentifyCnsRequestType::IdentifyController => {
-                let ctlr = subsys
-                    .ctlrs
-                    .first()
-                    .expect("Device needs at least one controller");
+                let Some(ctlr) = subsys.ctlrs.get(ctx.ctlid as usize) else {
+                    debug!("No such CTLID: {}", ctx.ctlid);
+                    return Err(ResponseStatus::InvalidParameter);
+                };
 
                 let aicr = AdminIdentifyControllerResponse {
                     vid: subsys.info.pci_vid,
@@ -1576,10 +1568,10 @@ impl RequestHandler for AdminIdentifyRequest {
                     .await
             }
             AdminIdentifyCnsRequestType::SecondaryControllerList => {
-                let ctlr = subsys
-                    .ctlrs
-                    .first()
-                    .expect("Device needs at least one controller");
+                let Some(ctlr) = subsys.ctlrs.get(ctx.ctlid as usize) else {
+                    debug!("No such CTLID: {}", ctx.ctlid);
+                    return Err(ResponseStatus::InvalidParameter);
+                };
 
                 if !ctlr.secondaries.is_empty() {
                     todo!("Support listing secondary controllers");
