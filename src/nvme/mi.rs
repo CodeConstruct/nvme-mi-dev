@@ -76,8 +76,11 @@ impl From<super::CommandSetIdentifier> for CommandSetIdentifier {
 }
 
 trait RequestHandler {
+    type Ctx;
+
     async fn handle<A: AsyncRespChannel>(
-        self,
+        &self,
+        ctx: &Self::Ctx,
         mep: &mut super::ManagementEndpoint,
         subsys: &mut super::Subsystem,
         rest: &[u8],
@@ -190,44 +193,7 @@ impl TryFrom<u8> for MessageType {
 unsafe impl Discriminant<u8> for MessageType {}
 
 #[derive(Debug, DekuRead, DekuWrite, PartialEq, Eq)]
-#[deku(id_type = "u8", endian = "endian", ctx = "endian: Endian")]
-#[repr(u8)]
-enum NvmeMiCommandRequestType {
-    ReadNvmeMiDataStructure = 0x00,
-    NvmSubsystemHealthStatusPoll = 0x01,
-    ControllerHealthStatusPoll = 0x02,
-    ConfigurationSet = 0x03,
-    ConfigurationGet = 0x04,
-    VpdRead = 0x05,
-    VpdWrite = 0x06,
-    Reset = 0x07,
-    SesReceive = 0x08,
-    SesSend = 0x09,
-    ManagementEndpointBufferRead = 0x0a,
-    ManagementEndpointBufferWrite = 0x0b,
-    Shutdown = 0x0c,
-}
-
-#[derive(Debug, DekuRead, DekuWrite)]
-#[deku(endian = "little")]
-struct NvmeMiCommandRequestHeader {
-    #[deku(pad_bytes_after = "3")]
-    opcode: NvmeMiCommandRequestType,
-}
-impl Encode<4> for NvmeMiCommandRequestHeader {}
-
-#[derive(Debug, DekuRead, DekuWrite)]
-#[deku(endian = "little")]
-struct NvmeMiDataStructureRequest {
-    ctrlid: u16,
-    portid: u8,
-    dtyp: NvmeMiDataStructureRequestType,
-    #[deku(pad_bytes_after = "3")]
-    iocsi: u8,
-}
-
-#[derive(Debug, DekuRead, DekuWrite, PartialEq, Eq)]
-#[deku(id_type = "u8", endian = "endian", ctx = "endian: Endian")]
+#[deku(ctx = "endian: Endian, dtyp: u8", endian = "endian", id = "dtyp")]
 #[repr(u8)]
 enum NvmeMiDataStructureRequestType {
     NvmSubsystemInformation = 0x00,
@@ -237,6 +203,91 @@ enum NvmeMiDataStructureRequestType {
     OptionallySupportedCommandList = 0x04,
     ManagementEndpointBufferCommandSupportList = 0x05,
 }
+unsafe impl Discriminant<u8> for NvmeMiDataStructureRequestType {}
+
+#[derive(Debug, DekuRead, DekuWrite, Eq, PartialEq)]
+#[deku(ctx = "endian: Endian", endian = "endian")]
+struct NvmeMiDataStructureRequest {
+    ctrlid: u16,
+    portid: u8,
+    #[deku(update = "self.body.id()")]
+    dtyp: u8,
+    #[deku(pad_bytes_after = "3")]
+    iocsi: u8,
+    #[deku(ctx = "*dtyp")]
+    body: NvmeMiDataStructureRequestType,
+}
+
+#[derive(Debug, DekuRead, DekuWrite, Eq, PartialEq)]
+#[deku(ctx = "endian: Endian", endian = "endian")]
+struct NvmSubsystemHealthStatusPollRequest {
+    dword0: u32,
+    dword1: u32,
+}
+
+#[derive(Debug, DekuRead, DekuWrite, Eq, PartialEq)]
+#[deku(ctx = "endian: Endian", endian = "endian")]
+struct GetSmbusI2cFrequencyRequest {
+    // Skip intermediate bytes in DWORD 0
+    #[deku(seek_from_current = "2")]
+    dw0_portid: u8,
+    _dw1: u32,
+}
+
+#[derive(Debug, DekuRead, DekuWrite, Eq, PartialEq)]
+#[deku(ctx = "endian: Endian", endian = "endian")]
+struct GetMctpTransmissionUnitSizeRequest {
+    #[deku(seek_from_start = "2")]
+    dw0_portid: u8,
+    _dw1: u32,
+}
+
+#[derive(Debug, DekuRead, DekuWrite, Eq, PartialEq)]
+#[deku(id_type = "u8", ctx = "endian: Endian", endian = "endian")]
+#[repr(u8)]
+enum NvmeMiConfigurationIdentifierRequestType {
+    Reserved = 0x00,
+    #[deku(id = "0x01")]
+    SmbusI2cFrequency(GetSmbusI2cFrequencyRequest),
+    HealthStatusChange = 0x02,
+    #[deku(id = "0x03")]
+    MctpTransmissionUnitSize(GetMctpTransmissionUnitSizeRequest),
+    AsyncronousEvent = 0x04,
+}
+
+#[derive(Debug, DekuRead, DekuWrite, PartialEq, Eq)]
+#[deku(ctx = "endian: Endian, opcode: u8", id = "opcode", endian = "endian")]
+#[repr(u8)]
+enum NvmeMiCommandRequestType {
+    #[deku(id = "0x00")]
+    ReadNvmeMiDataStructure(NvmeMiDataStructureRequest),
+    #[deku(id = "0x01")]
+    NvmSubsystemHealthStatusPoll(NvmSubsystemHealthStatusPollRequest),
+    ControllerHealthStatusPoll = 0x02,
+    ConfigurationSet = 0x03,
+    #[deku(id = "0x04")]
+    ConfigurationGet(NvmeMiConfigurationIdentifierRequestType),
+    VpdRead = 0x05,
+    VpdWrite = 0x06,
+    Reset = 0x07,
+    SesReceive = 0x08,
+    SesSend = 0x09,
+    ManagementEndpointBufferRead = 0x0a,
+    ManagementEndpointBufferWrite = 0x0b,
+    Shutdown = 0x0c,
+}
+unsafe impl Discriminant<u8> for NvmeMiCommandRequestType {}
+
+#[derive(Debug, DekuRead, DekuWrite)]
+#[deku(endian = "little")]
+struct NvmeMiCommandRequestHeader {
+    #[deku(pad_bytes_after = "3")]
+    #[deku(update = "self.body.id()")]
+    opcode: u8,
+    #[deku(ctx = "*opcode")]
+    body: NvmeMiCommandRequestType,
+}
+impl Encode<4> for NvmeMiCommandRequestHeader {}
 
 #[derive(Debug, DekuRead, DekuWrite)]
 #[deku(endian = "little")]
@@ -325,13 +376,6 @@ impl Encode<32> for ControllerInformationResponse {}
 
 #[derive(Debug, DekuRead, DekuWrite)]
 #[deku(endian = "little")]
-struct NvmSubsystemHealthStatusPollRequest {
-    dword0: u32,
-    dword1: u32,
-}
-
-#[derive(Debug, DekuRead, DekuWrite)]
-#[deku(endian = "little")]
 struct NvmSubsystemHealthDataStructureResponse {
     nss: u8,
     sw: u8,
@@ -348,26 +392,6 @@ struct CompositeControllerStatusDataStructureResponse {
 }
 impl Encode<4> for CompositeControllerStatusDataStructureResponse {}
 
-#[derive(Debug, DekuRead, DekuWrite, PartialEq)]
-#[deku(id_type = "u8", endian = "little")]
-#[repr(u8)]
-enum NvmeMiConfigurationIdentifierRequestType {
-    Reserved = 0x00,
-    SmbusI2cFrequency = 0x01,
-    HealthStatusChange = 0x02,
-    MctpTransmissionUnitSize = 0x03,
-    AsyncronousEvent = 0x04,
-}
-
-#[derive(Debug, DekuRead, DekuWrite, PartialEq)]
-#[deku(endian = "little")]
-struct GetSmbusI2cFrequencyRequest {
-    // Skip intermediate bytes in DWORD 0
-    #[deku(seek_from_start = "2")]
-    dw0_portid: u8,
-    _dw1: u32,
-}
-
 #[derive(Debug, DekuWrite, PartialEq)]
 #[deku(endian = "little")]
 struct GetSmbusI2cFrequencyResponse {
@@ -376,14 +400,6 @@ struct GetSmbusI2cFrequencyResponse {
     mr_sfreq: SmbusFrequency,
 }
 impl Encode<4> for GetSmbusI2cFrequencyResponse {}
-
-#[derive(Debug, DekuRead, DekuWrite)]
-#[deku(endian = "little")]
-struct GetMctpTransmissionUnitSizeRequest {
-    #[deku(seek_from_start = "2")]
-    dw0_portid: u8,
-    _dw1: u32,
-}
 
 #[derive(Debug, DekuWrite)]
 #[deku(endian = "little")]
@@ -394,52 +410,78 @@ struct GetMctpTransmissionUnitSizeResponse {
 }
 impl Encode<4> for GetMctpTransmissionUnitSizeResponse {}
 
-#[derive(Clone, Copy, Debug, DekuRead, DekuWrite, PartialEq, Eq)]
-#[deku(id_type = "u8", endian = "endian", ctx = "endian: Endian")]
+#[derive(Debug, DekuRead, DekuWrite, Eq, PartialEq)]
+#[deku(ctx = "endian: Endian", endian = "endian")]
+struct AdminIdentifyRequest {
+    nsid: u32,
+    #[deku(seek_from_current = "16")]
+    dofst: u32,
+    dlen: u32,
+    #[deku(seek_from_current = "8")]
+    #[deku(update = "self.req.id()")]
+    cns: u8,
+    #[deku(seek_from_current = "1")]
+    cntid: u16,
+    cnssid: u16,
+    #[deku(seek_from_current = "1")]
+    csi: u8,
+    #[deku(seek_from_current = "8")]
+    uidx: u8,
+    #[deku(pad_bytes_after = "7")]
+    #[deku(ctx = "*cns")]
+    req: AdminIdentifyCnsRequestType,
+}
+
+#[derive(Debug, DekuRead, DekuWrite, PartialEq, Eq)]
+#[deku(ctx = "endian: Endian, opcode: u8", id = "opcode", endian = "endian")]
 #[repr(u8)]
 enum AdminCommandRequestType {
-    DeleteIoSubmissionQueue = 0x00,        // P
-    CreateIoSubmissionQueue = 0x01,        // P
-    GetLogPage = 0x02,                     // M
-    DeleteIoCompletionQueue = 0x04,        // P
-    CreateIoCompletionQueue = 0x05,        // P
-    Identify = 0x06,                       // M
-    Abort = 0x08,                          // P
-    GetFeatures = 0x0a,                    // M
-    AsynchronousEventRequest = 0x0c,       // P
-    KeepAlive = 0x18,                      // P
-    DirectiveSend = 0x19,                  // P
-    DirectiveReceive = 0x1a,               // P
-    NvmeMiSend = 0x1d,                     // P
-    NvmeMiReceive = 0x1e,                  // P
+    DeleteIoSubmissionQueue = 0x00, // P
+    CreateIoSubmissionQueue = 0x01, // P
+    GetLogPage = 0x02,              // M
+    DeleteIoCompletionQueue = 0x04, // P
+    CreateIoCompletionQueue = 0x05, // P
+    #[deku(id = 0x06)]
+    Identify(AdminIdentifyRequest), // M
+    Abort = 0x08,                   // P
+    GetFeatures = 0x0a,             // M
+    AsynchronousEventRequest = 0x0c, // P
+    KeepAlive = 0x18,               // P
+    DirectiveSend = 0x19,           // P
+    DirectiveReceive = 0x1a,        // P
+    NvmeMiSend = 0x1d,              // P
+    NvmeMiReceive = 0x1e,           // P
     DiscoveryInformationManagement = 0x21, // P
-    FabricZoningReceive = 0x22,            // P
-    FabricZoningLookup = 0x25,             // P
-    FabricZoningSend = 0x29,               // P
-    SendDiscoveryLogPage = 0x39,           // P
-    TrackSend = 0x3d,                      // P
-    TrackReceive = 0x3e,                   // P
-    MigrationSend = 0x41,                  // P
-    MigrationReceive = 0x42,               // P
-    ControllerDataQueue = 0x45,            // P
-    DoorbellBufferConfig = 0x7c,           // P
-    FabricsCommands = 0x7f,                // P
-    LoadProgram = 0x85,                    // P
-    ProgramActivationManagement = 0x88,    // P
-    MemoryRangeSetManagement = 0x89,       // P
+    FabricZoningReceive = 0x22,     // P
+    FabricZoningLookup = 0x25,      // P
+    FabricZoningSend = 0x29,        // P
+    SendDiscoveryLogPage = 0x39,    // P
+    TrackSend = 0x3d,               // P
+    TrackReceive = 0x3e,            // P
+    MigrationSend = 0x41,           // P
+    MigrationReceive = 0x42,        // P
+    ControllerDataQueue = 0x45,     // P
+    DoorbellBufferConfig = 0x7c,    // P
+    FabricsCommands = 0x7f,         // P
+    LoadProgram = 0x85,             // P
+    ProgramActivationManagement = 0x88, // P
+    MemoryRangeSetManagement = 0x89, // P
 }
 unsafe impl Discriminant<u8> for AdminCommandRequestType {}
 
 #[derive(Debug, DekuRead, DekuWrite)]
 #[deku(endian = "little")]
 struct AdminCommandRequestHeader {
-    opcode: AdminCommandRequestType,
+    #[deku(update = "self.op.id()")]
+    opcode: u8,
     cflgs: u8,
     ctlid: u16,
+    #[deku(ctx = "*opcode")]
+    op: AdminCommandRequestType,
 }
 
 #[derive(Clone, Copy, Debug, DekuRead, DekuWrite, Eq, PartialEq)]
-#[deku(id_type = "u8", endian = "endian", ctx = "endian: Endian")]
+#[deku(ctx = "endian: Endian, cns: u8", id = "cns", endian = "endian")]
 #[repr(u8)]
 enum AdminIdentifyCnsRequestType {
     NvmIdentifyNamespace = 0x00,
@@ -489,24 +531,6 @@ struct AdminCommandResponseHeader {
     cqedw3: u32,
 }
 impl Encode<16> for AdminCommandResponseHeader {}
-
-#[derive(Debug, DekuRead, DekuWrite)]
-#[deku(endian = "little")]
-struct AdminIdentifyRequest {
-    nsid: u32,
-    #[deku(seek_from_start = "20")]
-    dofst: u32,
-    dlen: u32,
-    #[deku(seek_from_start = "36")]
-    cns: AdminIdentifyCnsRequestType,
-    #[deku(seek_from_start = "38")]
-    cntid: u16,
-    cnssid: u16,
-    #[deku(seek_from_start = "43")]
-    csi: u8,
-    #[deku(seek_from_start = "52", pad_bytes_after = "7")]
-    uidx: u8,
-}
 
 #[derive(Debug, DekuRead, DekuWrite)]
 #[deku(endian = "little")]
@@ -676,8 +700,11 @@ async fn send_response(resp: &mut impl AsyncRespChannel, bufs: &[&[u8]]) {
 }
 
 impl RequestHandler for MessageHeader {
+    type Ctx = Self;
+
     async fn handle<A: AsyncRespChannel>(
-        self,
+        &self,
+        ctx: &Self::Ctx,
         mep: &mut super::ManagementEndpoint,
         subsys: &mut super::Subsystem,
         rest: &[u8],
@@ -686,7 +713,7 @@ impl RequestHandler for MessageHeader {
         debug!("{self:x?}");
         // TODO: Command and Feature Lockdown handling
         // TODO: Handle subsystem reset, section 8.1, v2.0
-        let Ok(nmimt) = self.nmimt() else {
+        let Ok(nmimt) = ctx.nmimt() else {
             return Err(ResponseStatus::InvalidCommandOpcode);
         };
 
@@ -697,7 +724,7 @@ impl RequestHandler for MessageHeader {
                     return Err(ResponseStatus::InvalidCommandSize);
                 };
 
-                ch.handle(mep, subsys, rest, resp).await
+                ch.handle(&ch, mep, subsys, rest, resp).await
             }
             MessageType::NvmeAdminCommand => {
                 let Ok(((rest, _), ch)) = AdminCommandRequestHeader::from_bytes((rest, 0)) else {
@@ -705,10 +732,10 @@ impl RequestHandler for MessageHeader {
                     return Err(ResponseStatus::InvalidCommandSize);
                 };
 
-                ch.handle(mep, subsys, rest, resp).await
+                ch.handle(&ch, mep, subsys, rest, resp).await
             }
             _ => {
-                debug!("Unimplemented NMINT: {:?}", self.nmimt());
+                debug!("Unimplemented NMINT: {:?}", ctx.nmimt());
                 Err(ResponseStatus::InternalError)
             }
         }
@@ -716,33 +743,25 @@ impl RequestHandler for MessageHeader {
 }
 
 impl RequestHandler for NvmeMiCommandRequestHeader {
+    type Ctx = Self;
+
     async fn handle<A: AsyncRespChannel>(
-        self,
+        &self,
+        ctx: &Self::Ctx,
         mep: &mut super::ManagementEndpoint,
         subsys: &mut super::Subsystem,
         rest: &[u8],
         resp: &mut A,
     ) -> Result<(), ResponseStatus> {
         debug!("{self:x?}");
-        match self.opcode {
-            NvmeMiCommandRequestType::ReadNvmeMiDataStructure => {
-                let Ok(((rest, _), ds)) = NvmeMiDataStructureRequest::from_bytes((rest, 0)) else {
-                    debug!("Message too short to extract NVMeMIDataStructure");
-                    return Err(ResponseStatus::InvalidCommandSize);
-                };
-                ds.handle(mep, subsys, rest, resp).await
+        match &self.body {
+            NvmeMiCommandRequestType::ReadNvmeMiDataStructure(ds) => {
+                ds.handle(self, mep, subsys, rest, resp).await
             }
-            NvmeMiCommandRequestType::NvmSubsystemHealthStatusPoll => {
+            NvmeMiCommandRequestType::NvmSubsystemHealthStatusPoll(shsp) => {
                 // 5.6, Figure 108, v2.0
-                let Ok(((rest, _), shsp)) =
-                    NvmSubsystemHealthStatusPollRequest::from_bytes((rest, 0))
-                else {
-                    debug!("Message too short to extract NVMSubsystemHealthStatusPoll");
-                    return Err(ResponseStatus::InvalidCommandSize);
-                };
-
                 if !rest.is_empty() {
-                    debug!("Lost coherence decoding {:?}", self.opcode);
+                    debug!("Lost coherence decoding {:?}", ctx.opcode);
                     return Err(ResponseStatus::InvalidCommandSize);
                 }
 
@@ -846,18 +865,11 @@ impl RequestHandler for NvmeMiCommandRequestHeader {
                 send_response(resp, &[&mh.0, &mr.0, &nvmshds.0, &ccs.0]).await;
                 Ok(())
             }
-            NvmeMiCommandRequestType::ConfigurationGet => {
-                let Ok(((rest, _len), cid)) =
-                    NvmeMiConfigurationIdentifierRequestType::from_bytes((rest, 0))
-                else {
-                    debug!("Failed to extract NVMeConfigurationIdentifier");
-                    return Err(ResponseStatus::InvalidCommandSize);
-                };
-
-                return cid.handle(mep, subsys, rest, resp).await;
+            NvmeMiCommandRequestType::ConfigurationGet(cid) => {
+                cid.handle(ctx, mep, subsys, rest, resp).await
             }
             _ => {
-                debug!("Unimplemented OPCODE: {:?}", self.opcode);
+                debug!("Unimplemented OPCODE: {:?}", ctx.opcode);
                 Err(ResponseStatus::InternalError)
             }
         }
@@ -865,25 +877,20 @@ impl RequestHandler for NvmeMiCommandRequestHeader {
 }
 
 impl RequestHandler for NvmeMiConfigurationIdentifierRequestType {
+    type Ctx = NvmeMiCommandRequestHeader;
+
     async fn handle<A: AsyncRespChannel>(
-        self,
+        &self,
+        _ctx: &Self::Ctx,
         _mep: &mut super::ManagementEndpoint,
         subsys: &mut super::Subsystem,
         rest: &[u8],
         resp: &mut A,
     ) -> Result<(), ResponseStatus> {
         match self {
-            NvmeMiConfigurationIdentifierRequestType::Reserved => {
-                Err(ResponseStatus::InvalidParameter)
-            }
-            NvmeMiConfigurationIdentifierRequestType::SmbusI2cFrequency => {
-                let Ok(((_rest, len), gsifr)) = GetSmbusI2cFrequencyRequest::from_bytes((rest, 0))
-                else {
-                    debug!("Failed to extract GetSMBusI2CFrequencyRequest");
-                    return Err(ResponseStatus::InvalidCommandSize);
-                };
-
-                if len != 0 {
+            Self::Reserved => Err(ResponseStatus::InvalidParameter),
+            Self::SmbusI2cFrequency(gsifr) => {
+                if !rest.is_empty() {
                     debug!("Lost synchronisation when decoding ConfigurationGet SMBusI2CFrequency");
                     return Err(ResponseStatus::InvalidCommandSize);
                 }
@@ -912,16 +919,9 @@ impl RequestHandler for NvmeMiConfigurationIdentifierRequestType {
                 send_response(resp, &[&mh.0, &fr.0]).await;
                 Ok(())
             }
-            NvmeMiConfigurationIdentifierRequestType::HealthStatusChange => todo!(),
-            NvmeMiConfigurationIdentifierRequestType::MctpTransmissionUnitSize => {
-                let Ok(((_rest, len), gmtusr)) =
-                    GetMctpTransmissionUnitSizeRequest::from_bytes((rest, 0))
-                else {
-                    debug!("Failed to extract GetMCTPTransmissionUnitSizeRequest");
-                    return Err(ResponseStatus::InvalidCommandSize);
-                };
-
-                if len != 0 {
+            Self::HealthStatusChange => todo!(),
+            Self::MctpTransmissionUnitSize(gmtusr) => {
+                if !rest.is_empty() {
                     debug!(
                         "Lost synchronisation when decoding ConfigurationGet MCTPTransmissionUnitSize"
                     );
@@ -944,14 +944,17 @@ impl RequestHandler for NvmeMiConfigurationIdentifierRequestType {
                 send_response(resp, &[&mh.0, &fr.0]).await;
                 Ok(())
             }
-            NvmeMiConfigurationIdentifierRequestType::AsyncronousEvent => todo!(),
+            Self::AsyncronousEvent => todo!(),
         }
     }
 }
 
 impl RequestHandler for NvmeMiDataStructureRequest {
+    type Ctx = NvmeMiCommandRequestHeader;
+
     async fn handle<A: AsyncRespChannel>(
-        self,
+        &self,
+        _ctx: &Self::Ctx,
         _mep: &mut super::ManagementEndpoint,
         subsys: &mut super::Subsystem,
         rest: &[u8],
@@ -966,7 +969,7 @@ impl RequestHandler for NvmeMiDataStructureRequest {
 
         let mh = MessageHeader::respond(MessageType::NvmeMiCommand).encode()?;
 
-        match self.dtyp {
+        match self.body {
             NvmeMiDataStructureRequestType::NvmSubsystemInformation => {
                 assert!(!subsys.ports.is_empty(), "Need at least one port defined");
                 // See 5.7.1, 5.1.1 of v2.0
@@ -1186,8 +1189,11 @@ const MI_PROHIBITED_ADMIN_COMMANDS: [AdminCommandRequestType; 26] = [
 ];
 
 impl RequestHandler for AdminCommandRequestHeader {
+    type Ctx = Self;
+
     async fn handle<A: AsyncRespChannel>(
-        self,
+        &self,
+        ctx: &Self::Ctx,
         mep: &mut super::ManagementEndpoint,
         subsys: &mut super::Subsystem,
         rest: &[u8],
@@ -1196,34 +1202,29 @@ impl RequestHandler for AdminCommandRequestHeader {
         debug!("{self:x?}");
 
         // ISH
-        if self.cflgs & 4 != 0 {
+        if ctx.cflgs & 4 != 0 {
             debug!("Support ignore shutdown state");
             return Err(ResponseStatus::InternalError);
         }
 
-        if self.ctlid > 0 {
+        if ctx.ctlid > 0 {
             if subsys.ctlrs.len() > 1 {
                 todo!("Support for selecting controllers via CTLID");
             }
-            debug!("Invalid CTLID: {}", self.ctlid);
+            debug!("Invalid CTLID: {}", ctx.ctlid);
             return Err(ResponseStatus::InvalidParameter);
         }
 
-        let opcode = self.opcode;
-        match opcode {
-            AdminCommandRequestType::Identify => {
-                let Ok(((rest, _), id)) = AdminIdentifyRequest::from_bytes((rest, 0)) else {
-                    debug!("Message too short to extract AdminIdentify request");
-                    return Err(ResponseStatus::InvalidCommandSize);
-                };
-                id.handle(mep, subsys, rest, resp).await
+        match &self.op {
+            AdminCommandRequestType::Identify(identify) => {
+                identify.handle(ctx, mep, subsys, rest, resp).await
             }
-            opcode if MI_PROHIBITED_ADMIN_COMMANDS.contains(&opcode) => {
-                debug!("Prohibited MI admin command opcode: {opcode:?}");
+            op if MI_PROHIBITED_ADMIN_COMMANDS.contains(&self.op) => {
+                debug!("Prohibited MI admin command opcode: {:?}", op.id());
                 Err(ResponseStatus::InvalidCommandOpcode)
             }
             _ => {
-                debug!("Unimplemented OPCODE: {:?}", self.opcode);
+                debug!("Unimplemented OPCODE: {:?}", self.op.id());
                 Err(ResponseStatus::InternalError)
             }
         }
@@ -1232,7 +1233,7 @@ impl RequestHandler for AdminCommandRequestHeader {
 
 impl AdminIdentifyRequest {
     async fn send_constrained_response<A: AsyncRespChannel>(
-        self,
+        &self,
         resp: &mut A,
         bufs: &[&[u8]],
         data: &[u8],
@@ -1300,8 +1301,11 @@ impl AdminIdentifyRequest {
 }
 
 impl RequestHandler for AdminIdentifyRequest {
+    type Ctx = AdminCommandRequestHeader;
+
     async fn handle<A: AsyncRespChannel>(
-        self,
+        &self,
+        ctx: &Self::Ctx,
         _mep: &mut super::ManagementEndpoint,
         subsys: &mut super::Subsystem,
         rest: &[u8],
@@ -1331,7 +1335,7 @@ impl RequestHandler for AdminIdentifyRequest {
         }
         .encode()?;
 
-        match self.cns {
+        match &self.req {
             AdminIdentifyCnsRequestType::NvmIdentifyNamespace => {
                 assert!(subsys.nss.len() <= u32::MAX.try_into().unwrap());
 
@@ -1585,7 +1589,7 @@ impl RequestHandler for AdminIdentifyRequest {
                     .await
             }
             _ => {
-                debug!("Unimplemented CNS: {:?}", self.cns);
+                debug!("Unimplemented CNS: {self:?}");
                 Err(ResponseStatus::InternalError)
             }
         }
@@ -1645,7 +1649,7 @@ impl super::ManagementEndpoint {
             return;
         };
 
-        if let Err(status) = mh.handle(self, subsys, rest, &mut resp).await {
+        if let Err(status) = mh.handle(&mh, self, subsys, rest, &mut resp).await {
             let mut digest = ISCSI.digest();
             digest.update(&[0x80 | 0x04]);
 
