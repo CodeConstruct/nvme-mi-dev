@@ -42,6 +42,39 @@ impl From<super::SmbusFrequency> for SmbusFrequency {
     }
 }
 
+#[derive(Clone, Copy, Debug, DekuRead, DekuWrite, PartialEq)]
+#[deku(id_type = "u8", endian = "endian", ctx = "endian: Endian")]
+#[repr(u8)]
+enum ControllerType {
+    Reserved = 0x00,
+    IoController = 0x01,
+    DiscoveryController = 0x02,
+    AdministrativeController = 0x03,
+}
+
+#[derive(Clone, Copy, Debug, DekuRead, DekuWrite)]
+#[deku(id_type = "u8", endian = "endian", ctx = "endian: Endian")]
+#[repr(u8)]
+enum CommandSetIdentifier {
+    Nvm = 0,
+    KeyValue = 1,
+    ZonedNamespace = 2,
+    SubsystemLocalMemory = 3,
+    ComputationalPrograms = 4,
+}
+
+impl From<super::CommandSetIdentifier> for CommandSetIdentifier {
+    fn from(value: super::CommandSetIdentifier) -> Self {
+        match value {
+            super::CommandSetIdentifier::Nvm => Self::Nvm,
+            super::CommandSetIdentifier::KeyValue => Self::KeyValue,
+            super::CommandSetIdentifier::ZonedNamespace => Self::ZonedNamespace,
+            super::CommandSetIdentifier::SubsystemLocalMemory => Self::SubsystemLocalMemory,
+            super::CommandSetIdentifier::ComputationalPrograms => Self::ComputationalPrograms,
+        }
+    }
+}
+
 trait RequestHandler {
     async fn handle<A: AsyncRespChannel>(
         self,
@@ -152,18 +185,10 @@ impl MessageType {
     }
 }
 
-#[derive(Debug, DekuRead, DekuWrite)]
-#[deku(endian = "little")]
-struct NvmeMiCommandHeader {
-    #[deku(pad_bytes_after = "3")]
-    opcode: CommandOpcode,
-}
-impl Encode<4> for NvmeMiCommandHeader {}
-
 #[derive(Debug, DekuRead, DekuWrite, PartialEq, Eq)]
 #[deku(id_type = "u8", endian = "endian", ctx = "endian: Endian")]
 #[repr(u8)]
-enum CommandOpcode {
+enum NvmeMiCommandRequestType {
     ReadNvmeMiDataStructure = 0x00,
     NvmSubsystemHealthStatusPoll = 0x01,
     ControllerHealthStatusPoll = 0x02,
@@ -181,10 +206,18 @@ enum CommandOpcode {
 
 #[derive(Debug, DekuRead, DekuWrite)]
 #[deku(endian = "little")]
-struct NvmeMiDataStructure {
+struct NvmeMiCommandRequestHeader {
+    #[deku(pad_bytes_after = "3")]
+    opcode: NvmeMiCommandRequestType,
+}
+impl Encode<4> for NvmeMiCommandRequestHeader {}
+
+#[derive(Debug, DekuRead, DekuWrite)]
+#[deku(endian = "little")]
+struct NvmeMiDataStructureRequest {
     ctrlid: u16,
     portid: u8,
-    dtyp: NvmeMiDataStructureType,
+    dtyp: NvmeMiDataStructureRequestType,
     #[deku(pad_bytes_after = "3")]
     iocsi: u8,
 }
@@ -192,7 +225,7 @@ struct NvmeMiDataStructure {
 #[derive(Debug, DekuRead, DekuWrite, PartialEq, Eq)]
 #[deku(id_type = "u8", endian = "endian", ctx = "endian: Endian")]
 #[repr(u8)]
-enum NvmeMiDataStructureType {
+enum NvmeMiDataStructureRequestType {
     NvmSubsystemInformation = 0x00,
     PortInformation = 0x01,
     ControllerList = 0x02,
@@ -211,27 +244,27 @@ impl Encode<4> for NvmeMiDataStructureManagementResponse {}
 
 #[derive(Debug, DekuWrite)]
 #[deku(endian = "little")]
-struct NvmSubsystemInformation {
+struct NvmSubsystemInformationResponse {
     nump: u8,
     mjr: u8,
     mnr: u8,
     nnsc: u8,
 }
-impl Encode<32> for NvmSubsystemInformation {}
+impl Encode<32> for NvmSubsystemInformationResponse {}
 
 #[derive(Debug, DekuWrite)]
 #[deku(endian = "little")]
-struct PortInformation {
+struct PortInformationResponse {
     prttyp: u8,
     prtcap: u8,
     mmtus: u16,
     mebs: u32,
 }
-impl Encode<8> for PortInformation {}
+impl Encode<8> for PortInformationResponse {}
 
 #[derive(Debug, DekuWrite)]
 #[deku(endian = "little")]
-struct PciePortData {
+struct PciePortDataResponse {
     pciemps: u8,
     pcieslsv: u8,
     pciecls: u8,
@@ -239,30 +272,30 @@ struct PciePortData {
     pcienlw: u8,
     pciepn: u8,
 }
-impl Encode<24> for PciePortData {}
+impl Encode<24> for PciePortDataResponse {}
 
 #[derive(Debug, DekuWrite)]
 #[deku(endian = "little")]
-struct TwoWirePortData {
+struct TwoWirePortDataResponse {
     cvpdaddr: u8,
     mvpdfreq: u8,
     cmeaddr: u8,
     twprt: u8,
     nvmebm: u8,
 }
-impl Encode<24> for TwoWirePortData {}
+impl Encode<24> for TwoWirePortDataResponse {}
 
 #[derive(Debug, DekuRead, DekuWrite)]
 #[deku(endian = "little")]
-struct ControllerList {
+struct ControllerListResponse {
     #[deku(update = "self.ids.len()")]
     numids: u16,
     #[deku(count = "numids")]
     ids: WireVec<u16, 2047>,
 }
-impl Encode<4096> for ControllerList {}
+impl Encode<4096> for ControllerListResponse {}
 
-impl ControllerList {
+impl ControllerListResponse {
     fn new() -> Self {
         Self {
             numids: 0,
@@ -273,7 +306,7 @@ impl ControllerList {
 
 #[derive(Debug, DekuRead, DekuWrite)]
 #[deku(endian = "little")]
-struct ControllerInformation {
+struct ControllerInformationResponse {
     #[deku(pad_bytes_after = "4")]
     portid: u8,
     prii: u8,
@@ -284,38 +317,37 @@ struct ControllerInformation {
     pcisdid: u16,
     pciesn: u8,
 }
-impl Encode<32> for ControllerInformation {}
+impl Encode<32> for ControllerInformationResponse {}
 
 #[derive(Debug, DekuRead, DekuWrite)]
 #[deku(endian = "little")]
-struct NvmSubsystemHealthStatusPoll {
+struct NvmSubsystemHealthStatusPollRequest {
     dword0: u32,
     dword1: u32,
 }
-impl Encode<8> for NvmSubsystemHealthStatusPoll {}
 
 #[derive(Debug, DekuRead, DekuWrite)]
 #[deku(endian = "little")]
-struct NvmSubsystemHealthDataStructure {
+struct NvmSubsystemHealthDataStructureResponse {
     nss: u8,
     sw: u8,
     ctemp: u8,
     pldu: u8,
 }
-impl Encode<4> for NvmSubsystemHealthDataStructure {}
+impl Encode<4> for NvmSubsystemHealthDataStructureResponse {}
 
 #[derive(Debug, DekuRead, DekuWrite)]
 #[deku(endian = "little")]
-struct CompositeControllerStatusDataStructure {
+struct CompositeControllerStatusDataStructureResponse {
     #[deku(pad_bytes_after = "2")]
     ccsf: u16,
 }
-impl Encode<4> for CompositeControllerStatusDataStructure {}
+impl Encode<4> for CompositeControllerStatusDataStructureResponse {}
 
 #[derive(Debug, DekuRead, DekuWrite, PartialEq)]
 #[deku(id_type = "u8", endian = "little")]
 #[repr(u8)]
-enum NvmeMiConfigurationIdentifier {
+enum NvmeMiConfigurationIdentifierRequestType {
     Reserved = 0x00,
     SmbusI2cFrequency = 0x01,
     HealthStatusChange = 0x02,
@@ -361,7 +393,7 @@ impl Encode<4> for GetMctpTransmissionUnitSizeResponse {}
 #[derive(Clone, Copy, Debug, DekuRead, DekuWrite, PartialEq, Eq)]
 #[deku(id_type = "u8", endian = "endian", ctx = "endian: Endian")]
 #[repr(u8)]
-enum AdminCommandOpcode {
+enum AdminCommandRequestType {
     DeleteIoSubmissionQueue = 0x00,        // P
     CreateIoSubmissionQueue = 0x01,        // P
     GetLogPage = 0x02,                     // M
@@ -396,7 +428,7 @@ enum AdminCommandOpcode {
 #[derive(Debug, DekuRead, DekuWrite)]
 #[deku(endian = "little")]
 struct AdminCommandRequestHeader {
-    opcode: AdminCommandOpcode,
+    opcode: AdminCommandRequestType,
     cflgs: u8,
     ctlid: u16,
 }
@@ -404,7 +436,7 @@ struct AdminCommandRequestHeader {
 #[derive(Clone, Copy, Debug, DekuRead, DekuWrite, Eq, PartialEq)]
 #[deku(id_type = "u8", endian = "endian", ctx = "endian: Endian")]
 #[repr(u8)]
-enum ControllerOrNamespaceStructure {
+enum AdminIdentifyCnsRequestType {
     NvmIdentifyNamespace = 0x00,
     IdentifyController = 0x01,
     ActiveNamespaceIDList = 0x02,
@@ -418,9 +450,10 @@ enum ControllerOrNamespaceStructure {
     SecondaryControllerList = 0x15,
 }
 
+// Base v2.1 Figure 101
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u8)]
-enum StatusCodeType {
+enum CqeStatusCodeType {
     GenericCommandStatus = 0x00,
     #[expect(dead_code)]
     CommandSpecificStatus = 0x01,
@@ -432,7 +465,7 @@ enum StatusCodeType {
     VendorSpecific = 0x07,
 }
 
-impl StatusCodeType {
+impl CqeStatusCodeType {
     fn id(&self) -> u8 {
         // https://doc.rust-lang.org/reference/items/enumerations.html#r-items.enum.discriminant.access-memory
         unsafe { *(self as *const Self as *const u8) }
@@ -441,11 +474,11 @@ impl StatusCodeType {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u8)]
-enum GenericCommandStatus {
+enum CqeGenericCommandStatus {
     SuccessfulCompletion = 0x00,
 }
 
-impl GenericCommandStatus {
+impl CqeGenericCommandStatus {
     fn id(&self) -> u8 {
         // https://doc.rust-lang.org/reference/items/enumerations.html#r-items.enum.discriminant.access-memory
         unsafe { *(self as *const Self as *const u8) }
@@ -471,7 +504,7 @@ struct AdminIdentifyRequest {
     dofst: u32,
     dlen: u32,
     #[deku(seek_from_start = "36")]
-    cns: ControllerOrNamespaceStructure,
+    cns: AdminIdentifyCnsRequestType,
     #[deku(seek_from_start = "38")]
     cntid: u16,
     cnssid: u16,
@@ -479,16 +512,6 @@ struct AdminIdentifyRequest {
     csi: u8,
     #[deku(seek_from_start = "52", pad_bytes_after = "7")]
     uidx: u8,
-}
-
-#[derive(Clone, Copy, Debug, DekuRead, DekuWrite, PartialEq)]
-#[deku(id_type = "u8", endian = "endian", ctx = "endian: Endian")]
-#[repr(u8)]
-enum ControllerType {
-    Reserved = 0x00,
-    IoController = 0x01,
-    DiscoveryController = 0x02,
-    AdministrativeController = 0x03,
 }
 
 #[derive(Debug, DekuRead, DekuWrite)]
@@ -592,29 +615,6 @@ impl AdminIdentifyActiveNamespaceIdListResponse {
     }
 }
 
-#[derive(Clone, Copy, Debug, DekuRead, DekuWrite)]
-#[deku(id_type = "u8", endian = "endian", ctx = "endian: Endian")]
-#[repr(u8)]
-enum CommandSetIdentifier {
-    Nvm = 0,
-    KeyValue = 1,
-    ZonedNamespace = 2,
-    SubsystemLocalMemory = 3,
-    ComputationalPrograms = 4,
-}
-
-impl From<super::CommandSetIdentifier> for CommandSetIdentifier {
-    fn from(value: super::CommandSetIdentifier) -> Self {
-        match value {
-            super::CommandSetIdentifier::Nvm => Self::Nvm,
-            super::CommandSetIdentifier::KeyValue => Self::KeyValue,
-            super::CommandSetIdentifier::ZonedNamespace => Self::ZonedNamespace,
-            super::CommandSetIdentifier::SubsystemLocalMemory => Self::SubsystemLocalMemory,
-            super::CommandSetIdentifier::ComputationalPrograms => Self::ComputationalPrograms,
-        }
-    }
-}
-
 // NID: 5.1.13.2.3, Base v2.1
 #[derive(Clone, Copy, Debug, DekuRead, DekuWrite)]
 #[deku(id_type = "u8", endian = "endian", ctx = "endian: Endian")]
@@ -698,7 +698,7 @@ impl RequestHandler for MessageHeader {
 
         match nmimt {
             MessageType::NvmeMiCommand => {
-                let Ok(((rest, _), ch)) = NvmeMiCommandHeader::from_bytes((rest, 0)) else {
+                let Ok(((rest, _), ch)) = NvmeMiCommandRequestHeader::from_bytes((rest, 0)) else {
                     debug!("Message too short to extract NVMeMICommandHeader");
                     return Err(ResponseStatus::InvalidCommandSize);
                 };
@@ -721,7 +721,7 @@ impl RequestHandler for MessageHeader {
     }
 }
 
-impl RequestHandler for NvmeMiCommandHeader {
+impl RequestHandler for NvmeMiCommandRequestHeader {
     async fn handle<A: AsyncRespChannel>(
         self,
         mep: &mut super::ManagementEndpoint,
@@ -731,16 +731,17 @@ impl RequestHandler for NvmeMiCommandHeader {
     ) -> Result<(), ResponseStatus> {
         debug!("{self:x?}");
         match self.opcode {
-            CommandOpcode::ReadNvmeMiDataStructure => {
-                let Ok(((rest, _), ds)) = NvmeMiDataStructure::from_bytes((rest, 0)) else {
+            NvmeMiCommandRequestType::ReadNvmeMiDataStructure => {
+                let Ok(((rest, _), ds)) = NvmeMiDataStructureRequest::from_bytes((rest, 0)) else {
                     debug!("Message too short to extract NVMeMIDataStructure");
                     return Err(ResponseStatus::InvalidCommandSize);
                 };
                 ds.handle(mep, subsys, rest, resp).await
             }
-            CommandOpcode::NvmSubsystemHealthStatusPoll => {
+            NvmeMiCommandRequestType::NvmSubsystemHealthStatusPoll => {
                 // 5.6, Figure 108, v2.0
-                let Ok(((rest, _), shsp)) = NvmSubsystemHealthStatusPoll::from_bytes((rest, 0))
+                let Ok(((rest, _), shsp)) =
+                    NvmSubsystemHealthStatusPollRequest::from_bytes((rest, 0))
                 else {
                     debug!("Message too short to extract NVMSubsystemHealthStatusPoll");
                     return Err(ResponseStatus::InvalidCommandSize);
@@ -807,7 +808,7 @@ impl RequestHandler for NvmeMiCommandHeader {
                 // Derive PLDU from write age and expected lifespan
                 let pldu = core::cmp::min(255, 100 * ctlr.write_age / ctlr.write_lifespan);
 
-                let nvmshds = NvmSubsystemHealthDataStructure {
+                let nvmshds = NvmSubsystemHealthDataStructureResponse {
                     nss: (subsys.health.nss.atf as u8) << 7
                         | (subsys.health.nss.sfm as u8) << 6
                         | (subsys.health.nss.df as u8) << 5
@@ -826,7 +827,7 @@ impl RequestHandler for NvmeMiCommandHeader {
                 }
                 .encode()?;
 
-                let ccs = CompositeControllerStatusDataStructure {
+                let ccs = CompositeControllerStatusDataStructureResponse {
                     ccsf: (mep.ccsf.tcida as u16) << 13
                         | (mep.ccsf.cwarn as u16) << 12
                         | (mep.ccsf.spare as u16) << 11
@@ -851,8 +852,9 @@ impl RequestHandler for NvmeMiCommandHeader {
                 send_response(resp, &[&mh.0, &mr.0, &nvmshds.0, &ccs.0]).await;
                 Ok(())
             }
-            CommandOpcode::ConfigurationGet => {
-                let Ok(((rest, _len), cid)) = NvmeMiConfigurationIdentifier::from_bytes((rest, 0))
+            NvmeMiCommandRequestType::ConfigurationGet => {
+                let Ok(((rest, _len), cid)) =
+                    NvmeMiConfigurationIdentifierRequestType::from_bytes((rest, 0))
                 else {
                     debug!("Failed to extract NVMeConfigurationIdentifier");
                     return Err(ResponseStatus::InvalidCommandSize);
@@ -868,7 +870,7 @@ impl RequestHandler for NvmeMiCommandHeader {
     }
 }
 
-impl RequestHandler for NvmeMiConfigurationIdentifier {
+impl RequestHandler for NvmeMiConfigurationIdentifierRequestType {
     async fn handle<A: AsyncRespChannel>(
         self,
         _mep: &mut super::ManagementEndpoint,
@@ -877,8 +879,10 @@ impl RequestHandler for NvmeMiConfigurationIdentifier {
         resp: &mut A,
     ) -> Result<(), ResponseStatus> {
         match self {
-            NvmeMiConfigurationIdentifier::Reserved => Err(ResponseStatus::InvalidParameter),
-            NvmeMiConfigurationIdentifier::SmbusI2cFrequency => {
+            NvmeMiConfigurationIdentifierRequestType::Reserved => {
+                Err(ResponseStatus::InvalidParameter)
+            }
+            NvmeMiConfigurationIdentifierRequestType::SmbusI2cFrequency => {
                 let Ok(((_rest, len), gsifr)) = GetSmbusI2cFrequencyRequest::from_bytes((rest, 0))
                 else {
                     debug!("Failed to extract GetSMBusI2CFrequencyRequest");
@@ -914,8 +918,8 @@ impl RequestHandler for NvmeMiConfigurationIdentifier {
                 send_response(resp, &[&mh.0, &fr.0]).await;
                 Ok(())
             }
-            NvmeMiConfigurationIdentifier::HealthStatusChange => todo!(),
-            NvmeMiConfigurationIdentifier::MctpTransmissionUnitSize => {
+            NvmeMiConfigurationIdentifierRequestType::HealthStatusChange => todo!(),
+            NvmeMiConfigurationIdentifierRequestType::MctpTransmissionUnitSize => {
                 let Ok(((_rest, len), gmtusr)) =
                     GetMctpTransmissionUnitSizeRequest::from_bytes((rest, 0))
                 else {
@@ -946,12 +950,12 @@ impl RequestHandler for NvmeMiConfigurationIdentifier {
                 send_response(resp, &[&mh.0, &fr.0]).await;
                 Ok(())
             }
-            NvmeMiConfigurationIdentifier::AsyncronousEvent => todo!(),
+            NvmeMiConfigurationIdentifierRequestType::AsyncronousEvent => todo!(),
         }
     }
 }
 
-impl RequestHandler for NvmeMiDataStructure {
+impl RequestHandler for NvmeMiDataStructureRequest {
     async fn handle<A: AsyncRespChannel>(
         self,
         _mep: &mut super::ManagementEndpoint,
@@ -969,7 +973,7 @@ impl RequestHandler for NvmeMiDataStructure {
         let mh = MessageHeader::respond(MessageType::NvmeMiCommand).encode()?;
 
         match self.dtyp {
-            NvmeMiDataStructureType::NvmSubsystemInformation => {
+            NvmeMiDataStructureRequestType::NvmSubsystemInformation => {
                 assert!(!subsys.ports.is_empty(), "Need at least one port defined");
                 // See 5.7.1, 5.1.1 of v2.0
                 assert!(
@@ -978,7 +982,7 @@ impl RequestHandler for NvmeMiDataStructure {
                     subsys.ports.len()
                 );
                 // See 5.7.1 of v2.0
-                let nvmsi = NvmSubsystemInformation {
+                let nvmsi = NvmSubsystemInformationResponse {
                     nump: subsys.ports.len() as u8 - 1,
                     mjr: subsys.mi.mjr,
                     mnr: subsys.mi.mnr,
@@ -996,12 +1000,12 @@ impl RequestHandler for NvmeMiDataStructure {
                 send_response(resp, &[&mh.0, &dsmr.0, &nvmsi.0]).await;
                 Ok(())
             }
-            NvmeMiDataStructureType::PortInformation => {
+            NvmeMiDataStructureRequestType::PortInformation => {
                 let Some(port) = subsys.ports.iter().find(|p| p.id.0 == self.portid) else {
                     // TODO: Propagate PEL
                     return Err(ResponseStatus::InvalidParameter);
                 };
-                let pi = PortInformation {
+                let pi = PortInformationResponse {
                     prttyp: port.typ.id(),
                     prtcap: (port.caps.aems as u8) << 1 | (port.caps.ciaps as u8),
                     mmtus: port.mmtus,
@@ -1011,7 +1015,7 @@ impl RequestHandler for NvmeMiDataStructure {
 
                 match port.typ {
                     PortType::Pcie(pprt) => {
-                        let ppd = PciePortData {
+                        let ppd = PciePortDataResponse {
                             pciemps: pprt.mps.into(),
                             pcieslsv: 0x3fu8,
                             pciecls: pprt.cls.into(),
@@ -1032,7 +1036,7 @@ impl RequestHandler for NvmeMiDataStructure {
                         Ok(())
                     }
                     PortType::TwoWire(twprt) => {
-                        let twpd = TwoWirePortData {
+                        let twpd = TwoWirePortDataResponse {
                             cvpdaddr: twprt.cvpdaddr,
                             mvpdfreq: Into::<SmbusFrequency>::into(twprt.mvpdfreq)
                                 .to_u8()
@@ -1063,14 +1067,14 @@ impl RequestHandler for NvmeMiDataStructure {
                     }
                 }
             }
-            NvmeMiDataStructureType::ControllerList => {
+            NvmeMiDataStructureRequestType::ControllerList => {
                 assert!(
                     subsys.ctlrs.len() <= 2047,
                     "Invalid number of controllers in drive model: {}",
                     subsys.ctlrs.len()
                 );
 
-                let mut cl = ControllerList::new();
+                let mut cl = ControllerListResponse::new();
                 for ctlr in subsys
                     .ctlrs
                     .iter()
@@ -1111,7 +1115,7 @@ impl RequestHandler for NvmeMiDataStructure {
                 send_response(resp, &[&mh.0, &dsmr.0, &cl.0[..cl.1]]).await;
                 Ok(())
             }
-            NvmeMiDataStructureType::ControllerInformation => {
+            NvmeMiDataStructureRequestType::ControllerInformation => {
                 let Some(ctlr) = subsys.ctlrs.iter().find(|c| c.id.0 == self.ctrlid) else {
                     debug!("Unknown controller ID: {:?}", self.ctrlid);
                     return Err(ResponseStatus::InvalidParameter);
@@ -1128,7 +1132,7 @@ impl RequestHandler for NvmeMiDataStructure {
                     panic!("Non-PCIe port associated with controller {:?}", ctlr.id);
                 };
 
-                let ci = ControllerInformation {
+                let ci = ControllerInformationResponse {
                     portid: ctlr.port.0,
                     prii: 1,
                     pri: pprt.b << 8 | pprt.d << 4 | pprt.f,
@@ -1158,33 +1162,33 @@ impl RequestHandler for NvmeMiDataStructure {
     }
 }
 
-const MI_PROHIBITED_ADMIN_COMMANDS: [AdminCommandOpcode; 26] = [
-    AdminCommandOpcode::DeleteIoSubmissionQueue,
-    AdminCommandOpcode::CreateIoSubmissionQueue,
-    AdminCommandOpcode::DeleteIoCompletionQueue,
-    AdminCommandOpcode::CreateIoCompletionQueue,
-    AdminCommandOpcode::Abort,
-    AdminCommandOpcode::AsynchronousEventRequest,
-    AdminCommandOpcode::KeepAlive,
-    AdminCommandOpcode::DirectiveSend,
-    AdminCommandOpcode::DirectiveReceive,
-    AdminCommandOpcode::NvmeMiSend,
-    AdminCommandOpcode::NvmeMiReceive,
-    AdminCommandOpcode::DiscoveryInformationManagement,
-    AdminCommandOpcode::FabricZoningReceive,
-    AdminCommandOpcode::FabricZoningLookup,
-    AdminCommandOpcode::FabricZoningSend,
-    AdminCommandOpcode::SendDiscoveryLogPage,
-    AdminCommandOpcode::TrackSend,
-    AdminCommandOpcode::TrackReceive,
-    AdminCommandOpcode::MigrationSend,
-    AdminCommandOpcode::MigrationReceive,
-    AdminCommandOpcode::ControllerDataQueue,
-    AdminCommandOpcode::DoorbellBufferConfig,
-    AdminCommandOpcode::FabricsCommands,
-    AdminCommandOpcode::LoadProgram,
-    AdminCommandOpcode::ProgramActivationManagement,
-    AdminCommandOpcode::MemoryRangeSetManagement,
+const MI_PROHIBITED_ADMIN_COMMANDS: [AdminCommandRequestType; 26] = [
+    AdminCommandRequestType::DeleteIoSubmissionQueue,
+    AdminCommandRequestType::CreateIoSubmissionQueue,
+    AdminCommandRequestType::DeleteIoCompletionQueue,
+    AdminCommandRequestType::CreateIoCompletionQueue,
+    AdminCommandRequestType::Abort,
+    AdminCommandRequestType::AsynchronousEventRequest,
+    AdminCommandRequestType::KeepAlive,
+    AdminCommandRequestType::DirectiveSend,
+    AdminCommandRequestType::DirectiveReceive,
+    AdminCommandRequestType::NvmeMiSend,
+    AdminCommandRequestType::NvmeMiReceive,
+    AdminCommandRequestType::DiscoveryInformationManagement,
+    AdminCommandRequestType::FabricZoningReceive,
+    AdminCommandRequestType::FabricZoningLookup,
+    AdminCommandRequestType::FabricZoningSend,
+    AdminCommandRequestType::SendDiscoveryLogPage,
+    AdminCommandRequestType::TrackSend,
+    AdminCommandRequestType::TrackReceive,
+    AdminCommandRequestType::MigrationSend,
+    AdminCommandRequestType::MigrationReceive,
+    AdminCommandRequestType::ControllerDataQueue,
+    AdminCommandRequestType::DoorbellBufferConfig,
+    AdminCommandRequestType::FabricsCommands,
+    AdminCommandRequestType::LoadProgram,
+    AdminCommandRequestType::ProgramActivationManagement,
+    AdminCommandRequestType::MemoryRangeSetManagement,
 ];
 
 impl RequestHandler for AdminCommandRequestHeader {
@@ -1213,7 +1217,7 @@ impl RequestHandler for AdminCommandRequestHeader {
 
         let opcode = self.opcode;
         match opcode {
-            AdminCommandOpcode::Identify => {
+            AdminCommandRequestType::Identify => {
                 let Ok(((rest, _), id)) = AdminIdentifyRequest::from_bytes((rest, 0)) else {
                     debug!("Message too short to extract AdminIdentify request");
                     return Err(ResponseStatus::InvalidCommandSize);
@@ -1326,15 +1330,15 @@ impl RequestHandler for AdminIdentifyRequest {
             cqedw3: ((false as u32) << 31) // DNR
                 | ((false as u32) << 30) // M
                 | (0u32 & 3) << 28 // CRD
-                | (((StatusCodeType::GenericCommandStatus.id() as u32) & 7) << 25) // SCT
-                | (((GenericCommandStatus::SuccessfulCompletion.id() as u32) & 0x1ff) << 17) // SC
+                | (((CqeStatusCodeType::GenericCommandStatus.id() as u32) & 7) << 25) // SCT
+                | (((CqeGenericCommandStatus::SuccessfulCompletion.id() as u32) & 0x1ff) << 17) // SC
                 | ((true as u32) << 16) // P
                 | (0u32 & 0xffff) << 0, // CID
         }
         .encode()?;
 
         match self.cns {
-            ControllerOrNamespaceStructure::NvmIdentifyNamespace => {
+            AdminIdentifyCnsRequestType::NvmIdentifyNamespace => {
                 assert!(subsys.nss.len() <= u32::MAX.try_into().unwrap());
 
                 if self.nsid == u32::MAX {
@@ -1384,7 +1388,7 @@ impl RequestHandler for AdminIdentifyRequest {
                 self.send_constrained_response(resp, &[&mh.0, &acrh.0], &ainvminr.0)
                     .await
             }
-            ControllerOrNamespaceStructure::IdentifyController => {
+            AdminIdentifyCnsRequestType::IdentifyController => {
                 let ctlr = subsys
                     .ctlrs
                     .first()
@@ -1463,7 +1467,7 @@ impl RequestHandler for AdminIdentifyRequest {
                 self.send_constrained_response(resp, &[&mh.0, &acrh.0], &aicr.0)
                     .await
             }
-            ControllerOrNamespaceStructure::ActiveNamespaceIDList => {
+            AdminIdentifyCnsRequestType::ActiveNamespaceIDList => {
                 // 5.1.13.2.2, Base v2.1
                 let mut active: heapless::Vec<u32, MAX_NAMESPACES> = subsys
                     .ctlrs
@@ -1491,7 +1495,7 @@ impl RequestHandler for AdminIdentifyRequest {
                 self.send_constrained_response(resp, &[&mh.0, &acrh.0], &aianidlr.0)
                     .await
             }
-            ControllerOrNamespaceStructure::NamespaceIdentificationDescriptorList => {
+            AdminIdentifyCnsRequestType::NamespaceIdentificationDescriptorList => {
                 // 5.1.13.2.3, Base v2.1
                 if self.nsid >= u32::MAX - 1 {
                     debug!("Unacceptable NSID for Namespace Identification Descriptor List");
@@ -1528,7 +1532,7 @@ impl RequestHandler for AdminIdentifyRequest {
                 self.send_constrained_response(resp, &[&mh.0, &acrh.0], &ainsidlr.0)
                     .await
             }
-            ControllerOrNamespaceStructure::AllocatedNamespaceIdList => {
+            AdminIdentifyCnsRequestType::AllocatedNamespaceIdList => {
                 // 5.1.13.2.9, Base v2.1
                 if self.nsid >= u32::MAX - 1 {
                     debug!("Invalid NSID");
@@ -1555,13 +1559,13 @@ impl RequestHandler for AdminIdentifyRequest {
                 self.send_constrained_response(resp, &[&mh.0, &acrh.0], &aiansidl.0)
                     .await
             }
-            ControllerOrNamespaceStructure::NvmSubsystemControllerList => {
+            AdminIdentifyCnsRequestType::NvmSubsystemControllerList => {
                 assert!(
                     subsys.ctlrs.len() <= 2047,
                     "Invalid number of controllers in drive model: {}",
                     subsys.ctlrs.len()
                 );
-                let mut cl = ControllerList::new();
+                let mut cl = ControllerListResponse::new();
                 for ctlr in subsys.ctlrs.iter().filter(|v| v.id.0 >= self.cntid) {
                     if let Err(id) = cl.ids.push(ctlr.id.0) {
                         debug!("Failed to push controller ID {id}");
@@ -1573,7 +1577,7 @@ impl RequestHandler for AdminIdentifyRequest {
                 self.send_constrained_response(resp, &[&mh.0, &acrh.0], &cl.0)
                     .await
             }
-            ControllerOrNamespaceStructure::SecondaryControllerList => {
+            AdminIdentifyCnsRequestType::SecondaryControllerList => {
                 let ctlr = subsys
                     .ctlrs
                     .first()
