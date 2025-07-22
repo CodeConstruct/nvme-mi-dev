@@ -12,7 +12,7 @@ use num_derive::{FromPrimitive, ToPrimitive};
 use num_traits::ToPrimitive;
 
 use crate::{
-    nvme::{MAX_NAMESPACES, MAX_NIDTS, PCIeLinkSpeed, PortType, UnitKind},
+    nvme::{MAX_NAMESPACES, MAX_NIDTS, PcieLinkSpeed, PortType, UnitKind},
     wire::{string::WireString, uuid::WireUuid, vec::WireVec},
 };
 
@@ -24,20 +24,20 @@ const MAX_FRAGMENTS: usize = 6;
 #[deku(endian = "endian", ctx = "endian: Endian")]
 #[deku(id_type = "u8")]
 #[repr(u8)]
-enum SMBusFrequency {
+enum SmbusFrequency {
     FreqNotSupported = 0x00,
-    Freq100kHz = 0x01,
-    Freq400kHz = 0x02,
-    Freq1MHz = 0x03,
+    Freq100Khz = 0x01,
+    Freq400Khz = 0x02,
+    Freq1Mhz = 0x03,
 }
 
-impl From<super::SMBusFrequency> for SMBusFrequency {
-    fn from(value: super::SMBusFrequency) -> Self {
+impl From<super::SmbusFrequency> for SmbusFrequency {
+    fn from(value: super::SmbusFrequency) -> Self {
         match value {
-            super::SMBusFrequency::FreqNotSupported => Self::FreqNotSupported,
-            super::SMBusFrequency::Freq100kHz => Self::Freq100kHz,
-            super::SMBusFrequency::Freq400kHz => Self::Freq400kHz,
-            super::SMBusFrequency::Freq1MHz => Self::Freq1MHz,
+            super::SmbusFrequency::FreqNotSupported => Self::FreqNotSupported,
+            super::SmbusFrequency::Freq100Khz => Self::Freq100Khz,
+            super::SmbusFrequency::Freq400Khz => Self::Freq400Khz,
+            super::SmbusFrequency::Freq1Mhz => Self::Freq1Mhz,
         }
     }
 }
@@ -86,11 +86,11 @@ impl From<()> for ResponseStatus {
 
 #[derive(Debug, DekuRead, DekuWrite)]
 #[deku(endian = "little")]
-struct NVMeManagementResponse {
+struct NvmeManagementResponse {
     #[deku(pad_bytes_after = "3")]
     status: ResponseStatus,
 }
-impl Encode<4> for NVMeManagementResponse {}
+impl Encode<4> for NvmeManagementResponse {}
 
 #[derive(Debug, DekuRead, DekuWrite)]
 #[deku(endian = "little")]
@@ -124,9 +124,9 @@ impl MessageHeader {
 #[repr(u8)]
 enum MessageType {
     ControlPrimitive = 0x00,
-    NVMeMICommand = 0x01,
-    NVMeAdminCommand = 0x02,
-    PCIeCommand = 0x04,
+    NvmeMiCommand = 0x01,
+    NvmeAdminCommand = 0x02,
+    PcieCommand = 0x04,
     AsynchronousEvent = 0x05,
 }
 
@@ -136,9 +136,9 @@ impl TryFrom<u8> for MessageType {
     fn try_from(value: u8) -> Result<Self, u8> {
         match value {
             0x00 => Ok(Self::ControlPrimitive),
-            0x01 => Ok(Self::NVMeMICommand),
-            0x02 => Ok(Self::NVMeAdminCommand),
-            0x04 => Ok(Self::PCIeCommand),
+            0x01 => Ok(Self::NvmeMiCommand),
+            0x02 => Ok(Self::NvmeAdminCommand),
+            0x04 => Ok(Self::PcieCommand),
             0x05 => Ok(Self::AsynchronousEvent),
             _ => Err(value),
         }
@@ -154,26 +154,26 @@ impl MessageType {
 
 #[derive(Debug, DekuRead, DekuWrite)]
 #[deku(endian = "little")]
-struct NVMeMICommandHeader {
+struct NvmeMiCommandHeader {
     #[deku(pad_bytes_after = "3")]
     opcode: CommandOpcode,
 }
-impl Encode<4> for NVMeMICommandHeader {}
+impl Encode<4> for NvmeMiCommandHeader {}
 
 #[derive(Debug, DekuRead, DekuWrite, PartialEq, Eq)]
 #[deku(id_type = "u8", endian = "endian", ctx = "endian: Endian")]
 #[repr(u8)]
 enum CommandOpcode {
-    ReadNVMeMIDataStructure = 0x00,
-    NVMSubsystemHealthStatusPoll = 0x01,
+    ReadNvmeMiDataStructure = 0x00,
+    NvmSubsystemHealthStatusPoll = 0x01,
     ControllerHealthStatusPoll = 0x02,
     ConfigurationSet = 0x03,
     ConfigurationGet = 0x04,
-    VPDRead = 0x05,
-    VPDWrite = 0x06,
+    VpdRead = 0x05,
+    VpdWrite = 0x06,
     Reset = 0x07,
-    SESReceive = 0x08,
-    SESSend = 0x09,
+    SesReceive = 0x08,
+    SesSend = 0x09,
     ManagementEndpointBufferRead = 0x0a,
     ManagementEndpointBufferWrite = 0x0b,
     Shutdown = 0x0c,
@@ -181,10 +181,10 @@ enum CommandOpcode {
 
 #[derive(Debug, DekuRead, DekuWrite)]
 #[deku(endian = "little")]
-struct NVMeMIDataStructure {
+struct NvmeMiDataStructure {
     ctrlid: u16,
     portid: u8,
-    dtyp: NVMeMIDataStructureType,
+    dtyp: NvmeMiDataStructureType,
     #[deku(pad_bytes_after = "3")]
     iocsi: u8,
 }
@@ -192,8 +192,8 @@ struct NVMeMIDataStructure {
 #[derive(Debug, DekuRead, DekuWrite, PartialEq, Eq)]
 #[deku(id_type = "u8", endian = "endian", ctx = "endian: Endian")]
 #[repr(u8)]
-enum NVMeMIDataStructureType {
-    NVMSubsystemInformation = 0x00,
+enum NvmeMiDataStructureType {
+    NvmSubsystemInformation = 0x00,
     PortInformation = 0x01,
     ControllerList = 0x02,
     ControllerInformation = 0x03,
@@ -203,21 +203,21 @@ enum NVMeMIDataStructureType {
 
 #[derive(Debug, DekuRead, DekuWrite)]
 #[deku(endian = "little")]
-struct NVMeMIDataStructureManagementResponse {
+struct NvmeMiDataStructureManagementResponse {
     status: ResponseStatus,
     rdl: u16,
 }
-impl Encode<4> for NVMeMIDataStructureManagementResponse {}
+impl Encode<4> for NvmeMiDataStructureManagementResponse {}
 
 #[derive(Debug, DekuWrite)]
 #[deku(endian = "little")]
-struct NVMSubsystemInformation {
+struct NvmSubsystemInformation {
     nump: u8,
     mjr: u8,
     mnr: u8,
     nnsc: u8,
 }
-impl Encode<32> for NVMSubsystemInformation {}
+impl Encode<32> for NvmSubsystemInformation {}
 
 #[derive(Debug, DekuWrite)]
 #[deku(endian = "little")]
@@ -231,7 +231,7 @@ impl Encode<8> for PortInformation {}
 
 #[derive(Debug, DekuWrite)]
 #[deku(endian = "little")]
-struct PCIePortData {
+struct PciePortData {
     pciemps: u8,
     pcieslsv: u8,
     pciecls: u8,
@@ -239,7 +239,7 @@ struct PCIePortData {
     pcienlw: u8,
     pciepn: u8,
 }
-impl Encode<24> for PCIePortData {}
+impl Encode<24> for PciePortData {}
 
 #[derive(Debug, DekuWrite)]
 #[deku(endian = "little")]
@@ -288,21 +288,21 @@ impl Encode<32> for ControllerInformation {}
 
 #[derive(Debug, DekuRead, DekuWrite)]
 #[deku(endian = "little")]
-struct NVMSubsystemHealthStatusPoll {
+struct NvmSubsystemHealthStatusPoll {
     dword0: u32,
     dword1: u32,
 }
-impl Encode<8> for NVMSubsystemHealthStatusPoll {}
+impl Encode<8> for NvmSubsystemHealthStatusPoll {}
 
 #[derive(Debug, DekuRead, DekuWrite)]
 #[deku(endian = "little")]
-struct NVMSubsystemHealthDataStructure {
+struct NvmSubsystemHealthDataStructure {
     nss: u8,
     sw: u8,
     ctemp: u8,
     pldu: u8,
 }
-impl Encode<4> for NVMSubsystemHealthDataStructure {}
+impl Encode<4> for NvmSubsystemHealthDataStructure {}
 
 #[derive(Debug, DekuRead, DekuWrite)]
 #[deku(endian = "little")]
@@ -315,17 +315,17 @@ impl Encode<4> for CompositeControllerStatusDataStructure {}
 #[derive(Debug, DekuRead, DekuWrite, PartialEq)]
 #[deku(id_type = "u8", endian = "little")]
 #[repr(u8)]
-enum NVMeMIConfigurationIdentifier {
+enum NvmeMiConfigurationIdentifier {
     Reserved = 0x00,
-    SMBusI2CFrequency = 0x01,
+    SmbusI2cFrequency = 0x01,
     HealthStatusChange = 0x02,
-    MCTPTransmissionUnitSize = 0x03,
+    MctpTransmissionUnitSize = 0x03,
     AsyncronousEvent = 0x04,
 }
 
 #[derive(Debug, DekuRead, DekuWrite, PartialEq)]
 #[deku(endian = "little")]
-struct GetSMBusI2CFrequencyRequest {
+struct GetSmbusI2cFrequencyRequest {
     // Skip intermediate bytes in DWORD 0
     #[deku(seek_from_start = "2")]
     dw0_portid: u8,
@@ -334,16 +334,16 @@ struct GetSMBusI2CFrequencyRequest {
 
 #[derive(Debug, DekuWrite, PartialEq)]
 #[deku(endian = "little")]
-struct GetSMBusI2CFrequencyResponse {
+struct GetSmbusI2cFrequencyResponse {
     status: ResponseStatus,
     #[deku(pad_bytes_after = "2")]
-    mr_sfreq: SMBusFrequency,
+    mr_sfreq: SmbusFrequency,
 }
-impl Encode<4> for GetSMBusI2CFrequencyResponse {}
+impl Encode<4> for GetSmbusI2cFrequencyResponse {}
 
 #[derive(Debug, DekuRead, DekuWrite)]
 #[deku(endian = "little")]
-struct GetMCTPTransmissionUnitSizeRequest {
+struct GetMctpTransmissionUnitSizeRequest {
     #[deku(seek_from_start = "2")]
     dw0_portid: u8,
     _dw1: u32,
@@ -351,22 +351,22 @@ struct GetMCTPTransmissionUnitSizeRequest {
 
 #[derive(Debug, DekuWrite)]
 #[deku(endian = "little")]
-struct GetMCTPTransmissionUnitSizeResponse {
+struct GetMctpTransmissionUnitSizeResponse {
     status: ResponseStatus,
     #[deku(pad_bytes_after = "1")]
     mr_mtus: u16,
 }
-impl Encode<4> for GetMCTPTransmissionUnitSizeResponse {}
+impl Encode<4> for GetMctpTransmissionUnitSizeResponse {}
 
 #[derive(Clone, Copy, Debug, DekuRead, DekuWrite, PartialEq, Eq)]
 #[deku(id_type = "u8", endian = "endian", ctx = "endian: Endian")]
 #[repr(u8)]
 enum AdminCommandOpcode {
-    DeleteIOSubmissionQueue = 0x00,        // P
-    CreateIOSubmissionQueue = 0x01,        // P
+    DeleteIoSubmissionQueue = 0x00,        // P
+    CreateIoSubmissionQueue = 0x01,        // P
     GetLogPage = 0x02,                     // M
-    DeleteIOCompletionQueue = 0x04,        // P
-    CreateIOCompletionQueue = 0x05,        // P
+    DeleteIoCompletionQueue = 0x04,        // P
+    CreateIoCompletionQueue = 0x05,        // P
     Identify = 0x06,                       // M
     Abort = 0x08,                          // P
     GetFeatures = 0x0a,                    // M
@@ -374,8 +374,8 @@ enum AdminCommandOpcode {
     KeepAlive = 0x18,                      // P
     DirectiveSend = 0x19,                  // P
     DirectiveReceive = 0x1a,               // P
-    NVMeMISend = 0x1d,                     // P
-    NVMeMIReceive = 0x1e,                  // P
+    NvmeMiSend = 0x1d,                     // P
+    NvmeMiReceive = 0x1e,                  // P
     DiscoveryInformationManagement = 0x21, // P
     FabricZoningReceive = 0x22,            // P
     FabricZoningLookup = 0x25,             // P
@@ -405,16 +405,16 @@ struct AdminCommandRequestHeader {
 #[deku(id_type = "u8", endian = "endian", ctx = "endian: Endian")]
 #[repr(u8)]
 enum ControllerOrNamespaceStructure {
-    NVMIdentifyNamespace = 0x00,
+    NvmIdentifyNamespace = 0x00,
     IdentifyController = 0x01,
     ActiveNamespaceIDList = 0x02,
     NamespaceIdentificationDescriptorList = 0x03,
-    IOIdentifyNamespace = 0x05,
-    IOIdentifyController = 0x06,
-    IOActiveNamespaceIDList = 0x07,
+    IoIdentifyNamespace = 0x05,
+    IoIdentifyController = 0x06,
+    IoActiveNamespaceIdList = 0x07,
     IdentifyNamespace = 0x08,
-    AllocatedNamespaceIDList = 0x10,
-    NVMSubsystemControllerList = 0x13,
+    AllocatedNamespaceIdList = 0x10,
+    NvmSubsystemControllerList = 0x13,
     SecondaryControllerList = 0x15,
 }
 
@@ -486,7 +486,7 @@ struct AdminIdentifyRequest {
 #[repr(u8)]
 enum ControllerType {
     Reserved = 0x00,
-    IOController = 0x01,
+    IoController = 0x01,
     DiscoveryController = 0x02,
     AdministrativeController = 0x03,
 }
@@ -557,7 +557,7 @@ impl Encode<4096> for AdminIdentifyControllerResponse {}
 
 #[derive(Debug, Default, DekuRead, DekuWrite)]
 #[deku(endian = "little")]
-struct AdminIdentifyNVMIdentifyNamespaceResponse {
+struct AdminIdentifyNvmIdentifyNamespaceResponse {
     nsze: u64,
     ncap: u64,
     nuse: u64,
@@ -575,16 +575,16 @@ struct AdminIdentifyNVMIdentifyNamespaceResponse {
     lbaf0_lbads: u8,
     lbaf0_rp: u8,
 }
-impl Encode<4096> for AdminIdentifyNVMIdentifyNamespaceResponse {}
+impl Encode<4096> for AdminIdentifyNvmIdentifyNamespaceResponse {}
 
 #[derive(Debug, DekuRead, DekuWrite)]
 #[deku(endian = "little")]
-struct AdminIdentifyActiveNamespaceIDListResponse {
+struct AdminIdentifyActiveNamespaceIdListResponse {
     nsid: WireVec<u32, 1024>,
 }
-impl Encode<4096> for AdminIdentifyActiveNamespaceIDListResponse {}
+impl Encode<4096> for AdminIdentifyActiveNamespaceIdListResponse {}
 
-impl AdminIdentifyActiveNamespaceIDListResponse {
+impl AdminIdentifyActiveNamespaceIdListResponse {
     fn new() -> Self {
         Self {
             nsid: WireVec::new(),
@@ -606,15 +606,11 @@ enum CommandSetIdentifier {
 impl From<super::CommandSetIdentifier> for CommandSetIdentifier {
     fn from(value: super::CommandSetIdentifier) -> Self {
         match value {
-            super::CommandSetIdentifier::NVMCommandSet => Self::Nvm,
-            super::CommandSetIdentifier::KeyValueCommandSet => Self::KeyValue,
-            super::CommandSetIdentifier::ZonedNamespaceCommandSet => Self::ZonedNamespace,
-            super::CommandSetIdentifier::SubsystemLocalMemoryCommandSet => {
-                Self::SubsystemLocalMemory
-            }
-            super::CommandSetIdentifier::ComputationalProgramsCommandSet => {
-                Self::ComputationalPrograms
-            }
+            super::CommandSetIdentifier::Nvm => Self::Nvm,
+            super::CommandSetIdentifier::KeyValue => Self::KeyValue,
+            super::CommandSetIdentifier::ZonedNamespace => Self::ZonedNamespace,
+            super::CommandSetIdentifier::SubsystemLocalMemory => Self::SubsystemLocalMemory,
+            super::CommandSetIdentifier::ComputationalPrograms => Self::ComputationalPrograms,
         }
     }
 }
@@ -638,10 +634,10 @@ enum NamespaceIdentifierType {
 impl From<super::NamespaceIdentifierType> for NamespaceIdentifierType {
     fn from(value: super::NamespaceIdentifierType) -> Self {
         match value {
-            super::NamespaceIdentifierType::IEUID(v) => Self::Ieuid(v.len() as u8, 0, v),
-            super::NamespaceIdentifierType::NGUID(v) => Self::Nguid(v.len() as u8, 0, v),
-            super::NamespaceIdentifierType::NUUID(uuid) => Self::Nuuid(16, 0, WireUuid::new(uuid)),
-            super::NamespaceIdentifierType::CSI(v) => Self::Csi(1, 0, v.into()),
+            super::NamespaceIdentifierType::Ieuid(v) => Self::Ieuid(v.len() as u8, 0, v),
+            super::NamespaceIdentifierType::Nguid(v) => Self::Nguid(v.len() as u8, 0, v),
+            super::NamespaceIdentifierType::Nuuid(uuid) => Self::Nuuid(16, 0, WireUuid::new(uuid)),
+            super::NamespaceIdentifierType::Csi(v) => Self::Csi(1, 0, v.into()),
         }
     }
 }
@@ -656,10 +652,10 @@ impl Encode<4096> for AdminIdentifyNamespaceIdentificationDescriptorListResponse
 
 #[derive(Debug, DekuRead, DekuWrite)]
 #[deku(endian = "little")]
-struct AdminIdentifyAllocatedNamespaceIDListResponse {
+struct AdminIdentifyAllocatedNamespaceIdListResponse {
     nsid: WireVec<u32, 1024>,
 }
-impl Encode<4096> for AdminIdentifyAllocatedNamespaceIDListResponse {}
+impl Encode<4096> for AdminIdentifyAllocatedNamespaceIdListResponse {}
 
 async fn send_response(resp: &mut impl AsyncRespChannel, bufs: &[&[u8]]) {
     let mut digest = ISCSI.digest();
@@ -701,15 +697,15 @@ impl RequestHandler for MessageHeader {
         };
 
         match nmimt {
-            MessageType::NVMeMICommand => {
-                let Ok(((rest, _), ch)) = NVMeMICommandHeader::from_bytes((rest, 0)) else {
+            MessageType::NvmeMiCommand => {
+                let Ok(((rest, _), ch)) = NvmeMiCommandHeader::from_bytes((rest, 0)) else {
                     debug!("Message too short to extract NVMeMICommandHeader");
                     return Err(ResponseStatus::InvalidCommandSize);
                 };
 
                 ch.handle(mep, subsys, rest, resp).await
             }
-            MessageType::NVMeAdminCommand => {
+            MessageType::NvmeAdminCommand => {
                 let Ok(((rest, _), ch)) = AdminCommandRequestHeader::from_bytes((rest, 0)) else {
                     debug!("Message too short to extract AdminCommandHeader");
                     return Err(ResponseStatus::InvalidCommandSize);
@@ -725,7 +721,7 @@ impl RequestHandler for MessageHeader {
     }
 }
 
-impl RequestHandler for NVMeMICommandHeader {
+impl RequestHandler for NvmeMiCommandHeader {
     async fn handle<A: AsyncRespChannel>(
         self,
         mep: &mut super::ManagementEndpoint,
@@ -735,16 +731,16 @@ impl RequestHandler for NVMeMICommandHeader {
     ) -> Result<(), ResponseStatus> {
         debug!("{self:x?}");
         match self.opcode {
-            CommandOpcode::ReadNVMeMIDataStructure => {
-                let Ok(((rest, _), ds)) = NVMeMIDataStructure::from_bytes((rest, 0)) else {
+            CommandOpcode::ReadNvmeMiDataStructure => {
+                let Ok(((rest, _), ds)) = NvmeMiDataStructure::from_bytes((rest, 0)) else {
                     debug!("Message too short to extract NVMeMIDataStructure");
                     return Err(ResponseStatus::InvalidCommandSize);
                 };
                 ds.handle(mep, subsys, rest, resp).await
             }
-            CommandOpcode::NVMSubsystemHealthStatusPoll => {
+            CommandOpcode::NvmSubsystemHealthStatusPoll => {
                 // 5.6, Figure 108, v2.0
-                let Ok(((rest, _), shsp)) = NVMSubsystemHealthStatusPoll::from_bytes((rest, 0))
+                let Ok(((rest, _), shsp)) = NvmSubsystemHealthStatusPoll::from_bytes((rest, 0))
                 else {
                     debug!("Message too short to extract NVMSubsystemHealthStatusPoll");
                     return Err(ResponseStatus::InvalidCommandSize);
@@ -755,9 +751,9 @@ impl RequestHandler for NVMeMICommandHeader {
                     return Err(ResponseStatus::InvalidCommandSize);
                 }
 
-                let mh = MessageHeader::respond(MessageType::NVMeMICommand).encode()?;
+                let mh = MessageHeader::respond(MessageType::NvmeMiCommand).encode()?;
 
-                let mr = NVMeManagementResponse {
+                let mr = NvmeManagementResponse {
                     status: ResponseStatus::Success,
                 }
                 .encode()?;
@@ -775,7 +771,7 @@ impl RequestHandler for NVMeMICommandHeader {
                     );
                 };
 
-                let PortType::PCIe(pprt) = port.typ else {
+                let PortType::Pcie(pprt) = port.typ else {
                     panic!("Non-PCIe port associated with controller {:?}", ctlr.id);
                 };
 
@@ -811,12 +807,12 @@ impl RequestHandler for NVMeMICommandHeader {
                 // Derive PLDU from write age and expected lifespan
                 let pldu = core::cmp::min(255, 100 * ctlr.write_age / ctlr.write_lifespan);
 
-                let nvmshds = NVMSubsystemHealthDataStructure {
+                let nvmshds = NvmSubsystemHealthDataStructure {
                     nss: (subsys.health.nss.atf as u8) << 7
                         | (subsys.health.nss.sfm as u8) << 6
                         | (subsys.health.nss.df as u8) << 5
                         | (subsys.health.nss.rnr as u8) << 4
-                        | ((pprt.cls != PCIeLinkSpeed::Inactive) as u8) << 3 // P0LA
+                        | ((pprt.cls != PcieLinkSpeed::Inactive) as u8) << 3 // P0LA
                         | (false as u8) << 2, // P1LA
                     #[allow(clippy::nonminimal_bool)]
                     sw: (!false as u8) << 5 // PMRRO
@@ -856,7 +852,7 @@ impl RequestHandler for NVMeMICommandHeader {
                 Ok(())
             }
             CommandOpcode::ConfigurationGet => {
-                let Ok(((rest, _len), cid)) = NVMeMIConfigurationIdentifier::from_bytes((rest, 0))
+                let Ok(((rest, _len), cid)) = NvmeMiConfigurationIdentifier::from_bytes((rest, 0))
                 else {
                     debug!("Failed to extract NVMeConfigurationIdentifier");
                     return Err(ResponseStatus::InvalidCommandSize);
@@ -872,7 +868,7 @@ impl RequestHandler for NVMeMICommandHeader {
     }
 }
 
-impl RequestHandler for NVMeMIConfigurationIdentifier {
+impl RequestHandler for NvmeMiConfigurationIdentifier {
     async fn handle<A: AsyncRespChannel>(
         self,
         _mep: &mut super::ManagementEndpoint,
@@ -881,9 +877,9 @@ impl RequestHandler for NVMeMIConfigurationIdentifier {
         resp: &mut A,
     ) -> Result<(), ResponseStatus> {
         match self {
-            NVMeMIConfigurationIdentifier::Reserved => Err(ResponseStatus::InvalidParameter),
-            NVMeMIConfigurationIdentifier::SMBusI2CFrequency => {
-                let Ok(((_rest, len), gsifr)) = GetSMBusI2CFrequencyRequest::from_bytes((rest, 0))
+            NvmeMiConfigurationIdentifier::Reserved => Err(ResponseStatus::InvalidParameter),
+            NvmeMiConfigurationIdentifier::SmbusI2cFrequency => {
+                let Ok(((_rest, len), gsifr)) = GetSmbusI2cFrequencyRequest::from_bytes((rest, 0))
                 else {
                     debug!("Failed to extract GetSMBusI2CFrequencyRequest");
                     return Err(ResponseStatus::InvalidCommandSize);
@@ -907,21 +903,21 @@ impl RequestHandler for NVMeMIConfigurationIdentifier {
                     return Err(ResponseStatus::InvalidParameter);
                 };
 
-                let mh = MessageHeader::respond(MessageType::NVMeMICommand).encode()?;
+                let mh = MessageHeader::respond(MessageType::NvmeMiCommand).encode()?;
 
-                let fr = GetSMBusI2CFrequencyResponse {
+                let fr = GetSmbusI2cFrequencyResponse {
                     status: ResponseStatus::Success,
-                    mr_sfreq: Into::<SMBusFrequency>::into(twprt.msmbfreq),
+                    mr_sfreq: Into::<SmbusFrequency>::into(twprt.msmbfreq),
                 }
                 .encode()?;
 
                 send_response(resp, &[&mh.0, &fr.0]).await;
                 Ok(())
             }
-            NVMeMIConfigurationIdentifier::HealthStatusChange => todo!(),
-            NVMeMIConfigurationIdentifier::MCTPTransmissionUnitSize => {
+            NvmeMiConfigurationIdentifier::HealthStatusChange => todo!(),
+            NvmeMiConfigurationIdentifier::MctpTransmissionUnitSize => {
                 let Ok(((_rest, len), gmtusr)) =
-                    GetMCTPTransmissionUnitSizeRequest::from_bytes((rest, 0))
+                    GetMctpTransmissionUnitSizeRequest::from_bytes((rest, 0))
                 else {
                     debug!("Failed to extract GetMCTPTransmissionUnitSizeRequest");
                     return Err(ResponseStatus::InvalidCommandSize);
@@ -939,9 +935,9 @@ impl RequestHandler for NVMeMIConfigurationIdentifier {
                     return Err(ResponseStatus::InvalidParameter);
                 };
 
-                let mh = MessageHeader::respond(MessageType::NVMeMICommand).encode()?;
+                let mh = MessageHeader::respond(MessageType::NvmeMiCommand).encode()?;
 
-                let fr = GetMCTPTransmissionUnitSizeResponse {
+                let fr = GetMctpTransmissionUnitSizeResponse {
                     status: ResponseStatus::Success,
                     mr_mtus: port.mmtus,
                 }
@@ -950,12 +946,12 @@ impl RequestHandler for NVMeMIConfigurationIdentifier {
                 send_response(resp, &[&mh.0, &fr.0]).await;
                 Ok(())
             }
-            NVMeMIConfigurationIdentifier::AsyncronousEvent => todo!(),
+            NvmeMiConfigurationIdentifier::AsyncronousEvent => todo!(),
         }
     }
 }
 
-impl RequestHandler for NVMeMIDataStructure {
+impl RequestHandler for NvmeMiDataStructure {
     async fn handle<A: AsyncRespChannel>(
         self,
         _mep: &mut super::ManagementEndpoint,
@@ -970,10 +966,10 @@ impl RequestHandler for NVMeMIDataStructure {
             return Err(ResponseStatus::InvalidCommandInputDataSize);
         }
 
-        let mh = MessageHeader::respond(MessageType::NVMeMICommand).encode()?;
+        let mh = MessageHeader::respond(MessageType::NvmeMiCommand).encode()?;
 
         match self.dtyp {
-            NVMeMIDataStructureType::NVMSubsystemInformation => {
+            NvmeMiDataStructureType::NvmSubsystemInformation => {
                 assert!(!subsys.ports.is_empty(), "Need at least one port defined");
                 // See 5.7.1, 5.1.1 of v2.0
                 assert!(
@@ -982,7 +978,7 @@ impl RequestHandler for NVMeMIDataStructure {
                     subsys.ports.len()
                 );
                 // See 5.7.1 of v2.0
-                let nvmsi = NVMSubsystemInformation {
+                let nvmsi = NvmSubsystemInformation {
                     nump: subsys.ports.len() as u8 - 1,
                     mjr: subsys.mi.mjr,
                     mnr: subsys.mi.mnr,
@@ -991,7 +987,7 @@ impl RequestHandler for NVMeMIDataStructure {
                 .encode()?;
 
                 debug_assert!(nvmsi.0.len() <= u16::MAX as usize);
-                let dsmr = NVMeMIDataStructureManagementResponse {
+                let dsmr = NvmeMiDataStructureManagementResponse {
                     status: ResponseStatus::Success,
                     rdl: nvmsi.0.len() as u16,
                 }
@@ -1000,7 +996,7 @@ impl RequestHandler for NVMeMIDataStructure {
                 send_response(resp, &[&mh.0, &dsmr.0, &nvmsi.0]).await;
                 Ok(())
             }
-            NVMeMIDataStructureType::PortInformation => {
+            NvmeMiDataStructureType::PortInformation => {
                 let Some(port) = subsys.ports.iter().find(|p| p.id.0 == self.portid) else {
                     // TODO: Propagate PEL
                     return Err(ResponseStatus::InvalidParameter);
@@ -1014,8 +1010,8 @@ impl RequestHandler for NVMeMIDataStructure {
                 .encode()?;
 
                 match port.typ {
-                    PortType::PCIe(pprt) => {
-                        let ppd = PCIePortData {
+                    PortType::Pcie(pprt) => {
+                        let ppd = PciePortData {
                             pciemps: pprt.mps.into(),
                             pcieslsv: 0x3fu8,
                             pciecls: pprt.cls.into(),
@@ -1026,7 +1022,7 @@ impl RequestHandler for NVMeMIDataStructure {
                         .encode()?;
 
                         debug_assert!(pi.0.len() + ppd.0.len() <= u16::MAX as usize);
-                        let dsmr = NVMeMIDataStructureManagementResponse {
+                        let dsmr = NvmeMiDataStructureManagementResponse {
                             status: ResponseStatus::Success,
                             rdl: (pi.0.len() + ppd.0.len()) as u16,
                         }
@@ -1038,12 +1034,12 @@ impl RequestHandler for NVMeMIDataStructure {
                     PortType::TwoWire(twprt) => {
                         let twpd = TwoWirePortData {
                             cvpdaddr: twprt.cvpdaddr,
-                            mvpdfreq: Into::<SMBusFrequency>::into(twprt.mvpdfreq)
+                            mvpdfreq: Into::<SmbusFrequency>::into(twprt.mvpdfreq)
                                 .to_u8()
                                 .unwrap(),
                             cmeaddr: twprt.cmeaddr,
                             twprt: (twprt.i3csprt as u8) << 7
-                                | Into::<SMBusFrequency>::into(twprt.msmbfreq)
+                                | Into::<SmbusFrequency>::into(twprt.msmbfreq)
                                     .to_u8()
                                     .unwrap()
                                     & 3,
@@ -1052,7 +1048,7 @@ impl RequestHandler for NVMeMIDataStructure {
                         .encode()?;
 
                         debug_assert!((pi.0.len() + twpd.0.len()) <= u16::MAX as usize);
-                        let dsmr = NVMeMIDataStructureManagementResponse {
+                        let dsmr = NvmeMiDataStructureManagementResponse {
                             status: ResponseStatus::Success,
                             rdl: (pi.0.len() + twpd.0.len()) as u16,
                         }
@@ -1067,7 +1063,7 @@ impl RequestHandler for NVMeMIDataStructure {
                     }
                 }
             }
-            NVMeMIDataStructureType::ControllerList => {
+            NvmeMiDataStructureType::ControllerList => {
                 assert!(
                     subsys.ctlrs.len() <= 2047,
                     "Invalid number of controllers in drive model: {}",
@@ -1106,7 +1102,7 @@ impl RequestHandler for NVMeMIDataStructure {
                 let cl = cl.encode()?;
                 let rdl = cl.1 as u16;
 
-                let dsmr = NVMeMIDataStructureManagementResponse {
+                let dsmr = NvmeMiDataStructureManagementResponse {
                     status: ResponseStatus::Success,
                     rdl,
                 }
@@ -1115,7 +1111,7 @@ impl RequestHandler for NVMeMIDataStructure {
                 send_response(resp, &[&mh.0, &dsmr.0, &cl.0[..cl.1]]).await;
                 Ok(())
             }
-            NVMeMIDataStructureType::ControllerInformation => {
+            NvmeMiDataStructureType::ControllerInformation => {
                 let Some(ctlr) = subsys.ctlrs.iter().find(|c| c.id.0 == self.ctrlid) else {
                     debug!("Unknown controller ID: {:?}", self.ctrlid);
                     return Err(ResponseStatus::InvalidParameter);
@@ -1128,7 +1124,7 @@ impl RequestHandler for NVMeMIDataStructure {
                     );
                 };
 
-                let PortType::PCIe(pprt) = port.typ else {
+                let PortType::Pcie(pprt) = port.typ else {
                     panic!("Non-PCIe port associated with controller {:?}", ctlr.id);
                 };
 
@@ -1145,7 +1141,7 @@ impl RequestHandler for NVMeMIDataStructure {
                 .encode()?;
 
                 debug_assert!(ci.0.len() < u16::MAX as usize);
-                let dsmr = NVMeMIDataStructureManagementResponse {
+                let dsmr = NvmeMiDataStructureManagementResponse {
                     status: ResponseStatus::Success,
                     rdl: ci.0.len() as u16,
                 }
@@ -1163,17 +1159,17 @@ impl RequestHandler for NVMeMIDataStructure {
 }
 
 const MI_PROHIBITED_ADMIN_COMMANDS: [AdminCommandOpcode; 26] = [
-    AdminCommandOpcode::DeleteIOSubmissionQueue,
-    AdminCommandOpcode::CreateIOSubmissionQueue,
-    AdminCommandOpcode::DeleteIOCompletionQueue,
-    AdminCommandOpcode::CreateIOCompletionQueue,
+    AdminCommandOpcode::DeleteIoSubmissionQueue,
+    AdminCommandOpcode::CreateIoSubmissionQueue,
+    AdminCommandOpcode::DeleteIoCompletionQueue,
+    AdminCommandOpcode::CreateIoCompletionQueue,
     AdminCommandOpcode::Abort,
     AdminCommandOpcode::AsynchronousEventRequest,
     AdminCommandOpcode::KeepAlive,
     AdminCommandOpcode::DirectiveSend,
     AdminCommandOpcode::DirectiveReceive,
-    AdminCommandOpcode::NVMeMISend,
-    AdminCommandOpcode::NVMeMIReceive,
+    AdminCommandOpcode::NvmeMiSend,
+    AdminCommandOpcode::NvmeMiReceive,
     AdminCommandOpcode::DiscoveryInformationManagement,
     AdminCommandOpcode::FabricZoningReceive,
     AdminCommandOpcode::FabricZoningLookup,
@@ -1320,7 +1316,7 @@ impl RequestHandler for AdminIdentifyRequest {
             return Err(ResponseStatus::InvalidCommandSize);
         }
 
-        let mh = MessageHeader::respond(MessageType::NVMeAdminCommand).encode()?;
+        let mh = MessageHeader::respond(MessageType::NvmeAdminCommand).encode()?;
 
         let acrh = AdminCommandResponseHeader {
             status: ResponseStatus::Success,
@@ -1338,7 +1334,7 @@ impl RequestHandler for AdminIdentifyRequest {
         .encode()?;
 
         match self.cns {
-            ControllerOrNamespaceStructure::NVMIdentifyNamespace => {
+            ControllerOrNamespaceStructure::NvmIdentifyNamespace => {
                 assert!(subsys.nss.len() <= u32::MAX.try_into().unwrap());
 
                 if self.nsid == u32::MAX {
@@ -1365,7 +1361,7 @@ impl RequestHandler for AdminIdentifyRequest {
                     .flat_map(|c| c.active_ns.iter())
                     .any(|&nsid| nsid.0 == self.nsid);
                 let ainvminr = if active {
-                    AdminIdentifyNVMIdentifyNamespaceResponse {
+                    AdminIdentifyNvmIdentifyNamespaceResponse {
                         nsze: ns.size,
                         ncap: ns.capacity,
                         nuse: ns.used,
@@ -1381,7 +1377,7 @@ impl RequestHandler for AdminIdentifyRequest {
                         lbaf0_rp: 0,
                     }
                 } else {
-                    AdminIdentifyNVMIdentifyNamespaceResponse::default()
+                    AdminIdentifyNvmIdentifyNamespaceResponse::default()
                 }
                 .encode()?;
 
@@ -1425,7 +1421,7 @@ impl RequestHandler for AdminIdentifyRequest {
                     nvmsr: ((false as u8) << 1) // NVMEE
                         | (true as u8), // NVMESD
                     vwci: 0,
-                    mec: ((subsys.ports.iter().any(|p| matches!(p.typ, PortType::PCIe(_)))) as u8) << 1 // PCIEME
+                    mec: ((subsys.ports.iter().any(|p| matches!(p.typ, PortType::Pcie(_)))) as u8) << 1 // PCIEME
                         | (subsys.ports.iter().any(|p| matches!(p.typ, PortType::TwoWire(_)))) as u8, // TWPME
                     ocas: 0,
                     acl: 0,
@@ -1482,7 +1478,7 @@ impl RequestHandler for AdminIdentifyRequest {
                 let unique: heapless::FnvIndexSet<u32, MAX_NAMESPACES> =
                     active.iter().copied().collect();
 
-                let mut aianidlr = AdminIdentifyActiveNamespaceIDListResponse::new();
+                let mut aianidlr = AdminIdentifyActiveNamespaceIdListResponse::new();
                 // TODO: Improve this with better iterator handling?
                 for nsid in unique.iter() {
                     if aianidlr.nsid.push(*nsid).is_err() {
@@ -1532,7 +1528,7 @@ impl RequestHandler for AdminIdentifyRequest {
                 self.send_constrained_response(resp, &[&mh.0, &acrh.0], &ainsidlr.0)
                     .await
             }
-            ControllerOrNamespaceStructure::AllocatedNamespaceIDList => {
+            ControllerOrNamespaceStructure::AllocatedNamespaceIdList => {
                 // 5.1.13.2.9, Base v2.1
                 if self.nsid >= u32::MAX - 1 {
                     debug!("Invalid NSID");
@@ -1540,7 +1536,7 @@ impl RequestHandler for AdminIdentifyRequest {
                 }
 
                 assert!(subsys.nss.len() < 4096 / core::mem::size_of::<u32>());
-                let aiansidl = AdminIdentifyAllocatedNamespaceIDListResponse {
+                let aiansidl = AdminIdentifyAllocatedNamespaceIdListResponse {
                     nsid: {
                         let start = self.nsid + 1;
                         let end = subsys.nss.len() as u32;
@@ -1559,7 +1555,7 @@ impl RequestHandler for AdminIdentifyRequest {
                 self.send_constrained_response(resp, &[&mh.0, &acrh.0], &aiansidl.0)
                     .await
             }
-            ControllerOrNamespaceStructure::NVMSubsystemControllerList => {
+            ControllerOrNamespaceStructure::NvmSubsystemControllerList => {
                 assert!(
                     subsys.ctlrs.len() <= 2047,
                     "Invalid number of controllers in drive model: {}",

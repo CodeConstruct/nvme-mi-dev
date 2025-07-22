@@ -7,7 +7,7 @@ extern crate simplelog;
 use log::LevelFilter;
 use mctp::MsgIC;
 use nvme_mi_dev::nvme::{
-    ManagementEndpoint, PCIePort, PortId, PortType, Subsystem, SubsystemInfo, TwoWirePort,
+    ManagementEndpoint, PciePort, PortId, PortType, Subsystem, SubsystemInfo, TwoWirePort,
 };
 use simplelog::{ColorChoice, Config, TermLogger, TerminalMode};
 
@@ -192,17 +192,17 @@ pub enum DeviceType {
     // Ports: 1 PCIe, 1 Two-wire
     // Controllers: 1 Admin
     // Namespaces: 0 Allocated, 0 Active
-    P1p1tC1aNS0a0a,
+    P1p1tC1aN0a0a,
 
     // Ports: 1 PCIe, 1 Two-wire
     // Controllers: 1 Admin
     // Namespaces: 1 Allocated, 0 Active
-    P1p1tC1aNS1a0a,
+    P1p1tC1aN1a0a,
 
     // Ports: 1 PCIe, 1 Two-wire
     // Controllers: 1 Admin
     // Namespaces: 1 Allocated, 1 Active
-    P1p1tC1aNS1a1a,
+    P1p1tC1aN1a1a,
 }
 
 pub struct TestDevice {
@@ -214,7 +214,7 @@ pub struct TestDevice {
 impl TestDevice {
     pub fn new() -> Self {
         let mut subsys = Subsystem::new(SubsystemInfo::invalid());
-        let ppid = subsys.add_port(PortType::PCIe(PCIePort::new())).unwrap();
+        let ppid = subsys.add_port(PortType::Pcie(PciePort::new())).unwrap();
         let twpid = subsys
             .add_port(PortType::TwoWire(TwoWirePort::new()))
             .unwrap();
@@ -228,11 +228,11 @@ pub fn new_device(typ: DeviceType) -> (ManagementEndpoint, Subsystem) {
 
     let ctlrid = tdev.subsys.add_controller(tdev.ppid).unwrap();
     match typ {
-        DeviceType::P1p1tC1aNS0a0a => {}
-        DeviceType::P1p1tC1aNS1a0a => {
+        DeviceType::P1p1tC1aN0a0a => {}
+        DeviceType::P1p1tC1aN1a0a => {
             tdev.subsys.add_namespace(1024).unwrap();
         }
-        DeviceType::P1p1tC1aNS1a1a => {
+        DeviceType::P1p1tC1aN1a1a => {
             let nsid = tdev.subsys.add_namespace(1024).unwrap();
             tdev.subsys
                 .controller_mut(ctlrid)

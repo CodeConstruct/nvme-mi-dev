@@ -15,17 +15,17 @@ const MAX_NIDTS: usize = 2;
 #[allow(dead_code)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u8)]
-enum PCIePayloadSize {
+enum PciePayloadSize {
     Payload128B = 0x00,
     Payload256B = 0x01,
     Payload512B = 0x02,
-    Payload1KB = 0x03,
-    Payload2KB = 0x04,
-    Payload4KB = 0x05,
+    Payload1Kb = 0x03,
+    Payload2Kb = 0x04,
+    Payload4Kb = 0x05,
 }
 
-impl From<PCIePayloadSize> for u8 {
-    fn from(pps: PCIePayloadSize) -> Self {
+impl From<PciePayloadSize> for u8 {
+    fn from(pps: PciePayloadSize) -> Self {
         pps as Self
     }
 }
@@ -33,18 +33,18 @@ impl From<PCIePayloadSize> for u8 {
 #[allow(dead_code)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u8)]
-enum PCIeLinkSpeed {
+enum PcieLinkSpeed {
     Inactive = 0x00,
-    GTS2P5 = 0x01,
-    GTS5 = 0x02,
-    GTS8 = 0x03,
-    GTS16 = 0x04,
-    GTS32 = 0x05,
-    GTS64 = 0x06,
+    Gts2p5 = 0x01,
+    Gts5 = 0x02,
+    Gts8 = 0x03,
+    Gts16 = 0x04,
+    Gts32 = 0x05,
+    Gts64 = 0x06,
 }
 
-impl From<PCIeLinkSpeed> for u8 {
-    fn from(pls: PCIeLinkSpeed) -> Self {
+impl From<PcieLinkSpeed> for u8 {
+    fn from(pls: PcieLinkSpeed) -> Self {
         pls as Self
     }
 }
@@ -52,7 +52,7 @@ impl From<PCIeLinkSpeed> for u8 {
 #[allow(dead_code)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u8)]
-enum PCIeLinkWidth {
+enum PcieLinkWidth {
     X1 = 1,
     X2 = 2,
     X4 = 4,
@@ -62,40 +62,40 @@ enum PCIeLinkWidth {
     X32 = 32,
 }
 
-impl From<PCIeLinkWidth> for u8 {
-    fn from(plw: PCIeLinkWidth) -> Self {
+impl From<PcieLinkWidth> for u8 {
+    fn from(plw: PcieLinkWidth) -> Self {
         plw as Self
     }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct PCIePort {
+pub struct PciePort {
     b: u16,
     d: u16,
     f: u16,
     seg: u8,
-    mps: PCIePayloadSize,
-    cls: PCIeLinkSpeed,
-    mlw: PCIeLinkWidth,
-    nlw: PCIeLinkWidth,
+    mps: PciePayloadSize,
+    cls: PcieLinkSpeed,
+    mlw: PcieLinkWidth,
+    nlw: PcieLinkWidth,
 }
 
-impl PCIePort {
+impl PciePort {
     pub fn new() -> Self {
         Self {
             b: 0,
             d: 0,
             f: 0,
             seg: 0,
-            mps: PCIePayloadSize::Payload128B,
-            cls: PCIeLinkSpeed::GTS2P5,
-            mlw: PCIeLinkWidth::X2,
-            nlw: PCIeLinkWidth::X1,
+            mps: PciePayloadSize::Payload128B,
+            cls: PcieLinkSpeed::Gts2p5,
+            mlw: PcieLinkWidth::X2,
+            nlw: PcieLinkWidth::X1,
         }
     }
 }
 
-impl Default for PCIePort {
+impl Default for PciePort {
     fn default() -> Self {
         Self::new()
     }
@@ -103,20 +103,20 @@ impl Default for PCIePort {
 
 #[allow(dead_code)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum SMBusFrequency {
+enum SmbusFrequency {
     FreqNotSupported,
-    Freq100kHz,
-    Freq400kHz,
-    Freq1MHz,
+    Freq100Khz,
+    Freq400Khz,
+    Freq1Mhz,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct TwoWirePort {
     cvpdaddr: u8,
-    mvpdfreq: SMBusFrequency,
+    mvpdfreq: SmbusFrequency,
     cmeaddr: u8,
     i3csprt: bool,
-    msmbfreq: SMBusFrequency,
+    msmbfreq: SmbusFrequency,
     nvmebms: bool,
 }
 
@@ -124,10 +124,10 @@ impl TwoWirePort {
     pub fn new() -> Self {
         Self {
             cvpdaddr: 0,
-            mvpdfreq: SMBusFrequency::FreqNotSupported,
+            mvpdfreq: SmbusFrequency::FreqNotSupported,
             cmeaddr: 0x1d,
             i3csprt: false,
-            msmbfreq: SMBusFrequency::Freq100kHz,
+            msmbfreq: SmbusFrequency::Freq100Khz,
             nvmebms: false,
         }
     }
@@ -143,7 +143,7 @@ impl Default for TwoWirePort {
 #[repr(u8)]
 pub enum PortType {
     Inactive = 0x00,
-    PCIe(PCIePort) = 0x01,
+    Pcie(PciePort) = 0x01,
     TwoWire(TwoWirePort) = 0x02,
 }
 
@@ -228,12 +228,12 @@ impl ManagementEndpoint {
 }
 
 #[derive(Debug)]
-struct MICapability {
+struct MiCapability {
     mjr: u8,
     mnr: u8,
 }
 
-impl MICapability {
+impl MiCapability {
     fn new() -> Self {
         Self { mjr: 1, mnr: 2 }
     }
@@ -332,7 +332,7 @@ impl SubsystemCapabilities {
 }
 
 #[derive(Debug)]
-struct NVMSubsystemStatus {
+struct NvmSubsystemStatus {
     atf: bool,
     sfm: bool,
     df: bool,
@@ -340,7 +340,7 @@ struct NVMSubsystemStatus {
     rd: bool,
 }
 
-impl NVMSubsystemStatus {
+impl NvmSubsystemStatus {
     fn new() -> Self {
         Self {
             atf: false,
@@ -354,32 +354,32 @@ impl NVMSubsystemStatus {
 
 #[derive(Debug)]
 struct SubsystemHealth {
-    nss: NVMSubsystemStatus,
+    nss: NvmSubsystemStatus,
 }
 
 impl SubsystemHealth {
     fn new() -> Self {
         Self {
-            nss: NVMSubsystemStatus::new(),
+            nss: NvmSubsystemStatus::new(),
         }
     }
 }
 
 #[derive(Clone, Copy, Debug)]
 pub enum CommandSetIdentifier {
-    NVMCommandSet,
-    KeyValueCommandSet,
-    ZonedNamespaceCommandSet,
-    SubsystemLocalMemoryCommandSet,
-    ComputationalProgramsCommandSet,
+    Nvm,
+    KeyValue,
+    ZonedNamespace,
+    SubsystemLocalMemory,
+    ComputationalPrograms,
 }
 
 #[derive(Clone, Copy, Debug)]
 pub enum NamespaceIdentifierType {
-    IEUID([u8; 8]),
-    NGUID([u8; 16]),
-    NUUID(Uuid),
-    CSI(CommandSetIdentifier),
+    Ieuid([u8; 8]),
+    Nguid([u8; 16]),
+    Nuuid(Uuid),
+    Csi(CommandSetIdentifier),
 }
 
 #[derive(Debug)]
@@ -411,8 +411,8 @@ impl Namespace {
             used: 0,
             block_order: 9,
             nids: [
-                NamespaceIdentifierType::NUUID(id),
-                NamespaceIdentifierType::CSI(CommandSetIdentifier::NVMCommandSet),
+                NamespaceIdentifierType::Nuuid(id),
+                NamespaceIdentifierType::Csi(CommandSetIdentifier::Nvm),
             ],
         }
     }
@@ -501,7 +501,7 @@ pub struct Subsystem {
     ctlrs: heapless::Vec<Controller, MAX_CONTROLLERS>,
     nss: heapless::Vec<Namespace, MAX_NAMESPACES>,
     health: SubsystemHealth,
-    mi: MICapability,
+    mi: MiCapability,
     sn: &'static str,
     mn: &'static str,
     fr: &'static str,
@@ -516,7 +516,7 @@ impl Subsystem {
             ctlrs: heapless::Vec::new(),
             nss: heapless::Vec::new(),
             health: SubsystemHealth::new(),
-            mi: MICapability::new(),
+            mi: MiCapability::new(),
             sn: "1000",
             mn: "MIDEV",
             fr: "00.00.01",
