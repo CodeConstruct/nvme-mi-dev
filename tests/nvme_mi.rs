@@ -717,3 +717,200 @@ mod nvm_subsystem_status_health_poll {
         smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
     }
 }
+
+mod configuration_get {
+    use mctp::MsgIC;
+
+    use crate::{
+        RESP_INVALID_COMMAND_SIZE, RESP_INVALID_PARAMETER,
+        common::{DeviceType, ExpectedRespChannel, new_device, setup},
+    };
+
+    #[test]
+    fn short_request() {
+        setup();
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+
+        #[rustfmt::skip]
+        const REQ: [u8; 15] = [
+            0x08, 0x00, 0x00,
+            0x04, 0x00, 0x00, 0x00,
+            0x01, 0x00, 0x00, 0x00,
+            // Missing DWORD 1
+            0x1c, 0x68, 0x8f, 0x77
+        ];
+
+        let resp = ExpectedRespChannel::new(&RESP_INVALID_COMMAND_SIZE);
+        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await })
+    }
+
+    #[test]
+    fn long_request() {
+        setup();
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+
+        #[rustfmt::skip]
+        const REQ: [u8; 23] = [
+            0x08, 0x00, 0x00,
+            0x04, 0x00, 0x00, 0x00,
+            0x01, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            // Unexpected data
+            0x00, 0x00, 0x00, 0x00,
+            0x17, 0xa7, 0x53, 0x93
+        ];
+
+        let resp = ExpectedRespChannel::new(&RESP_INVALID_COMMAND_SIZE);
+        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await })
+    }
+
+    #[test]
+    fn reserved() {
+        setup();
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+
+        #[rustfmt::skip]
+        const REQ: [u8; 19] = [
+            0x08, 0x00, 0x00,
+            0x04, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x22, 0x50, 0xc1, 0xc2
+        ];
+
+        let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
+        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await })
+    }
+
+    #[test]
+    fn smbus_i2c_frequency() {
+        setup();
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+
+        #[rustfmt::skip]
+        const REQ: [u8; 19] = [
+            0x08, 0x00, 0x00,
+            0x04, 0x00, 0x00, 0x00,
+            0x01, 0x00, 0x00, 0x01,
+            0x00, 0x00, 0x00, 0x00,
+            0xa9, 0x42, 0xec, 0xb3
+        ];
+
+        #[rustfmt::skip]
+        const RESP: [u8; 11] = [
+            0x88, 0x00, 0x00,
+            0x00, 0x01, 0x00, 0x00,
+            0x5a, 0xc7, 0x36, 0x87
+        ];
+
+        let resp = ExpectedRespChannel::new(&RESP);
+        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+    }
+
+    #[test]
+    fn smbus_i2c_frequency_bad_port_type_for_index() {
+        setup();
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+
+        #[rustfmt::skip]
+        const REQ: [u8; 19] = [
+            0x08, 0x00, 0x00,
+            0x04, 0x00, 0x00, 0x00,
+            0x01, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x05, 0x2d, 0xfd, 0x8b
+        ];
+
+        let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
+        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+    }
+
+    #[test]
+    fn smbus_i2c_frequency_bad_port_index() {
+        setup();
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+
+        #[rustfmt::skip]
+        const REQ: [u8; 19] = [
+            0x08, 0x00, 0x00,
+            0x04, 0x00, 0x00, 0x00,
+            0x01, 0x00, 0x00, 0xff,
+            0x00, 0x00, 0x00, 0x00,
+            0xa6, 0x43, 0x95, 0x2b
+        ];
+
+        let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
+        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+    }
+
+    #[test]
+    fn mctp_transmission_unit_size() {
+        setup();
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+
+        #[rustfmt::skip]
+        const REQ: [u8; 19] = [
+            0x08, 0x00, 0x00,
+            0x04, 0x00, 0x00, 0x00,
+            0x03, 0x00, 0x00, 0x01,
+            0x00, 0x00, 0x00, 0x00,
+            0xe7, 0xb8, 0x94, 0x21
+        ];
+
+        #[rustfmt::skip]
+        const RESP: [u8; 11] = [
+            0x88, 0x00, 0x00,
+            0x00, 0x40, 0x00, 0x00,
+            0xfd, 0xd5, 0x12, 0xe5
+        ];
+
+        let resp = ExpectedRespChannel::new(&RESP);
+        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+    }
+
+    #[test]
+    fn mctp_transmission_unit_size_long() {
+        setup();
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+
+        #[rustfmt::skip]
+        const REQ: [u8; 23] = [
+            0x08, 0x00, 0x00,
+            0x04, 0x00, 0x00, 0x00,
+            0x03, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x77, 0x0f, 0xb0, 0xf1
+        ];
+
+        let resp = ExpectedRespChannel::new(&RESP_INVALID_COMMAND_SIZE);
+        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+    }
+
+    #[test]
+    fn mctp_transmission_unit_size_bad_port_index() {
+        setup();
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+
+        #[rustfmt::skip]
+        const REQ: [u8; 19] = [
+            0x08, 0x00, 0x00,
+            0x04, 0x00, 0x00, 0x00,
+            0x03, 0x00, 0x00, 0xff,
+            0x00, 0x00, 0x00, 0x00,
+            0xe8, 0xb9, 0xed, 0xb9
+        ];
+
+        let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
+        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+    }
+}
