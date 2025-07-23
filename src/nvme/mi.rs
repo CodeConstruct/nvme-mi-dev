@@ -237,7 +237,7 @@ struct GetSmbusI2cFrequencyRequest {
 #[derive(Debug, DekuRead, DekuWrite, Eq, PartialEq)]
 #[deku(ctx = "endian: Endian", endian = "endian")]
 struct GetMctpTransmissionUnitSizeRequest {
-    #[deku(seek_from_start = "2")]
+    #[deku(seek_from_current = "2")]
     dw0_portid: u8,
     _dw1: u32,
 }
