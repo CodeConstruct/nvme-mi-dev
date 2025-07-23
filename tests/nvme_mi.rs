@@ -913,4 +913,69 @@ mod configuration_get {
         let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
         smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
     }
+
+    #[test]
+    fn health_status_change_short() {
+        setup();
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+
+        #[rustfmt::skip]
+        const REQ: [u8; 15] = [
+            0x08, 0x00, 0x00,
+            0x04, 0x00, 0x00, 0x00,
+            0x02, 0x00, 0x00, 0x00,
+            // Missing DWORD1
+            0x25, 0xe1, 0xad, 0x15
+        ];
+
+        let resp = ExpectedRespChannel::new(&RESP_INVALID_COMMAND_SIZE);
+        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+    }
+
+    #[test]
+    fn health_status_change_long() {
+        setup();
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+
+        #[rustfmt::skip]
+        const REQ: [u8; 23] = [
+            0x08, 0x00, 0x00,
+            0x04, 0x00, 0x00, 0x00,
+            0x02, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x47, 0xdb, 0xc1, 0xc0
+        ];
+
+        let resp = ExpectedRespChannel::new(&RESP_INVALID_COMMAND_SIZE);
+        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+    }
+
+    #[test]
+    fn health_status_change() {
+        setup();
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+
+        #[rustfmt::skip]
+        const REQ: [u8; 19] = [
+            0x08, 0x00, 0x00,
+            0x04, 0x00, 0x00, 0x00,
+            0x02, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x6c, 0xaa, 0xb9, 0x50
+        ];
+
+        #[rustfmt::skip]
+        const RESP: [u8; 11] = [
+            0x88, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x24, 0x55, 0x77, 0x22
+        ];
+
+        let resp = ExpectedRespChannel::new(&RESP);
+        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+    }
 }

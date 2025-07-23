@@ -236,6 +236,14 @@ struct GetSmbusI2cFrequencyRequest {
 
 #[derive(Debug, DekuRead, DekuWrite, Eq, PartialEq)]
 #[deku(ctx = "endian: Endian", endian = "endian")]
+struct GetHealthStatusChangeRequest {
+    // Skip intermediate bytes comprising DWORD 0
+    #[deku(seek_from_current = "3")]
+    _dw1: u32,
+}
+
+#[derive(Debug, DekuRead, DekuWrite, Eq, PartialEq)]
+#[deku(ctx = "endian: Endian", endian = "endian")]
 struct GetMctpTransmissionUnitSizeRequest {
     #[deku(seek_from_current = "2")]
     dw0_portid: u8,
@@ -249,7 +257,8 @@ enum NvmeMiConfigurationIdentifierRequestType {
     Reserved = 0x00,
     #[deku(id = "0x01")]
     SmbusI2cFrequency(GetSmbusI2cFrequencyRequest),
-    HealthStatusChange = 0x02,
+    #[deku(id = "0x02")]
+    HealthStatusChange(GetHealthStatusChangeRequest),
     #[deku(id = "0x03")]
     MctpTransmissionUnitSize(GetMctpTransmissionUnitSizeRequest),
     AsyncronousEvent = 0x04,
@@ -400,6 +409,14 @@ struct GetSmbusI2cFrequencyResponse {
     mr_sfreq: SmbusFrequency,
 }
 impl Encode<4> for GetSmbusI2cFrequencyResponse {}
+
+#[derive(Debug, DekuWrite)]
+#[deku(endian = "little")]
+struct GetHealthStatusChangeResponse {
+    #[deku(pad_bytes_after = "3")]
+    status: ResponseStatus,
+}
+impl Encode<4> for GetHealthStatusChangeResponse {}
 
 #[derive(Debug, DekuWrite)]
 #[deku(endian = "little")]
@@ -919,7 +936,24 @@ impl RequestHandler for NvmeMiConfigurationIdentifierRequestType {
                 send_response(resp, &[&mh.0, &fr.0]).await;
                 Ok(())
             }
-            Self::HealthStatusChange => todo!(),
+            Self::HealthStatusChange(_) => {
+                // MI v2.0, 5.1.2
+                if !rest.is_empty() {
+                    debug!(
+                        "Lost synchronisation when decoding ConfigurationGet HealthStatusChange"
+                    );
+                    return Err(ResponseStatus::InvalidCommandSize);
+                }
+
+                let mh = MessageHeader::respond(MessageType::NvmeMiCommand).encode()?;
+                let hscr = GetHealthStatusChangeResponse {
+                    status: ResponseStatus::Success,
+                }
+                .encode()?;
+
+                send_response(resp, &[&mh.0, &hscr.0]).await;
+                Ok(())
+            }
             Self::MctpTransmissionUnitSize(gmtusr) => {
                 if !rest.is_empty() {
                     debug!(
