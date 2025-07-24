@@ -4,6 +4,7 @@
  */
 pub mod mi;
 
+use flagset::{FlagSet, flags};
 use hmac::Mac;
 use uuid::Uuid;
 
@@ -193,36 +194,100 @@ impl Port {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct PortId(u8);
 
-// XXX: Is the bunch-of-bools approach helpful in practice?
-#[derive(Debug, Default)]
-pub struct CompositeControllerStatusFlags {
-    rdy: bool,
-    cfs: bool,
-    shst: bool,
-    nssro: bool,
-    ceco: bool,
-    nac: bool,
-    fa: bool,
-    csts: bool,
-    ctemp: bool,
-    pdlu: bool,
-    spare: bool,
-    cwarn: bool,
-    tcida: bool,
+flags! {
+    // MI v2.0, Figure 87
+    #[repr(u32)]
+    enum HealthStatusChangeFlags: u32 {
+        Rdy,
+        Cfs,
+        Shst,
+        Nssro,
+        Ceco,
+        Nac,
+        Fa,
+        Csts,
+        Ctemp,
+        Pldu,
+        Spare,
+        Cwarn,
+        Tcida,
+    }
+
+    // MI v2.0, Figure 107
+    #[repr(u16)]
+    enum CompositeControllerStatusFlags: u16 {
+        Rdy = 1 << 0,
+        Cfs = 1 << 1,
+        Shst = 1 << 2,
+        Nssro = 1 << 4,
+        Ceco = 1 << 5,
+        Nac = 1 << 6,
+        Fa = 1 << 7,
+        Csts = 1 << 8,
+        Ctemp = 1 << 9,
+        Pdlu = 1 << 10,
+        Spare = 1 << 11,
+        Cwarn = 1 << 12,
+        Tcida = 1 << 13,
+    }
+}
+
+#[derive(Debug)]
+struct CompositeControllerStatusFlagSet(FlagSet<CompositeControllerStatusFlags>);
+
+impl CompositeControllerStatusFlagSet {
+    fn empty() -> Self {
+        Self(FlagSet::empty())
+    }
+}
+
+impl From<FlagSet<HealthStatusChangeFlags>> for CompositeControllerStatusFlagSet {
+    fn from(value: FlagSet<HealthStatusChangeFlags>) -> Self {
+        use CompositeControllerStatusFlags as T;
+        use HealthStatusChangeFlags as F;
+
+        let mut converted = FlagSet::empty();
+        for flag in value {
+            converted |= match flag {
+                F::Rdy => T::Rdy,
+                F::Cfs => T::Cfs,
+                F::Shst => T::Shst,
+                F::Nssro => T::Nssro,
+                F::Ceco => T::Ceco,
+                F::Nac => T::Nac,
+                F::Fa => T::Fa,
+                F::Csts => T::Csts,
+                F::Ctemp => T::Ctemp,
+                F::Pldu => T::Pdlu,
+                F::Spare => T::Spare,
+                F::Cwarn => T::Cwarn,
+                F::Tcida => T::Tcida,
+            }
+        }
+        Self(converted)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+struct ManagementEndpointControllerState {
+    cc: ControllerConfiguration,
+    csts: FlagSet<ControllerStatusFlags>,
 }
 
 #[derive(Debug)]
 pub struct ManagementEndpoint {
     #[expect(dead_code)]
     port: PortId,
-    ccsf: CompositeControllerStatusFlags,
+    mecss: [ManagementEndpointControllerState; MAX_CONTROLLERS],
+    ccsf: CompositeControllerStatusFlagSet,
 }
 
 impl ManagementEndpoint {
     pub fn new(port: PortId) -> Self {
         Self {
             port,
-            ccsf: CompositeControllerStatusFlags::default(),
+            mecss: [ManagementEndpointControllerState::default(); MAX_CONTROLLERS],
+            ccsf: CompositeControllerStatusFlagSet::empty(),
         }
     }
 }
@@ -273,6 +338,30 @@ pub struct SecondaryController {
     id: ControllerId,
 }
 
+#[derive(Clone, Copy, Debug, Default)]
+pub struct ControllerConfiguration {
+    pub en: bool,
+}
+
+flags! {
+    #[repr(u32)]
+    enum ControllerStatusFlags: u32 {
+        Rdy = 1 << 0,
+        Cfs = 1 << 1,
+        ShstInProgress = 1 << 2,
+        ShstComplete = 1 << 3,
+        ShstReserved = (ControllerStatusFlags::ShstInProgress | ControllerStatusFlags::ShstComplete).bits(),
+        Nssro = 1 << 4,
+        Pp = 1 << 5,
+        St = 1 << 6,
+    }
+}
+
+#[repr(usize)]
+pub enum ControllerProperties {
+    Cc(ControllerConfiguration) = 0x14,
+}
+
 #[derive(Debug)]
 pub struct Controller {
     id: ControllerId,
@@ -287,6 +376,8 @@ pub struct Controller {
     write_age: u64,
     write_lifespan: u64,
     ro: bool,
+    cc: ControllerConfiguration,
+    csts: FlagSet<ControllerStatusFlags>,
 }
 
 impl Controller {
@@ -304,6 +395,21 @@ impl Controller {
             write_age: 38,
             write_lifespan: 100,
             ro: false,
+            cc: ControllerConfiguration::default(),
+            csts: FlagSet::empty(),
+        }
+    }
+
+    pub fn set_property(&mut self, prop: ControllerProperties) {
+        match prop {
+            ControllerProperties::Cc(cc) => {
+                self.cc = cc;
+                if self.cc.en {
+                    self.csts |= ControllerStatusFlags::Rdy;
+                } else {
+                    self.csts -= ControllerStatusFlags::Rdy;
+                }
+            }
         }
     }
 
