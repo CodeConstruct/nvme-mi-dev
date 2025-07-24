@@ -270,6 +270,12 @@ struct NvmeMiConfigurationGetRequest {
     body: NvmeMiConfigurationIdentifierRequestType,
 }
 
+#[derive(Debug, DekuRead, DekuWrite, Eq, PartialEq)]
+#[deku(ctx = "endian: Endian", endian = "endian")]
+struct NvmeMiConfigurationSetRequest {
+    body: NvmeMiConfigurationIdentifierRequestType,
+}
+
 #[derive(Debug, DekuRead, DekuWrite, PartialEq, Eq)]
 #[deku(ctx = "endian: Endian, opcode: u8", id = "opcode", endian = "endian")]
 #[repr(u8)]
@@ -279,7 +285,8 @@ enum NvmeMiCommandRequestType {
     #[deku(id = "0x01")]
     NvmSubsystemHealthStatusPoll(NvmSubsystemHealthStatusPollRequest),
     ControllerHealthStatusPoll = 0x02,
-    ConfigurationSet = 0x03,
+    #[deku(id = "0x03")]
+    ConfigurationSet(NvmeMiConfigurationSetRequest),
     #[deku(id = "0x04")]
     ConfigurationGet(NvmeMiConfigurationGetRequest),
     VpdRead = 0x05,
@@ -888,6 +895,9 @@ impl RequestHandler for NvmeMiCommandRequestHeader {
                 send_response(resp, &[&mh.0, &mr.0, &nvmshds.0, &ccs.0]).await;
                 Ok(())
             }
+            NvmeMiCommandRequestType::ConfigurationSet(cid) => {
+                cid.handle(ctx, mep, subsys, rest, resp).await
+            }
             NvmeMiCommandRequestType::ConfigurationGet(cid) => {
                 cid.handle(ctx, mep, subsys, rest, resp).await
             }
@@ -895,6 +905,29 @@ impl RequestHandler for NvmeMiCommandRequestHeader {
                 debug!("Unimplemented OPCODE: {:?}", ctx.opcode);
                 Err(ResponseStatus::InternalError)
             }
+        }
+    }
+}
+
+impl RequestHandler for NvmeMiConfigurationSetRequest {
+    type Ctx = NvmeMiCommandRequestHeader;
+
+    async fn handle<A: AsyncRespChannel>(
+        &self,
+        _ctx: &Self::Ctx,
+        _mep: &mut super::ManagementEndpoint,
+        _subsys: &mut super::Subsystem,
+        _rest: &[u8],
+        _resp: &mut A,
+    ) -> Result<(), ResponseStatus> {
+        match &self.body {
+            NvmeMiConfigurationIdentifierRequestType::Reserved => {
+                Err(ResponseStatus::InvalidParameter)
+            }
+            NvmeMiConfigurationIdentifierRequestType::SmbusI2cFrequency(_) => todo!(),
+            NvmeMiConfigurationIdentifierRequestType::HealthStatusChange(_) => todo!(),
+            NvmeMiConfigurationIdentifierRequestType::MctpTransmissionUnitSize(_) => todo!(),
+            NvmeMiConfigurationIdentifierRequestType::AsynchronousEvent => todo!(),
         }
     }
 }
