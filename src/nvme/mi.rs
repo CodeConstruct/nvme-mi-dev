@@ -261,7 +261,7 @@ enum NvmeMiConfigurationIdentifierRequestType {
     HealthStatusChange(GetHealthStatusChangeRequest),
     #[deku(id = "0x03")]
     MctpTransmissionUnitSize(GetMctpTransmissionUnitSizeRequest),
-    AsyncronousEvent = 0x04,
+    AsynchronousEvent = 0x04,
 }
 
 #[derive(Debug, DekuRead, DekuWrite, PartialEq, Eq)]
@@ -978,7 +978,7 @@ impl RequestHandler for NvmeMiConfigurationIdentifierRequestType {
                 send_response(resp, &[&mh.0, &fr.0]).await;
                 Ok(())
             }
-            Self::AsyncronousEvent => todo!(),
+            Self::AsynchronousEvent => todo!(),
         }
     }
 }
