@@ -264,6 +264,12 @@ enum NvmeMiConfigurationIdentifierRequestType {
     AsynchronousEvent = 0x04,
 }
 
+#[derive(Debug, DekuRead, DekuWrite, Eq, PartialEq)]
+#[deku(ctx = "endian: Endian", endian = "endian")]
+struct NvmeMiConfigurationGetRequest {
+    body: NvmeMiConfigurationIdentifierRequestType,
+}
+
 #[derive(Debug, DekuRead, DekuWrite, PartialEq, Eq)]
 #[deku(ctx = "endian: Endian, opcode: u8", id = "opcode", endian = "endian")]
 #[repr(u8)]
@@ -275,7 +281,7 @@ enum NvmeMiCommandRequestType {
     ControllerHealthStatusPoll = 0x02,
     ConfigurationSet = 0x03,
     #[deku(id = "0x04")]
-    ConfigurationGet(NvmeMiConfigurationIdentifierRequestType),
+    ConfigurationGet(NvmeMiConfigurationGetRequest),
     VpdRead = 0x05,
     VpdWrite = 0x06,
     Reset = 0x07,
@@ -893,7 +899,7 @@ impl RequestHandler for NvmeMiCommandRequestHeader {
     }
 }
 
-impl RequestHandler for NvmeMiConfigurationIdentifierRequestType {
+impl RequestHandler for NvmeMiConfigurationGetRequest {
     type Ctx = NvmeMiCommandRequestHeader;
 
     async fn handle<A: AsyncRespChannel>(
@@ -904,9 +910,11 @@ impl RequestHandler for NvmeMiConfigurationIdentifierRequestType {
         rest: &[u8],
         resp: &mut A,
     ) -> Result<(), ResponseStatus> {
-        match self {
-            Self::Reserved => Err(ResponseStatus::InvalidParameter),
-            Self::SmbusI2cFrequency(gsifr) => {
+        match &self.body {
+            NvmeMiConfigurationIdentifierRequestType::Reserved => {
+                Err(ResponseStatus::InvalidParameter)
+            }
+            NvmeMiConfigurationIdentifierRequestType::SmbusI2cFrequency(gsifr) => {
                 if !rest.is_empty() {
                     debug!("Lost synchronisation when decoding ConfigurationGet SMBusI2CFrequency");
                     return Err(ResponseStatus::InvalidCommandSize);
@@ -936,7 +944,7 @@ impl RequestHandler for NvmeMiConfigurationIdentifierRequestType {
                 send_response(resp, &[&mh.0, &fr.0]).await;
                 Ok(())
             }
-            Self::HealthStatusChange(_) => {
+            NvmeMiConfigurationIdentifierRequestType::HealthStatusChange(_) => {
                 // MI v2.0, 5.1.2
                 if !rest.is_empty() {
                     debug!(
@@ -954,7 +962,7 @@ impl RequestHandler for NvmeMiConfigurationIdentifierRequestType {
                 send_response(resp, &[&mh.0, &hscr.0]).await;
                 Ok(())
             }
-            Self::MctpTransmissionUnitSize(gmtusr) => {
+            NvmeMiConfigurationIdentifierRequestType::MctpTransmissionUnitSize(gmtusr) => {
                 if !rest.is_empty() {
                     debug!(
                         "Lost synchronisation when decoding ConfigurationGet MCTPTransmissionUnitSize"
@@ -978,7 +986,7 @@ impl RequestHandler for NvmeMiConfigurationIdentifierRequestType {
                 send_response(resp, &[&mh.0, &fr.0]).await;
                 Ok(())
             }
-            Self::AsynchronousEvent => todo!(),
+            NvmeMiConfigurationIdentifierRequestType::AsynchronousEvent => todo!(),
         }
     }
 }
