@@ -4,6 +4,7 @@
  */
 use deku::ctx::Endian;
 use deku::prelude::*;
+use flagset::FlagSet;
 use heapless::Vec;
 use log::debug;
 use mctp::{AsyncRespChannel, MsgIC};
@@ -12,7 +13,10 @@ use num_derive::{FromPrimitive, ToPrimitive};
 use num_traits::ToPrimitive;
 
 use crate::{
-    nvme::{MAX_NAMESPACES, MAX_NIDTS, PcieLinkSpeed, PortType, UnitKind},
+    nvme::{
+        CompositeControllerStatusFlags, ControllerStatusFlags, MAX_NAMESPACES, MAX_NIDTS,
+        PcieLinkSpeed, PortType, UnitKind,
+    },
     wire::{string::WireString, uuid::WireUuid, vec::WireVec},
 };
 
@@ -239,10 +243,10 @@ struct SmbusI2cFrequencyRequest {
 
 #[derive(Debug, DekuRead, DekuWrite, Eq, PartialEq)]
 #[deku(ctx = "endian: Endian", endian = "endian")]
-struct GetHealthStatusChangeRequest {
+struct HealthStatusChangeRequest {
     // Skip intermediate bytes comprising DWORD 0
     #[deku(seek_from_current = "3")]
-    _dw1: u32,
+    dw1: u32,
 }
 
 #[derive(Debug, DekuRead, DekuWrite, Eq, PartialEq)]
@@ -261,7 +265,7 @@ enum NvmeMiConfigurationIdentifierRequestType {
     #[deku(id = "0x01")]
     SmbusI2cFrequency(SmbusI2cFrequencyRequest),
     #[deku(id = "0x02")]
-    HealthStatusChange(GetHealthStatusChangeRequest),
+    HealthStatusChange(HealthStatusChangeRequest),
     #[deku(id = "0x03")]
     MctpTransmissionUnitSize(GetMctpTransmissionUnitSizeRequest),
     AsynchronousEvent = 0x04,
@@ -874,25 +878,13 @@ impl RequestHandler for NvmeMiCommandRequestHeader {
                 .encode()?;
 
                 let ccs = CompositeControllerStatusDataStructureResponse {
-                    ccsf: (mep.ccsf.tcida as u16) << 13
-                        | (mep.ccsf.cwarn as u16) << 12
-                        | (mep.ccsf.spare as u16) << 11
-                        | (mep.ccsf.pdlu as u16) << 10
-                        | (mep.ccsf.ctemp as u16) << 9
-                        | (mep.ccsf.csts as u16) << 8
-                        | (mep.ccsf.fa as u16) << 7
-                        | (mep.ccsf.nac as u16) << 6
-                        | (mep.ccsf.ceco as u16) << 5
-                        | (mep.ccsf.nssro as u16) << 4
-                        | (mep.ccsf.shst as u16) << 2
-                        | (mep.ccsf.cfs as u16) << 1
-                        | (mep.ccsf.rdy as u16),
+                    ccsf: mep.ccsf.0.bits(),
                 }
                 .encode()?;
 
                 // CS: See Figure 106, NVMe MI v2.0
                 if (shsp.dword1 & (1u32 << 31)) != 0 {
-                    mep.ccsf = super::CompositeControllerStatusFlags::default();
+                    mep.ccsf.0.clear();
                 }
 
                 send_response(resp, &[&mh.0, &mr.0, &nvmshds.0, &ccs.0]).await;
@@ -918,7 +910,7 @@ impl RequestHandler for NvmeMiConfigurationSetRequest {
     async fn handle<A: AsyncRespChannel>(
         &self,
         _ctx: &Self::Ctx,
-        _mep: &mut super::ManagementEndpoint,
+        mep: &mut super::ManagementEndpoint,
         subsys: &mut super::Subsystem,
         rest: &[u8],
         _resp: &mut A,
@@ -958,7 +950,32 @@ impl RequestHandler for NvmeMiConfigurationSetRequest {
                 send_response(_resp, &[&mh.0, &status]).await;
                 Ok(())
             }
-            NvmeMiConfigurationIdentifierRequestType::HealthStatusChange(_) => todo!(),
+            NvmeMiConfigurationIdentifierRequestType::HealthStatusChange(hscr) => {
+                if !rest.is_empty() {
+                    debug!(
+                        "Lost synchronisation when decoding ConfigurationSet HealthStatusChange"
+                    );
+                    return Err(ResponseStatus::InvalidCommandSize);
+                }
+
+                let Ok(clear) = FlagSet::<super::HealthStatusChangeFlags>::new(hscr.dw1) else {
+                    debug!(
+                        "Invalid composite controller status flags in request: {}",
+                        hscr.dw1
+                    );
+                    return Err(ResponseStatus::InvalidParameter);
+                };
+                let clear: super::CompositeControllerStatusFlagSet = clear.into();
+                mep.ccsf.0 -= clear.0;
+
+                let mh = MessageHeader::respond(MessageType::NvmeMiCommand).encode()?;
+
+                // Success
+                let status = [0u8; 4];
+
+                send_response(_resp, &[&mh.0, &status]).await;
+                Ok(())
+            }
             NvmeMiConfigurationIdentifierRequestType::MctpTransmissionUnitSize(_) => todo!(),
             NvmeMiConfigurationIdentifierRequestType::AsynchronousEvent => todo!(),
         }
@@ -1694,6 +1711,26 @@ impl RequestHandler for AdminIdentifyRequest {
 }
 
 impl super::ManagementEndpoint {
+    fn update(&mut self, subsys: &super::Subsystem) {
+        assert!(subsys.ctlrs.len() <= self.mecss.len());
+        for c in &subsys.ctlrs {
+            let mecs = &mut self.mecss[c.id.0 as usize];
+
+            if mecs.cc.en != c.cc.en {
+                self.ccsf.0 |= CompositeControllerStatusFlags::Ceco;
+            }
+
+            if mecs.csts.contains(ControllerStatusFlags::Rdy)
+                != c.csts.contains(ControllerStatusFlags::Rdy)
+            {
+                self.ccsf.0 |= CompositeControllerStatusFlags::Rdy;
+            }
+
+            mecs.cc = c.cc;
+            mecs.csts = c.csts;
+        }
+    }
+
     pub async fn handle_async<A: AsyncRespChannel>(
         &mut self,
         subsys: &mut super::Subsystem,
@@ -1701,6 +1738,8 @@ impl super::ManagementEndpoint {
         ic: MsgIC,
         mut resp: A,
     ) {
+        self.update(subsys);
+
         if !ic.0 {
             debug!("NVMe-MI requires IC set for OOB messages");
             return;

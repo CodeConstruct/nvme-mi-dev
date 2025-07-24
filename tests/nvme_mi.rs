@@ -982,11 +982,22 @@ mod configuration_get {
 
 mod configuration_set {
     use mctp::MsgIC;
+    use nvme_mi_dev::nvme::{
+        ControllerConfiguration, ControllerProperties, ManagementEndpoint, PciePort, PortType,
+        Subsystem, SubsystemInfo, Temperature, TwoWirePort,
+    };
 
     use crate::{
         RESP_INVALID_COMMAND_SIZE, RESP_INVALID_PARAMETER,
         common::{DeviceType, ExpectedRespChannel, new_device, setup},
     };
+
+    #[rustfmt::skip]
+    const RESP_SUCCESS: [u8; 11] = [
+        0x88, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00,
+        0x24, 0x55, 0x77, 0x22
+    ];
 
     #[test]
     fn reserved() {
@@ -1118,14 +1129,147 @@ mod configuration_set {
             0xf1, 0x42, 0xba, 0x4d
         ];
 
+        let resp = ExpectedRespChannel::new(&RESP_SUCCESS);
+        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+    }
+
+    #[test]
+    fn health_status_change_short() {
+        setup();
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+
         #[rustfmt::skip]
-        const RESP_SUCCESS: [u8; 11] = [
-            0x88, 0x00, 0x00,
+        const REQ: [u8; 15] = [
+            0x08, 0x00, 0x00,
+            0x03, 0x00, 0x00, 0x00,
+            0x02, 0x00, 0x00, 0x00,
+            // Missing DWORD 1
+            0x21, 0xe4, 0xf4, 0xef
+        ];
+
+        let resp = ExpectedRespChannel::new(&RESP_INVALID_COMMAND_SIZE);
+        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+    }
+
+    #[test]
+    fn health_status_change_long() {
+        setup();
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+
+        #[rustfmt::skip]
+        const REQ: [u8; 23] = [
+            0x08, 0x00, 0x00,
+            0x03, 0x00, 0x00, 0x00,
+            0x02, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00,
-            0x24, 0x55, 0x77, 0x22
+            0x00, 0x00, 0x00, 0x00,
+            0x5f, 0x17, 0x3d, 0x15
+        ];
+
+        let resp = ExpectedRespChannel::new(&RESP_INVALID_COMMAND_SIZE);
+        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+    }
+
+    #[test]
+    fn health_status_change_identity() {
+        setup();
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+
+        #[rustfmt::skip]
+        const REQ: [u8; 19] = [
+            0x08, 0x00, 0x00,
+            0x03, 0x00, 0x00, 0x00,
+            0x02, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0xfc, 0x86, 0xec, 0xc6
         ];
 
         let resp = ExpectedRespChannel::new(&RESP_SUCCESS);
         smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+    }
+
+    #[test]
+    fn health_status_change_rdy_ceco() {
+        setup();
+
+        let mut subsys = Subsystem::new(SubsystemInfo::invalid());
+        let ppid = subsys.add_port(PortType::Pcie(PciePort::new())).unwrap();
+        let ctlrid = subsys.add_controller(ppid).unwrap();
+        let twpid = subsys
+            .add_port(PortType::TwoWire(TwoWirePort::new()))
+            .unwrap();
+        let mut mep = ManagementEndpoint::new(twpid);
+
+        let ctlr = subsys.controller_mut(ctlrid);
+        ctlr.set_temperature(Temperature::Kelvin(273));
+        ctlr.set_property(ControllerProperties::Cc(ControllerConfiguration {
+            en: true,
+        }));
+
+        #[rustfmt::skip]
+        const REQ_NVMSHSP_SET: [u8; 19] = [
+            0x08, 0x00, 0x00,
+            0x01, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0xd2, 0xd4, 0x77, 0x36
+        ];
+
+        #[rustfmt::skip]
+        const RESP_NVMSHSP_SET: [u8; 19] = [
+            0x88, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x38, 0x3d, 0x00, 0x26,
+            0x21, 0x00, 0x00, 0x00,
+            0x6b, 0xc5, 0x29, 0x45
+        ];
+
+        let resp = ExpectedRespChannel::new(&RESP_NVMSHSP_SET);
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ_NVMSHSP_SET, MsgIC(true), resp)
+                .await
+        });
+
+        #[rustfmt::skip]
+        const REQ_CSET_HSC: [u8; 19] = [
+            0x08, 0x00, 0x00,
+            0x03, 0x00, 0x00, 0x00,
+            0x02, 0x00, 0x00, 0x00,
+            0x11, 0x00, 0x00, 0x00,
+            0x79, 0x9d, 0xcd, 0xf2
+        ];
+
+        let resp = ExpectedRespChannel::new(&RESP_SUCCESS);
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ_CSET_HSC, MsgIC(true), resp)
+                .await
+        });
+
+        #[rustfmt::skip]
+        const REQ_NVMSHSP_CLEAR: [u8; 19] = [
+            0x08, 0x00, 0x00,
+            0x01, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0xd2, 0xd4, 0x77, 0x36
+        ];
+
+        #[rustfmt::skip]
+        const RESP_NVMSHSP_CLEAR: [u8; 19] = [
+            0x88, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x38, 0x3d, 0x00, 0x26,
+            0x00, 0x00, 0x00, 0x00,
+            0x58, 0x7b, 0x49, 0x4f
+        ];
+
+        let resp = ExpectedRespChannel::new(&RESP_NVMSHSP_CLEAR);
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ_NVMSHSP_CLEAR, MsgIC(true), resp)
+                .await
+        });
     }
 }
