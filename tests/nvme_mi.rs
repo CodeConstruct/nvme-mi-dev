@@ -979,3 +979,31 @@ mod configuration_get {
         smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
     }
 }
+
+mod configuration_set {
+    use mctp::MsgIC;
+
+    use crate::{
+        RESP_INVALID_PARAMETER,
+        common::{DeviceType, ExpectedRespChannel, new_device, setup},
+    };
+
+    #[test]
+    fn reserved() {
+        setup();
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+
+        #[rustfmt::skip]
+        const REQ: [u8; 19] = [
+            0x08, 0x00, 0x00,
+            0x03, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0xb2, 0x7c, 0x94, 0x54
+        ];
+
+        let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
+        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+    }
+}
