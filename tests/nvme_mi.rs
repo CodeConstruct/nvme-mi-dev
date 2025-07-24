@@ -984,7 +984,7 @@ mod configuration_set {
     use mctp::MsgIC;
 
     use crate::{
-        RESP_INVALID_PARAMETER,
+        RESP_INVALID_COMMAND_SIZE, RESP_INVALID_PARAMETER,
         common::{DeviceType, ExpectedRespChannel, new_device, setup},
     };
 
@@ -1004,6 +1004,128 @@ mod configuration_set {
         ];
 
         let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
+        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+    }
+
+    #[test]
+    fn smbus_i2c_frequency_short() {
+        setup();
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+
+        #[rustfmt::skip]
+        const REQ: [u8; 15] = [
+            0x08, 0x00, 0x00,
+            0x03, 0x00, 0x00, 0x00,
+            0x01, 0x00, 0x00, 0x00,
+            // Missing DWORD 1
+            0x18, 0x6d, 0xd6, 0x8d
+        ];
+
+        let resp = ExpectedRespChannel::new(&RESP_INVALID_COMMAND_SIZE);
+        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+    }
+
+    #[test]
+    fn smbus_i2c_frequency_long() {
+        setup();
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+
+        #[rustfmt::skip]
+        const REQ: [u8; 23] = [
+            0x08, 0x00, 0x00,
+            0x03, 0x00, 0x00, 0x00,
+            0x01, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x0f, 0x6b, 0xaf, 0x46
+        ];
+
+        let resp = ExpectedRespChannel::new(&RESP_INVALID_COMMAND_SIZE);
+        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+    }
+
+    #[test]
+    fn smbus_i2c_frequency_bad_port_index() {
+        setup();
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+
+        #[rustfmt::skip]
+        const REQ: [u8; 19] = [
+            0x08, 0x00, 0x00,
+            0x03, 0x00, 0x00, 0x00,
+            0x01, 0x01, 0x00, 0xff,
+            0x00, 0x00, 0x00, 0x00,
+            0xfe, 0x43, 0xc3, 0xd5
+        ];
+
+        let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
+        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+    }
+
+    #[test]
+    fn smbus_i2c_frequency_bad_port_type_for_index() {
+        setup();
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+
+        #[rustfmt::skip]
+        const REQ: [u8; 19] = [
+            0x08, 0x00, 0x00,
+            0x03, 0x00, 0x00, 0x00,
+            0x01, 0x01, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x5d, 0x2d, 0xab, 0x75
+        ];
+
+        let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
+        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+    }
+
+    #[test]
+    fn smbus_i2c_frequency_unsupported() {
+        setup();
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+
+        #[rustfmt::skip]
+        const REQ: [u8; 19] = [
+            0x08, 0x00, 0x00,
+            0x03, 0x00, 0x00, 0x00,
+            0x01, 0x02, 0x00, 0x01,
+            0x00, 0x00, 0x00, 0x00,
+            0xa9, 0x37, 0xbf, 0xf5
+        ];
+
+        let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
+        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+    }
+
+    #[test]
+    fn smbus_i2c_frequency_supported() {
+        setup();
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+
+        #[rustfmt::skip]
+        const REQ: [u8; 19] = [
+            0x08, 0x00, 0x00,
+            0x03, 0x00, 0x00, 0x00,
+            0x01, 0x01, 0x00, 0x01,
+            0x00, 0x00, 0x00, 0x00,
+            0xf1, 0x42, 0xba, 0x4d
+        ];
+
+        #[rustfmt::skip]
+        const RESP_SUCCESS: [u8; 11] = [
+            0x88, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x24, 0x55, 0x77, 0x22
+        ];
+
+        let resp = ExpectedRespChannel::new(&RESP_SUCCESS);
         smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
     }
 }
