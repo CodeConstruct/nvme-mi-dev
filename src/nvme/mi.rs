@@ -227,9 +227,12 @@ struct NvmSubsystemHealthStatusPollRequest {
 
 #[derive(Debug, DekuRead, DekuWrite, Eq, PartialEq)]
 #[deku(ctx = "endian: Endian", endian = "endian")]
-struct GetSmbusI2cFrequencyRequest {
+struct SmbusI2cFrequencyRequest {
+    // XXX: This is inaccurate as SFREQ is specified as 4 bits, not 8
+    // TODO: Support deku/bits feature without deku/alloc
+    dw0_sfreq: SmbusFrequency,
     // Skip intermediate bytes in DWORD 0
-    #[deku(seek_from_current = "2")]
+    #[deku(seek_from_current = "1")]
     dw0_portid: u8,
     _dw1: u32,
 }
@@ -256,7 +259,7 @@ struct GetMctpTransmissionUnitSizeRequest {
 enum NvmeMiConfigurationIdentifierRequestType {
     Reserved = 0x00,
     #[deku(id = "0x01")]
-    SmbusI2cFrequency(GetSmbusI2cFrequencyRequest),
+    SmbusI2cFrequency(SmbusI2cFrequencyRequest),
     #[deku(id = "0x02")]
     HealthStatusChange(GetHealthStatusChangeRequest),
     #[deku(id = "0x03")]
@@ -916,15 +919,45 @@ impl RequestHandler for NvmeMiConfigurationSetRequest {
         &self,
         _ctx: &Self::Ctx,
         _mep: &mut super::ManagementEndpoint,
-        _subsys: &mut super::Subsystem,
-        _rest: &[u8],
+        subsys: &mut super::Subsystem,
+        rest: &[u8],
         _resp: &mut A,
     ) -> Result<(), ResponseStatus> {
         match &self.body {
             NvmeMiConfigurationIdentifierRequestType::Reserved => {
                 Err(ResponseStatus::InvalidParameter)
             }
-            NvmeMiConfigurationIdentifierRequestType::SmbusI2cFrequency(_) => todo!(),
+            NvmeMiConfigurationIdentifierRequestType::SmbusI2cFrequency(sifr) => {
+                if !rest.is_empty() {
+                    debug!("Lost synchronisation when decoding ConfigurationSet SmbusI2cFrequency");
+                    return Err(ResponseStatus::InvalidCommandSize);
+                }
+
+                let Some(port) = subsys.ports.get(sifr.dw0_portid as usize) else {
+                    debug!("Unrecognised port ID: {}", sifr.dw0_portid);
+                    return Err(ResponseStatus::InvalidParameter);
+                };
+
+                let PortType::TwoWire(twprt) = port.typ else {
+                    debug!("Port {} is not a TwoWire port: {:?}", sifr.dw0_portid, port);
+                    return Err(ResponseStatus::InvalidParameter);
+                };
+
+                if sifr.dw0_sfreq != SmbusFrequency::Freq100Khz {
+                    if twprt.msmbfreq != super::SmbusFrequency::Freq100Khz {
+                        todo!("Maintain port state and configure the hardware");
+                    }
+                    return Err(ResponseStatus::InvalidParameter);
+                }
+
+                let mh = MessageHeader::respond(MessageType::NvmeMiCommand).encode()?;
+
+                // Success
+                let status = [0u8; 4];
+
+                send_response(_resp, &[&mh.0, &status]).await;
+                Ok(())
+            }
             NvmeMiConfigurationIdentifierRequestType::HealthStatusChange(_) => todo!(),
             NvmeMiConfigurationIdentifierRequestType::MctpTransmissionUnitSize(_) => todo!(),
             NvmeMiConfigurationIdentifierRequestType::AsynchronousEvent => todo!(),
@@ -947,22 +980,19 @@ impl RequestHandler for NvmeMiConfigurationGetRequest {
             NvmeMiConfigurationIdentifierRequestType::Reserved => {
                 Err(ResponseStatus::InvalidParameter)
             }
-            NvmeMiConfigurationIdentifierRequestType::SmbusI2cFrequency(gsifr) => {
+            NvmeMiConfigurationIdentifierRequestType::SmbusI2cFrequency(sifr) => {
                 if !rest.is_empty() {
                     debug!("Lost synchronisation when decoding ConfigurationGet SMBusI2CFrequency");
                     return Err(ResponseStatus::InvalidCommandSize);
                 }
 
-                let Some(port) = subsys.ports.get(gsifr.dw0_portid as usize) else {
-                    debug!("Unrecognised port ID: {}", gsifr.dw0_portid);
+                let Some(port) = subsys.ports.get(sifr.dw0_portid as usize) else {
+                    debug!("Unrecognised port ID: {}", sifr.dw0_portid);
                     return Err(ResponseStatus::InvalidParameter);
                 };
 
                 let PortType::TwoWire(twprt) = port.typ else {
-                    debug!(
-                        "Port {} is not a TwoWire port: {:?}",
-                        gsifr.dw0_portid, port
-                    );
+                    debug!("Port {} is not a TwoWire port: {:?}", sifr.dw0_portid, port);
                     return Err(ResponseStatus::InvalidParameter);
                 };
 
