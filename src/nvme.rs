@@ -4,348 +4,31 @@
  */
 pub mod mi;
 
-use flagset::{FlagSet, flags};
-use hmac::Mac;
-use uuid::Uuid;
+use deku::ctx::Endian;
+use deku::{DekuRead, DekuWrite, deku_derive};
+use flagset::flags;
 
-const MAX_CONTROLLERS: usize = 2;
-const MAX_NAMESPACES: usize = 2;
-const MAX_PORTS: usize = 2;
-const MAX_NIDTS: usize = 2;
+use crate::wire::string::WireString;
+use crate::wire::uuid::WireUuid;
+use crate::wire::vec::WireVec;
+use crate::{Discriminant, Encode};
 
-#[allow(dead_code)]
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[repr(u8)]
-enum PciePayloadSize {
-    Payload128B = 0x00,
-    Payload256B = 0x01,
-    Payload512B = 0x02,
-    Payload1Kb = 0x03,
-    Payload2Kb = 0x04,
-    Payload4Kb = 0x05,
+// Base v2.1, 3.1.4, Figure 33
+#[repr(usize)]
+pub enum ControllerProperties {
+    Cc(ControllerConfiguration) = 0x14,
 }
 
-impl From<PciePayloadSize> for u8 {
-    fn from(pps: PciePayloadSize) -> Self {
-        pps as Self
-    }
-}
-
-#[allow(dead_code)]
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[repr(u8)]
-enum PcieLinkSpeed {
-    Inactive = 0x00,
-    Gts2p5 = 0x01,
-    Gts5 = 0x02,
-    Gts8 = 0x03,
-    Gts16 = 0x04,
-    Gts32 = 0x05,
-    Gts64 = 0x06,
-}
-
-impl From<PcieLinkSpeed> for u8 {
-    fn from(pls: PcieLinkSpeed) -> Self {
-        pls as Self
-    }
-}
-
-#[allow(dead_code)]
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[repr(u8)]
-enum PcieLinkWidth {
-    X1 = 1,
-    X2 = 2,
-    X4 = 4,
-    X8 = 8,
-    X12 = 12,
-    X16 = 16,
-    X32 = 32,
-}
-
-impl From<PcieLinkWidth> for u8 {
-    fn from(plw: PcieLinkWidth) -> Self {
-        plw as Self
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct PciePort {
-    b: u16,
-    d: u16,
-    f: u16,
-    seg: u8,
-    mps: PciePayloadSize,
-    cls: PcieLinkSpeed,
-    mlw: PcieLinkWidth,
-    nlw: PcieLinkWidth,
-}
-
-impl PciePort {
-    pub fn new() -> Self {
-        Self {
-            b: 0,
-            d: 0,
-            f: 0,
-            seg: 0,
-            mps: PciePayloadSize::Payload128B,
-            cls: PcieLinkSpeed::Gts2p5,
-            mlw: PcieLinkWidth::X2,
-            nlw: PcieLinkWidth::X1,
-        }
-    }
-}
-
-impl Default for PciePort {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-#[allow(dead_code)]
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum SmbusFrequency {
-    FreqNotSupported,
-    Freq100Khz,
-    Freq400Khz,
-    Freq1Mhz,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct TwoWirePort {
-    cvpdaddr: u8,
-    mvpdfreq: SmbusFrequency,
-    cmeaddr: u8,
-    i3csprt: bool,
-    msmbfreq: SmbusFrequency,
-    nvmebms: bool,
-}
-
-impl TwoWirePort {
-    pub fn new() -> Self {
-        Self {
-            cvpdaddr: 0,
-            mvpdfreq: SmbusFrequency::FreqNotSupported,
-            cmeaddr: 0x1d,
-            i3csprt: false,
-            msmbfreq: SmbusFrequency::Freq100Khz,
-            nvmebms: false,
-        }
-    }
-}
-
-impl Default for TwoWirePort {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
-pub enum PortType {
-    Inactive = 0x00,
-    Pcie(PciePort) = 0x01,
-    TwoWire(TwoWirePort) = 0x02,
-}
-
-impl PortType {
-    fn id(&self) -> u8 {
-        // https://doc.rust-lang.org/reference/items/enumerations.html#r-items.enum.discriminant.access-memory
-        unsafe { *(self as *const Self as *const u8) }
-    }
-}
-
-#[derive(Clone, Copy, Debug)]
-struct PortCapabilities {
-    ciaps: bool,
-    aems: bool,
-}
-
-impl PortCapabilities {
-    fn new() -> Self {
-        PortCapabilities {
-            ciaps: false,
-            aems: false,
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug)]
-pub struct Port {
-    id: PortId,
-    typ: PortType,
-    caps: PortCapabilities,
-    mmtus: u16,
-    mebs: u32,
-}
-
-impl Port {
-    fn new(id: PortId, typ: PortType) -> Self {
-        Self {
-            id,
-            typ,
-            caps: PortCapabilities::new(),
-            mmtus: 64,
-            mebs: 0,
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct PortId(u8);
-
-flags! {
-    // MI v2.0, Figure 87
-    #[repr(u32)]
-    enum HealthStatusChangeFlags: u32 {
-        Rdy,
-        Cfs,
-        Shst,
-        Nssro,
-        Ceco,
-        Nac,
-        Fa,
-        Csts,
-        Ctemp,
-        Pldu,
-        Spare,
-        Cwarn,
-        Tcida,
-    }
-
-    // MI v2.0, Figure 107
-    #[repr(u16)]
-    enum CompositeControllerStatusFlags: u16 {
-        Rdy = 1 << 0,
-        Cfs = 1 << 1,
-        Shst = 1 << 2,
-        Nssro = 1 << 4,
-        Ceco = 1 << 5,
-        Nac = 1 << 6,
-        Fa = 1 << 7,
-        Csts = 1 << 8,
-        Ctemp = 1 << 9,
-        Pdlu = 1 << 10,
-        Spare = 1 << 11,
-        Cwarn = 1 << 12,
-        Tcida = 1 << 13,
-    }
-}
-
-#[derive(Debug)]
-struct CompositeControllerStatusFlagSet(FlagSet<CompositeControllerStatusFlags>);
-
-impl CompositeControllerStatusFlagSet {
-    fn empty() -> Self {
-        Self(FlagSet::empty())
-    }
-}
-
-impl From<FlagSet<HealthStatusChangeFlags>> for CompositeControllerStatusFlagSet {
-    fn from(value: FlagSet<HealthStatusChangeFlags>) -> Self {
-        use CompositeControllerStatusFlags as T;
-        use HealthStatusChangeFlags as F;
-
-        let mut converted = FlagSet::empty();
-        for flag in value {
-            converted |= match flag {
-                F::Rdy => T::Rdy,
-                F::Cfs => T::Cfs,
-                F::Shst => T::Shst,
-                F::Nssro => T::Nssro,
-                F::Ceco => T::Ceco,
-                F::Nac => T::Nac,
-                F::Fa => T::Fa,
-                F::Csts => T::Csts,
-                F::Ctemp => T::Ctemp,
-                F::Pldu => T::Pdlu,
-                F::Spare => T::Spare,
-                F::Cwarn => T::Cwarn,
-                F::Tcida => T::Tcida,
-            }
-        }
-        Self(converted)
-    }
-}
-
-#[derive(Clone, Copy, Debug, Default)]
-struct ManagementEndpointControllerState {
-    cc: ControllerConfiguration,
-    csts: FlagSet<ControllerStatusFlags>,
-}
-
-#[derive(Debug)]
-pub struct ManagementEndpoint {
-    #[expect(dead_code)]
-    port: PortId,
-    mecss: [ManagementEndpointControllerState; MAX_CONTROLLERS],
-    ccsf: CompositeControllerStatusFlagSet,
-}
-
-impl ManagementEndpoint {
-    pub fn new(port: PortId) -> Self {
-        Self {
-            port,
-            mecss: [ManagementEndpointControllerState::default(); MAX_CONTROLLERS],
-            ccsf: CompositeControllerStatusFlagSet::empty(),
-        }
-    }
-}
-
-#[derive(Debug)]
-struct MiCapability {
-    mjr: u8,
-    mnr: u8,
-}
-
-impl MiCapability {
-    fn new() -> Self {
-        Self { mjr: 1, mnr: 2 }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum UnitKind {
-    Kelvin,
-    Percent,
-}
-
-#[derive(Debug)]
-pub enum Temperature<T> {
-    Kelvin(T),
-    Celcius(T),
-}
-
-#[derive(Debug)]
-struct OperatingRange {
-    kind: UnitKind,
-    lower: u16,
-    upper: u16,
-}
-
-impl OperatingRange {
-    fn new(kind: UnitKind, lower: u16, upper: u16) -> Self {
-        Self { kind, lower, upper }
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
-pub struct ControllerId(u16);
-
-#[derive(Debug)]
-pub struct SecondaryController {
-    #[expect(dead_code)]
-    id: ControllerId,
-}
-
+// Base v2.1, 3.1.4.5, Figure 41
 #[derive(Clone, Copy, Debug, Default)]
 pub struct ControllerConfiguration {
     pub en: bool,
 }
 
+// Base v2.1, 3.1.4.6, Figure 42
 flags! {
     #[repr(u32)]
-    enum ControllerStatusFlags: u32 {
+    pub enum ControllerStatusFlags: u32 {
         Rdy = 1 << 0,
         Cfs = 1 << 1,
         ShstInProgress = 1 << 2,
@@ -357,306 +40,237 @@ flags! {
     }
 }
 
-#[repr(usize)]
-pub enum ControllerProperties {
-    Cc(ControllerConfiguration) = 0x14,
+// Base v2.1, 4.3.2, Figure 101
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[repr(u8)]
+enum CqeStatusCodeType {
+    GenericCommandStatus = 0x00,
+    #[expect(dead_code)]
+    CommandSpecificStatus = 0x01,
+    #[expect(dead_code)]
+    MediaAndDataIntegrityErrors = 0x02,
+    #[expect(dead_code)]
+    PathRelatedStatus = 0x03,
+    #[expect(dead_code)]
+    VendorSpecific = 0x07,
 }
+unsafe impl Discriminant<u8> for CqeStatusCodeType {}
 
-#[derive(Debug)]
-pub struct Controller {
-    id: ControllerId,
-    port: PortId,
-    secondaries: heapless::Vec<SecondaryController, 0>,
-    active_ns: heapless::Vec<NamespaceId, MAX_NAMESPACES>,
-    temp: u16,
-    temp_range: OperatingRange,
-    capacity: u64,
-    spare: u64,
-    spare_range: OperatingRange,
-    write_age: u64,
-    write_lifespan: u64,
-    ro: bool,
-    cc: ControllerConfiguration,
-    csts: FlagSet<ControllerStatusFlags>,
+// Base v2.1, 4.2.3.1, Figure 102
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[repr(u8)]
+enum CqeGenericCommandStatus {
+    SuccessfulCompletion = 0x00,
 }
+unsafe impl Discriminant<u8> for CqeGenericCommandStatus {}
 
-impl Controller {
-    fn new(id: ControllerId, port: PortId) -> Self {
-        Self {
-            id,
-            port,
-            secondaries: heapless::Vec::new(),
-            active_ns: heapless::Vec::new(),
-            temp: 293,
-            temp_range: OperatingRange::new(UnitKind::Kelvin, 213, 400),
-            capacity: 100,
-            spare: 100,
-            spare_range: OperatingRange::new(UnitKind::Percent, 5, 100),
-            write_age: 38,
-            write_lifespan: 100,
-            ro: false,
-            cc: ControllerConfiguration::default(),
-            csts: FlagSet::empty(),
-        }
-    }
-
-    pub fn set_property(&mut self, prop: ControllerProperties) {
-        match prop {
-            ControllerProperties::Cc(cc) => {
-                self.cc = cc;
-                if self.cc.en {
-                    self.csts |= ControllerStatusFlags::Rdy;
-                } else {
-                    self.csts -= ControllerStatusFlags::Rdy;
-                }
-            }
-        }
-    }
-
-    pub fn set_temperature(&mut self, temp: Temperature<u16>) {
-        let Temperature::Kelvin(k) = temp else {
-            todo!("Support units other than kelvin");
-        };
-
-        self.temp = k;
-    }
-
-    pub fn attach_namespace(&mut self, nsid: NamespaceId) -> Result<(), NamespaceId> {
-        self.active_ns.push(nsid)
-    }
+// Base v2.1, 5.1.13.1, Figure 310
+#[derive(Clone, Copy, Debug, DekuRead, DekuWrite, Eq, PartialEq)]
+#[deku(ctx = "endian: Endian, cns: u8", id = "cns", endian = "endian")]
+#[repr(u8)]
+enum AdminIdentifyCnsRequestType {
+    NvmIdentifyNamespace = 0x00,
+    IdentifyController = 0x01,
+    ActiveNamespaceIDList = 0x02,
+    NamespaceIdentificationDescriptorList = 0x03,
+    IoIdentifyNamespace = 0x05,
+    IoIdentifyController = 0x06,
+    IoActiveNamespaceIdList = 0x07,
+    IdentifyNamespace = 0x08,
+    AllocatedNamespaceIdList = 0x10,
+    NvmSubsystemControllerList = 0x13,
+    SecondaryControllerList = 0x15,
 }
+unsafe impl Discriminant<u8> for AdminIdentifyCnsRequestType {}
 
-#[derive(Debug)]
-struct SubsystemCapabilities {
-    sre: bool,
+// Base v2.1, 5.1.13.1, Figure 310
+// NVM Command Set v1.0c, 4.1.5.1, Figure 97
+#[derive(Debug, Default, DekuRead, DekuWrite)]
+#[deku(endian = "little")]
+pub struct AdminIdentifyNvmIdentifyNamespaceResponse {
+    nsze: u64,
+    ncap: u64,
+    nuse: u64,
+    nsfeat: u8,
+    nlbaf: u8,
+    flbas: u8,
+    mc: u8,
+    dpc: u8,
+    dps: u8,
+    #[deku(seek_from_start = "48")]
+    nvmcap: u128,
+    #[deku(seek_from_start = "128")]
+    // FIXME: use another struct
+    lbaf0: u16,
+    lbaf0_lbads: u8,
+    lbaf0_rp: u8,
 }
+impl Encode<4096> for AdminIdentifyNvmIdentifyNamespaceResponse {}
 
-impl SubsystemCapabilities {
-    fn new() -> Self {
-        Self { sre: false }
-    }
-}
-
-#[derive(Debug)]
-struct NvmSubsystemStatus {
-    atf: bool,
-    sfm: bool,
-    df: bool,
-    rnr: bool,
-    rd: bool,
-}
-
-impl NvmSubsystemStatus {
-    fn new() -> Self {
-        Self {
-            atf: false,
-            sfm: false,
-            df: true,
-            rnr: true,
-            rd: false,
-        }
-    }
-}
-
-#[derive(Debug)]
-struct SubsystemHealth {
-    nss: NvmSubsystemStatus,
-}
-
-impl SubsystemHealth {
-    fn new() -> Self {
-        Self {
-            nss: NvmSubsystemStatus::new(),
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug)]
+// Base v2.1, 5.1.13.1, Figure 311
+#[derive(Clone, Copy, Debug, DekuRead, DekuWrite)]
+#[deku(id_type = "u8", endian = "endian", ctx = "endian: Endian")]
+#[repr(u8)]
 pub enum CommandSetIdentifier {
-    Nvm,
-    KeyValue,
-    ZonedNamespace,
-    SubsystemLocalMemory,
-    ComputationalPrograms,
+    Nvm = 0x00,
+    KeyValue = 0x01,
+    ZonedNamespace = 0x02,
+    SubsystemLocalMemory = 0x03,
+    ComputationalPrograms = 0x04,
 }
 
-#[derive(Clone, Copy, Debug)]
-pub enum NamespaceIdentifierType {
-    Ieuid([u8; 8]),
-    Nguid([u8; 16]),
-    Nuuid(Uuid),
-    Csi(CommandSetIdentifier),
+// Base v2.1, 5.1.13.2.1, Figure 312, CNTRLTYPE
+#[derive(Clone, Copy, Debug, DekuRead, DekuWrite, PartialEq)]
+#[deku(id_type = "u8", endian = "endian", ctx = "endian: Endian")]
+#[repr(u8)]
+enum ControllerType {
+    Reserved = 0x00,
+    IoController = 0x01,
+    DiscoveryController = 0x02,
+    AdministrativeController = 0x03,
 }
 
+// Base v2.1, 5.1.13.2.1, Figure 312
+#[derive(Debug, DekuRead, DekuWrite)]
+#[deku(endian = "little")]
+struct AdminIdentifyControllerResponse {
+    vid: u16,
+    ssvid: u16,
+    sn: WireString<20>,
+    mn: WireString<40>,
+    fr: WireString<8>,
+    rab: u8,
+    ieee: [u8; 3],
+    cmic: u8,
+    mdts: u8,
+    cntlid: u16,
+    ver: u32,
+    rtd3r: u32,
+    rtd3e: u32,
+    oaes: u32,
+    ctratt: u32,
+    #[deku(seek_from_start = "111")]
+    cntrltype: crate::nvme::ControllerType,
+    #[deku(seek_from_start = "253")]
+    nvmsr: u8,
+    vwci: u8,
+    mec: u8,
+    ocas: u16,
+    acl: u8,
+    aerl: u8,
+    frmw: u8,
+    lpa: u8,
+    elpe: u8,
+    npss: u8,
+    avscc: u8,
+    #[deku(seek_from_start = "266")]
+    wctemp: u16,
+    cctemp: u16,
+    #[deku(seek_from_start = "319")]
+    fwug: u8,
+    kas: u16,
+    #[deku(seek_from_start = "386")]
+    cqt: u16,
+    #[deku(seek_from_start = "512")]
+    sqes: u8,
+    cqes: u8,
+    maxcmd: u16,
+    nn: u32,
+    oncs: u16,
+    fuses: u16,
+    fna: u8,
+    vwc: u8,
+    awun: u16,
+    awupf: u16,
+    icsvscc: u8,
+    nwpc: u8,
+    #[deku(seek_from_start = "540")]
+    mnan: u32,
+    #[deku(seek_from_start = "768")]
+    subnqn: WireString<256>,
+    #[deku(seek_from_start = "1802")]
+    fcatt: u8,
+    msdbd: u8,
+    ofcs: u16,
+}
+impl Encode<4096> for AdminIdentifyControllerResponse {}
+
+// Base v2.1, 5.1.13.2.2
+#[derive(Debug, DekuRead, DekuWrite)]
+#[deku(endian = "little")]
+struct AdminIdentifyActiveNamespaceIdListResponse {
+    nsid: WireVec<u32, 1024>,
+}
+impl Encode<4096> for AdminIdentifyActiveNamespaceIdListResponse {}
+
+impl AdminIdentifyActiveNamespaceIdListResponse {
+    fn new() -> Self {
+        Self {
+            nsid: WireVec::new(),
+        }
+    }
+}
+
+// Base v2.1, 5.1.13.2.3, Figure 315
+#[derive(Clone, Copy, Debug, DekuRead, DekuWrite)]
+#[deku(id_type = "u8", endian = "endian", ctx = "endian: Endian")]
+#[repr(u8)]
+enum NamespaceIdentifierType {
+    Reserved = 0,
+    #[deku(id = 1)]
+    Ieuid(u8, u16, [u8; 8]),
+    #[deku(id = 2)]
+    Nguid(u8, u16, [u8; 16]),
+    #[deku(id = 3)]
+    Nuuid(u8, u16, WireUuid),
+    #[deku(id = 4)]
+    Csi(u8, u16, crate::nvme::CommandSetIdentifier),
+}
+
+impl From<crate::NamespaceIdentifierType> for NamespaceIdentifierType {
+    fn from(value: crate::NamespaceIdentifierType) -> Self {
+        match value {
+            crate::NamespaceIdentifierType::Ieuid(v) => Self::Ieuid(v.len() as u8, 0, v),
+            crate::NamespaceIdentifierType::Nguid(v) => Self::Nguid(v.len() as u8, 0, v),
+            crate::NamespaceIdentifierType::Nuuid(uuid) => Self::Nuuid(16, 0, WireUuid::new(uuid)),
+            crate::NamespaceIdentifierType::Csi(v) => Self::Csi(1, 0, v),
+        }
+    }
+}
+
+// Base v2.1, 5.1.13.2.3, Figure 315
 #[derive(Debug)]
-pub struct Namespace {
-    size: u64,
-    capacity: u64,
-    used: u64,
-    block_order: u8,
-    nids: [NamespaceIdentifierType; 2],
+#[deku_derive(DekuRead, DekuWrite)]
+#[deku(endian = "little")]
+struct AdminIdentifyNamespaceIdentificationDescriptorListResponse {
+    nids: WireVec<NamespaceIdentifierType, { crate::MAX_NIDTS }>,
 }
+impl Encode<4096> for AdminIdentifyNamespaceIdentificationDescriptorListResponse {}
 
-// NSID
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct NamespaceId(u32);
+// Base v2.1, 5.1.13.2.9
+#[derive(Debug, DekuRead, DekuWrite)]
+#[deku(endian = "little")]
+struct AdminIdentifyAllocatedNamespaceIdListResponse {
+    nsid: WireVec<u32, 1024>,
+}
+impl Encode<4096> for AdminIdentifyAllocatedNamespaceIdListResponse {}
 
-impl Namespace {
-    fn generate_uuid(seed: &[u8], nsid: NamespaceId) -> Uuid {
-        let mut hasher = hmac::Hmac::<sha2::Sha256>::new_from_slice(seed).unwrap();
-        hasher.update(&nsid.0.to_be_bytes());
-        let digest = hasher.finalize().into_bytes();
-        let digest: [u8; 16] = digest[..16].try_into().unwrap();
-        uuid::Builder::from_random_bytes(digest).into_uuid()
-    }
+// Base v2.1, Section 5.1.13.2.12
+#[derive(Debug, DekuRead, DekuWrite)]
+#[deku(endian = "little")]
+struct ControllerListResponse {
+    #[deku(update = "self.ids.len()")]
+    numids: u16,
+    #[deku(count = "numids")]
+    ids: WireVec<u16, 2047>,
+}
+impl Encode<4096> for ControllerListResponse {}
 
-    pub fn new(id: Uuid, capacity: u64) -> Self {
+impl ControllerListResponse {
+    fn new() -> Self {
         Self {
-            size: capacity,
-            capacity,
-            used: 0,
-            block_order: 9,
-            nids: [
-                NamespaceIdentifierType::Nuuid(id),
-                NamespaceIdentifierType::Csi(CommandSetIdentifier::Nvm),
-            ],
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug)]
-pub struct SubsystemInfo {
-    pub pci_vid: u16,
-    pub pci_did: u16,
-    pub pci_svid: u16,
-    pub pci_sdid: u16,
-    pub ieee_oui: [u8; 3],
-    pub instance: [u8; 16],
-}
-
-impl SubsystemInfo {
-    fn acquire_source_date_epoch() -> u64 {
-        env!("SOURCE_DATE_EPOCH").parse::<u64>().unwrap_or(0)
-    }
-
-    fn acquire_ieee_oui() -> [u8; 3] {
-        let mut oui = [0u8; 3];
-        // ac-de-48 is allocated as private, used as the example value in the
-        // IEEE Guidelines for use of EUI, OUI, and CID documentation
-        for (idx, val) in option_env!("NVME_MI_DEV_IEEE_OUI")
-            .unwrap_or("ac-de-48")
-            .split('-')
-            .take(oui.len())
-            .map(|v| {
-                u8::from_str_radix(v, 16).expect(
-                    "NVME_MI_DEV_IEEE_OUI must be set in the IEEE RA hexadecimal representation",
-                )
-            })
-            .enumerate()
-        {
-            oui[idx] = val;
-        }
-        oui
-    }
-
-    fn acquire_pci_ids() -> (u16, u16, u16, u16) {
-        // ffff is the value returned by an aborted access
-        let vid = u16::from_str_radix(option_env!("NVME_MI_DEV_PCI_VID").unwrap_or("ffff"), 16)
-            .expect("NVME_MI_DEV_PCI_VID must be set to a 16-bit value in base-16 representation");
-        let did = u16::from_str_radix(option_env!("NVME_MI_DEV_PCI_DID").unwrap_or("ffff"), 16)
-            .expect("NVME_MI_DEV_PCI_DID must be set to a 16-bit value in base-16 representation");
-        let svid = u16::from_str_radix(option_env!("NVME_MI_DEV_PCI_SVID").unwrap_or("ffff"), 16)
-            .expect("NVME_MI_DEV_PCI_SVID must be set to a 16-bit value in base-16 representation");
-        let sdid = u16::from_str_radix(option_env!("NVME_MI_DEV_PCI_SDID").unwrap_or("ffff"), 16)
-            .expect("NVME_MI_DEV_PCI_SDID must be set to a 16-bit value in base-16 representation");
-        (vid, did, svid, sdid)
-    }
-
-    pub fn invalid() -> Self {
-        Self {
-            pci_vid: 0xffff,
-            pci_did: 0xffff,
-            pci_svid: 0xffff,
-            pci_sdid: 0xffff,
-            ieee_oui: [0xac, 0xde, 0x48],
-            instance: [0; 16],
-        }
-    }
-
-    pub fn environment() -> Self {
-        let (vid, did, svid, sdid) = SubsystemInfo::acquire_pci_ids();
-        let sde = SubsystemInfo::acquire_source_date_epoch().to_le_bytes();
-        let mut instance = [0u8; 16];
-        instance[..sde.len()].copy_from_slice(&sde);
-        Self {
-            pci_vid: vid,
-            pci_did: did,
-            pci_svid: svid,
-            pci_sdid: sdid,
-            ieee_oui: SubsystemInfo::acquire_ieee_oui(),
-            instance,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct Subsystem {
-    info: SubsystemInfo,
-    caps: SubsystemCapabilities,
-    ports: heapless::Vec<Port, MAX_PORTS>,
-    ctlrs: heapless::Vec<Controller, MAX_CONTROLLERS>,
-    nss: heapless::Vec<Namespace, MAX_NAMESPACES>,
-    health: SubsystemHealth,
-    mi: MiCapability,
-    sn: &'static str,
-    mn: &'static str,
-    fr: &'static str,
-}
-
-impl Subsystem {
-    pub fn new(info: SubsystemInfo) -> Self {
-        Subsystem {
-            info,
-            caps: SubsystemCapabilities::new(),
-            ports: heapless::Vec::new(),
-            ctlrs: heapless::Vec::new(),
-            nss: heapless::Vec::new(),
-            health: SubsystemHealth::new(),
-            mi: MiCapability::new(),
-            sn: "1000",
-            mn: "MIDEV",
-            fr: "00.00.01",
-        }
-    }
-
-    pub fn add_port(&mut self, typ: PortType) -> Result<PortId, Port> {
-        debug_assert!(self.ctlrs.len() <= u8::MAX.into());
-        let p = Port::new(PortId(self.ports.len() as u8), typ);
-        self.ports.push(p).map(|_p| self.ports.last().unwrap().id)
-    }
-
-    pub fn add_controller(&mut self, port: PortId) -> Result<ControllerId, Controller> {
-        debug_assert!(self.ctlrs.len() <= u16::MAX.into());
-        let c = Controller::new(ControllerId(self.ctlrs.len() as u16), port);
-        self.ctlrs.push(c).map(|_c| self.ctlrs.last().unwrap().id)
-    }
-
-    pub fn controller_mut(&mut self, id: ControllerId) -> &mut Controller {
-        self.ctlrs
-            .get_mut(id.0 as usize)
-            .expect("Invalid ControllerId provided")
-    }
-
-    pub fn add_namespace(&mut self, capacity: u64) -> Result<NamespaceId, u8> {
-        debug_assert!(self.nss.len() <= u32::MAX.try_into().unwrap());
-        let nsid = NamespaceId((self.nss.len() + 1).try_into().unwrap());
-        let ns = Namespace::new(
-            Namespace::generate_uuid(&self.info.instance, nsid),
-            capacity,
-        );
-        match self.nss.push(ns) {
-            Ok(_) => Ok(nsid),
-            Err(_) => Err(0x16), // Namespace Identifier Unavailable
+            numids: 0,
+            ids: WireVec::new(),
         }
     }
 }
