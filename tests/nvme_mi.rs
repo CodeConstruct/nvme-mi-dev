@@ -50,12 +50,12 @@ fn short_header_object() {
 
 mod read_nvme_mi_data_structure {
     use mctp::MsgIC;
-    use nvme_mi_dev::nvme::ManagementEndpoint;
-    use nvme_mi_dev::nvme::PciePort;
-    use nvme_mi_dev::nvme::PortType;
-    use nvme_mi_dev::nvme::Subsystem;
-    use nvme_mi_dev::nvme::SubsystemInfo;
-    use nvme_mi_dev::nvme::TwoWirePort;
+    use nvme_mi_dev::ManagementEndpoint;
+    use nvme_mi_dev::PciePort;
+    use nvme_mi_dev::PortType;
+    use nvme_mi_dev::Subsystem;
+    use nvme_mi_dev::SubsystemInfo;
+    use nvme_mi_dev::TwoWirePort;
 
     use super::RESP_INVALID_COMMAND_INPUT_DATA_SIZE;
     use super::RESP_INVALID_COMMAND_SIZE;
@@ -393,7 +393,7 @@ mod read_nvme_mi_data_structure {
 
 mod nvm_subsystem_status_health_poll {
     use mctp::MsgIC;
-    use nvme_mi_dev::nvme::{
+    use nvme_mi_dev::{
         ManagementEndpoint, PciePort, PortType, Subsystem, SubsystemInfo, Temperature, TwoWirePort,
     };
 
@@ -982,9 +982,8 @@ mod configuration_get {
 
 mod configuration_set {
     use mctp::MsgIC;
-    use nvme_mi_dev::nvme::{
-        ControllerConfiguration, ControllerProperties, ManagementEndpoint, PciePort, PortType,
-        Subsystem, SubsystemInfo, Temperature, TwoWirePort,
+    use nvme_mi_dev::{
+        ManagementEndpoint, PciePort, PortType, Subsystem, SubsystemInfo, Temperature, TwoWirePort,
     };
 
     use crate::{
@@ -1205,9 +1204,9 @@ mod configuration_set {
 
         let ctlr = subsys.controller_mut(ctlrid);
         ctlr.set_temperature(Temperature::Kelvin(273));
-        ctlr.set_property(ControllerProperties::Cc(ControllerConfiguration {
-            en: true,
-        }));
+        ctlr.set_property(nvme_mi_dev::nvme::ControllerProperties::Cc(
+            nvme_mi_dev::nvme::ControllerConfiguration { en: true },
+        ));
 
         #[rustfmt::skip]
         const REQ_NVMSHSP_SET: [u8; 19] = [

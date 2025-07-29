@@ -6,7 +6,7 @@ extern crate simplelog;
 
 use log::LevelFilter;
 use mctp::MsgIC;
-use nvme_mi_dev::nvme::{
+use nvme_mi_dev::{
     ManagementEndpoint, PciePort, PortId, PortType, Subsystem, SubsystemInfo, TwoWirePort,
 };
 use simplelog::{ColorChoice, Config, TermLogger, TerminalMode};
