@@ -9,7 +9,7 @@ use log::debug;
 use mctp::{AsyncRespChannel, MsgIC};
 
 use crate::{
-    Discriminant, MAX_NAMESPACES,
+    CommandEffect, CommandEffectError, Discriminant, MAX_NAMESPACES,
     nvme::{
         AdminIdentifyActiveNamespaceIdListResponse, AdminIdentifyAllocatedNamespaceIdListResponse,
         AdminIdentifyCnsRequestType, AdminIdentifyControllerResponse,
@@ -68,14 +68,19 @@ async fn send_response(resp: &mut impl AsyncRespChannel, bufs: &[&[u8]]) {
 impl RequestHandler for MessageHeader {
     type Ctx = Self;
 
-    async fn handle<A: AsyncRespChannel>(
+    async fn handle<A, C>(
         &self,
         ctx: &Self::Ctx,
         mep: &mut crate::ManagementEndpoint,
         subsys: &mut crate::Subsystem,
         rest: &[u8],
-        resp: &mut A,
-    ) -> Result<(), ResponseStatus> {
+        resp: &mut C,
+        app: A,
+    ) -> Result<(), ResponseStatus>
+    where
+        A: AsyncFnMut(CommandEffect) -> Result<(), CommandEffectError>,
+        C: AsyncRespChannel,
+    {
         debug!("{self:x?}");
         // TODO: Command and Feature Lockdown handling
         // TODO: Handle subsystem reset, section 8.1, v2.0
@@ -90,7 +95,7 @@ impl RequestHandler for MessageHeader {
                     return Err(ResponseStatus::InvalidCommandSize);
                 };
 
-                ch.handle(&ch, mep, subsys, rest, resp).await
+                ch.handle(&ch, mep, subsys, rest, resp, app).await
             }
             MessageType::NvmeAdminCommand => {
                 let Ok(((rest, _), ch)) = AdminCommandRequestHeader::from_bytes((rest, 0)) else {
@@ -98,7 +103,7 @@ impl RequestHandler for MessageHeader {
                     return Err(ResponseStatus::InvalidCommandSize);
                 };
 
-                ch.handle(&ch, mep, subsys, rest, resp).await
+                ch.handle(&ch, mep, subsys, rest, resp, app).await
             }
             _ => {
                 debug!("Unimplemented NMINT: {:?}", ctx.nmimt());
@@ -111,18 +116,23 @@ impl RequestHandler for MessageHeader {
 impl RequestHandler for NvmeMiCommandRequestHeader {
     type Ctx = Self;
 
-    async fn handle<A: AsyncRespChannel>(
+    async fn handle<A, C>(
         &self,
         ctx: &Self::Ctx,
         mep: &mut crate::ManagementEndpoint,
         subsys: &mut crate::Subsystem,
         rest: &[u8],
-        resp: &mut A,
-    ) -> Result<(), ResponseStatus> {
+        resp: &mut C,
+        app: A,
+    ) -> Result<(), ResponseStatus>
+    where
+        A: AsyncFnMut(CommandEffect) -> Result<(), CommandEffectError>,
+        C: AsyncRespChannel,
+    {
         debug!("{self:x?}");
         match &self.body {
             NvmeMiCommandRequestType::ReadNvmeMiDataStructure(ds) => {
-                ds.handle(self, mep, subsys, rest, resp).await
+                ds.handle(self, mep, subsys, rest, resp, app).await
             }
             NvmeMiCommandRequestType::NvmSubsystemHealthStatusPoll(shsp) => {
                 // 5.6, Figure 108, v2.0
@@ -220,10 +230,10 @@ impl RequestHandler for NvmeMiCommandRequestHeader {
                 Ok(())
             }
             NvmeMiCommandRequestType::ConfigurationSet(cid) => {
-                cid.handle(ctx, mep, subsys, rest, resp).await
+                cid.handle(ctx, mep, subsys, rest, resp, app).await
             }
             NvmeMiCommandRequestType::ConfigurationGet(cid) => {
-                cid.handle(ctx, mep, subsys, rest, resp).await
+                cid.handle(ctx, mep, subsys, rest, resp, app).await
             }
             _ => {
                 debug!("Unimplemented OPCODE: {:?}", ctx.opcode);
@@ -236,14 +246,19 @@ impl RequestHandler for NvmeMiCommandRequestHeader {
 impl RequestHandler for NvmeMiConfigurationSetRequest {
     type Ctx = NvmeMiCommandRequestHeader;
 
-    async fn handle<A: AsyncRespChannel>(
+    async fn handle<A, C>(
         &self,
         _ctx: &Self::Ctx,
         mep: &mut crate::ManagementEndpoint,
         subsys: &mut crate::Subsystem,
         rest: &[u8],
-        _resp: &mut A,
-    ) -> Result<(), ResponseStatus> {
+        _resp: &mut C,
+        _app: A,
+    ) -> Result<(), ResponseStatus>
+    where
+        A: AsyncFnMut(CommandEffect) -> Result<(), CommandEffectError>,
+        C: AsyncRespChannel,
+    {
         match &self.body {
             NvmeMiConfigurationIdentifierRequestType::Reserved => {
                 Err(ResponseStatus::InvalidParameter)
@@ -314,14 +329,19 @@ impl RequestHandler for NvmeMiConfigurationSetRequest {
 impl RequestHandler for NvmeMiConfigurationGetRequest {
     type Ctx = NvmeMiCommandRequestHeader;
 
-    async fn handle<A: AsyncRespChannel>(
+    async fn handle<A, C>(
         &self,
         _ctx: &Self::Ctx,
         _mep: &mut crate::ManagementEndpoint,
         subsys: &mut crate::Subsystem,
         rest: &[u8],
-        resp: &mut A,
-    ) -> Result<(), ResponseStatus> {
+        resp: &mut C,
+        _app: A,
+    ) -> Result<(), ResponseStatus>
+    where
+        A: AsyncFnMut(CommandEffect) -> Result<(), CommandEffectError>,
+        C: AsyncRespChannel,
+    {
         match &self.body {
             NvmeMiConfigurationIdentifierRequestType::Reserved => {
                 Err(ResponseStatus::InvalidParameter)
@@ -403,14 +423,19 @@ impl RequestHandler for NvmeMiConfigurationGetRequest {
 impl RequestHandler for NvmeMiDataStructureRequest {
     type Ctx = NvmeMiCommandRequestHeader;
 
-    async fn handle<A: AsyncRespChannel>(
+    async fn handle<A, C>(
         &self,
         _ctx: &Self::Ctx,
         _mep: &mut crate::ManagementEndpoint,
         subsys: &mut crate::Subsystem,
         rest: &[u8],
-        resp: &mut A,
-    ) -> Result<(), ResponseStatus> {
+        resp: &mut C,
+        _app: A,
+    ) -> Result<(), ResponseStatus>
+    where
+        A: AsyncFnMut(CommandEffect) -> Result<(), CommandEffectError>,
+        C: AsyncRespChannel,
+    {
         debug!("{self:x?}");
 
         if !rest.is_empty() {
@@ -637,14 +662,19 @@ const MI_PROHIBITED_ADMIN_COMMANDS: [AdminCommandRequestType; 26] = [
 impl RequestHandler for AdminCommandRequestHeader {
     type Ctx = Self;
 
-    async fn handle<A: AsyncRespChannel>(
+    async fn handle<A, C>(
         &self,
         ctx: &Self::Ctx,
         mep: &mut crate::ManagementEndpoint,
         subsys: &mut crate::Subsystem,
         rest: &[u8],
-        resp: &mut A,
-    ) -> Result<(), ResponseStatus> {
+        resp: &mut C,
+        app: A,
+    ) -> Result<(), ResponseStatus>
+    where
+        A: AsyncFnMut(CommandEffect) -> Result<(), CommandEffectError>,
+        C: AsyncRespChannel,
+    {
         debug!("{self:x?}");
 
         // ISH
@@ -655,7 +685,7 @@ impl RequestHandler for AdminCommandRequestHeader {
 
         match &self.op {
             AdminCommandRequestType::Identify(identify) => {
-                identify.handle(ctx, mep, subsys, rest, resp).await
+                identify.handle(ctx, mep, subsys, rest, resp, app).await
             }
             op if MI_PROHIBITED_ADMIN_COMMANDS.contains(&self.op) => {
                 debug!("Prohibited MI admin command opcode: {:?}", op.id());
@@ -741,14 +771,19 @@ impl AdminIdentifyRequest {
 impl RequestHandler for AdminIdentifyRequest {
     type Ctx = AdminCommandRequestHeader;
 
-    async fn handle<A: AsyncRespChannel>(
+    async fn handle<A, C>(
         &self,
         ctx: &Self::Ctx,
         _mep: &mut crate::ManagementEndpoint,
         subsys: &mut crate::Subsystem,
         rest: &[u8],
-        resp: &mut A,
-    ) -> Result<(), ResponseStatus> {
+        resp: &mut C,
+        _app: A,
+    ) -> Result<(), ResponseStatus>
+    where
+        A: AsyncFnMut(CommandEffect) -> Result<(), CommandEffectError>,
+        C: AsyncRespChannel,
+    {
         debug!("{self:x?}");
 
         if !rest.is_empty() {
@@ -1055,12 +1090,16 @@ impl crate::ManagementEndpoint {
         }
     }
 
-    pub async fn handle_async<A: AsyncRespChannel>(
+    pub async fn handle_async<
+        A: AsyncFnMut(CommandEffect) -> Result<(), CommandEffectError>,
+        C: mctp::AsyncRespChannel,
+    >(
         &mut self,
         subsys: &mut crate::Subsystem,
         msg: &[u8],
         ic: MsgIC,
-        mut resp: A,
+        mut resp: C,
+        app: A,
     ) {
         self.update(subsys);
 
@@ -1109,7 +1148,7 @@ impl crate::ManagementEndpoint {
             return;
         };
 
-        if let Err(status) = mh.handle(&mh, self, subsys, rest, &mut resp).await {
+        if let Err(status) = mh.handle(&mh, self, subsys, rest, &mut resp, app).await {
             let mut digest = ISCSI.digest();
             digest.update(&[0x80 | 0x04]);
 

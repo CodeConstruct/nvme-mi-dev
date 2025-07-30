@@ -21,17 +21,32 @@ const MAX_NAMESPACES: usize = 2;
 const MAX_PORTS: usize = 2;
 const MAX_NIDTS: usize = 2;
 
+#[derive(Debug)]
+pub enum CommandEffect {
+    SetMtu { port_id: PortId, mtus: usize },
+}
+
+#[derive(Debug)]
+pub enum CommandEffectError {
+    Unsupported,
+    InternalError,
+}
+
 trait RequestHandler {
     type Ctx;
 
-    async fn handle<A: AsyncRespChannel>(
+    async fn handle<A, C>(
         &self,
         ctx: &Self::Ctx,
         mep: &mut crate::ManagementEndpoint,
         subsys: &mut crate::Subsystem,
         rest: &[u8],
-        resp: &mut A,
-    ) -> Result<(), ResponseStatus>;
+        resp: &mut C,
+        app: A,
+    ) -> Result<(), ResponseStatus>
+    where
+        A: AsyncFnMut(CommandEffect) -> Result<(), CommandEffectError>,
+        C: AsyncRespChannel;
 }
 
 trait Encode<const S: usize>: DekuContainerWrite {
