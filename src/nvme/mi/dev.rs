@@ -252,7 +252,7 @@ impl RequestHandler for NvmeMiConfigurationSetRequest {
         mep: &mut crate::ManagementEndpoint,
         subsys: &mut crate::Subsystem,
         rest: &[u8],
-        _resp: &mut C,
+        resp: &mut C,
         _app: A,
     ) -> Result<(), ResponseStatus>
     where
@@ -291,7 +291,7 @@ impl RequestHandler for NvmeMiConfigurationSetRequest {
                 // Success
                 let status = [0u8; 4];
 
-                send_response(_resp, &[&mh.0, &status]).await;
+                send_response(resp, &[&mh.0, &status]).await;
                 Ok(())
             }
             NvmeMiConfigurationIdentifierRequestType::HealthStatusChange(hscr) => {
@@ -317,7 +317,7 @@ impl RequestHandler for NvmeMiConfigurationSetRequest {
                 // Success
                 let status = [0u8; 4];
 
-                send_response(_resp, &[&mh.0, &status]).await;
+                send_response(resp, &[&mh.0, &status]).await;
                 Ok(())
             }
             NvmeMiConfigurationIdentifierRequestType::MctpTransmissionUnitSize(_) => todo!(),
