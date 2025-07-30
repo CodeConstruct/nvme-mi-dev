@@ -155,10 +155,13 @@ impl PortCapabilities {
 #[derive(Debug)]
 pub struct Port {
     id: PortId,
+    // MI v2.0, 5.7.2, Figure 114
     typ: PortType,
     caps: PortCapabilities,
     mmtus: u16,
     mebs: u32,
+    // Local state
+    mtus: u16,
 }
 
 impl Port {
@@ -169,6 +172,7 @@ impl Port {
             caps: PortCapabilities::new(),
             mmtus: 64,
             mebs: 0,
+            mtus: 64,
         }
     }
 }

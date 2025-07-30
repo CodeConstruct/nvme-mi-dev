@@ -253,7 +253,7 @@ impl RequestHandler for NvmeMiConfigurationSetRequest {
         subsys: &mut crate::Subsystem,
         rest: &[u8],
         resp: &mut C,
-        _app: A,
+        mut app: A,
     ) -> Result<(), ResponseStatus>
     where
         A: AsyncFnMut(CommandEffect) -> Result<(), CommandEffectError>,
@@ -320,7 +320,32 @@ impl RequestHandler for NvmeMiConfigurationSetRequest {
                 send_response(resp, &[&mh.0, &status]).await;
                 Ok(())
             }
-            NvmeMiConfigurationIdentifierRequestType::MctpTransmissionUnitSize(_) => todo!(),
+            NvmeMiConfigurationIdentifierRequestType::MctpTransmissionUnitSize(mtusr) => {
+                if !rest.is_empty() {
+                    debug!(
+                        "Lost synchronisation when decoding ConfigurationSet MCTPTransmissionUnitSize"
+                    );
+                    return Err(ResponseStatus::InvalidCommandSize);
+                }
+
+                let Some(port) = subsys.ports.get_mut(mtusr.dw0_portid as usize) else {
+                    debug!("Unrecognised port ID: {}", mtusr.dw0_portid);
+                    return Err(ResponseStatus::InvalidParameter);
+                };
+
+                app(CommandEffect::SetMtu {
+                    port_id: port.id,
+                    mtus: mtusr.dw1_mtus as usize,
+                })
+                .await?;
+                port.mtus = mtusr.dw1_mtus;
+
+                let mh = MessageHeader::respond(MessageType::NvmeMiCommand).encode()?;
+                let status = [0u8; 4];
+
+                send_response(resp, &[&mh.0, &status]).await;
+                Ok(())
+            }
             NvmeMiConfigurationIdentifierRequestType::AsynchronousEvent => todo!(),
         }
     }
@@ -391,7 +416,7 @@ impl RequestHandler for NvmeMiConfigurationGetRequest {
                 send_response(resp, &[&mh.0, &hscr.0]).await;
                 Ok(())
             }
-            NvmeMiConfigurationIdentifierRequestType::MctpTransmissionUnitSize(gmtusr) => {
+            NvmeMiConfigurationIdentifierRequestType::MctpTransmissionUnitSize(mtusr) => {
                 if !rest.is_empty() {
                     debug!(
                         "Lost synchronisation when decoding ConfigurationGet MCTPTransmissionUnitSize"
@@ -399,8 +424,8 @@ impl RequestHandler for NvmeMiConfigurationGetRequest {
                     return Err(ResponseStatus::InvalidCommandSize);
                 }
 
-                let Some(port) = subsys.ports.get(gmtusr.dw0_portid as usize) else {
-                    debug!("Unrecognised port ID: {}", gmtusr.dw0_portid);
+                let Some(port) = subsys.ports.get(mtusr.dw0_portid as usize) else {
+                    debug!("Unrecognised port ID: {}", mtusr.dw0_portid);
                     return Err(ResponseStatus::InvalidParameter);
                 };
 
@@ -408,7 +433,7 @@ impl RequestHandler for NvmeMiConfigurationGetRequest {
 
                 let fr = GetMctpTransmissionUnitSizeResponse {
                     status: ResponseStatus::Success,
-                    mr_mtus: port.mmtus,
+                    mr_mtus: port.mtus,
                 }
                 .encode()?;
 
