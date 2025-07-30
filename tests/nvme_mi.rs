@@ -1088,7 +1088,8 @@ mod configuration_get {
 mod configuration_set {
     use mctp::MsgIC;
     use nvme_mi_dev::{
-        ManagementEndpoint, PciePort, PortType, Subsystem, SubsystemInfo, Temperature, TwoWirePort,
+        CommandEffectError, ManagementEndpoint, PciePort, PortType, Subsystem, SubsystemInfo,
+        Temperature, TwoWirePort,
     };
 
     use crate::{
@@ -1101,6 +1102,13 @@ mod configuration_set {
         0x88, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00,
         0x24, 0x55, 0x77, 0x22
+    ];
+
+    #[rustfmt::skip]
+    const RESP_INTERNAL_ERROR: [u8; 11] = [
+        0x88, 0x00, 0x00,
+        0x02, 0x00, 0x00, 0x00,
+        0xa5, 0x76, 0x10, 0x9d
     ];
 
     #[test]
@@ -1417,6 +1425,167 @@ mod configuration_set {
                 resp,
                 async |_| Ok(()),
             )
+            .await
+        });
+    }
+
+    #[test]
+    fn mctp_transmission_unit_size_short() {
+        setup();
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+
+        #[rustfmt::skip]
+        const REQ: [u8; 15] = [
+            0x08, 0x00, 0x00,
+            0x03, 0x00, 0x00, 0x00,
+            0x03, 0x00, 0x00, 0x00,
+            // Missing DWORD 1
+            0x99, 0x4e, 0xb1, 0x32
+        ];
+
+        let resp = ExpectedRespChannel::new(&RESP_INVALID_COMMAND_SIZE);
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
+    }
+
+    #[test]
+    fn mctp_transmission_unit_size_long() {
+        setup();
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+
+        #[rustfmt::skip]
+        const REQ: [u8; 23] = [
+            0x08, 0x00, 0x00,
+            0x03, 0x00, 0x00, 0x00,
+            0x03, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x6f, 0xc3, 0x4c, 0x24
+        ];
+
+        let resp = ExpectedRespChannel::new(&RESP_INVALID_COMMAND_SIZE);
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
+    }
+
+    #[test]
+    fn mctp_transmission_unit_size_invalid_port() {
+        setup();
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+
+        #[rustfmt::skip]
+        const REQ: [u8; 19] = [
+            0x08, 0x00, 0x00,
+            0x03, 0x00, 0x00, 0x00,
+            0x03, 0x00, 0x00, 0x02,
+            0x00, 0x00, 0x00, 0x00,
+            0x83, 0x24, 0xf2, 0xff
+        ];
+
+        let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
+    }
+
+    #[test]
+    fn mctp_transmission_unit_size_effect_failure() {
+        setup();
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+
+        #[rustfmt::skip]
+        const REQ: [u8; 19] = [
+            0x08, 0x00, 0x00,
+            0x03, 0x00, 0x00, 0x00,
+            0x03, 0x00, 0x00, 0x01,
+            0x00, 0x00, 0x00, 0x00,
+            0x77, 0x94, 0xc1, 0xb7
+        ];
+
+        let resp = ExpectedRespChannel::new(&RESP_INTERNAL_ERROR);
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| {
+                Err(CommandEffectError::InternalError)
+            })
+            .await
+        });
+    }
+
+    #[test]
+    fn mctp_transmission_unit_size() {
+        setup();
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+
+        #[rustfmt::skip]
+        const REQ_GET_INIT: [u8; 19] = [
+            0x08, 0x00, 0x00,
+            0x04, 0x00, 0x00, 0x00,
+            0x03, 0x00, 0x00, 0x01,
+            0x00, 0x00, 0x00, 0x00,
+            0xe7, 0xb8, 0x94, 0x21
+        ];
+
+        #[rustfmt::skip]
+        const RESP_GET_INIT: [u8; 11] = [
+            0x88, 0x00, 0x00,
+            0x00, 0x40, 0x00, 0x00,
+            0xfd, 0xd5, 0x12, 0xe5
+        ];
+
+        let resp = ExpectedRespChannel::new(&RESP_GET_INIT);
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ_GET_INIT, MsgIC(true), resp, async |_| {
+                Ok(())
+            })
+            .await
+        });
+
+        #[rustfmt::skip]
+        const REQ_SET: [u8; 19] = [
+            0x08, 0x00, 0x00,
+            0x03, 0x00, 0x00, 0x00,
+            0x03, 0x00, 0x00, 0x01,
+            0x80, 0x00, 0x00, 0x00,
+            0x48, 0x5d, 0x61, 0xe5
+        ];
+
+        let resp = ExpectedRespChannel::new(&RESP_SUCCESS);
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ_SET, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
+
+        #[rustfmt::skip]
+        const REQ_GET_NEW: [u8; 19] = [
+            0x08, 0x00, 0x00,
+            0x04, 0x00, 0x00, 0x00,
+            0x03, 0x00, 0x00, 0x01,
+            0x00, 0x00, 0x00, 0x00,
+            0xe7, 0xb8, 0x94, 0x21
+        ];
+
+        #[rustfmt::skip]
+        const RESP_GET_NEW: [u8; 11] = [
+            0x88, 0x00, 0x00,
+            0x00, 0x80, 0x00, 0x00,
+            0x67, 0x22, 0x50, 0xa9
+        ];
+
+        let resp = ExpectedRespChannel::new(&RESP_GET_NEW);
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ_GET_NEW, MsgIC(true), resp, async |_| {
+                Ok(())
+            })
             .await
         });
     }

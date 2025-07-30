@@ -167,7 +167,7 @@ enum NvmeMiConfigurationIdentifierRequestType {
     #[deku(id = "0x02")]
     HealthStatusChange(HealthStatusChangeRequest),
     #[deku(id = "0x03")]
-    MctpTransmissionUnitSize(GetMctpTransmissionUnitSizeRequest),
+    MctpTransmissionUnitSize(MctpTransmissionUnitSizeRequest),
     AsynchronousEvent = 0x04,
 }
 
@@ -252,10 +252,11 @@ flags! {
 // MI v2.0, 5.2.3, Figure 89
 #[derive(Debug, DekuRead, DekuWrite, Eq, PartialEq)]
 #[deku(ctx = "endian: Endian", endian = "endian")]
-struct GetMctpTransmissionUnitSizeRequest {
+struct MctpTransmissionUnitSizeRequest {
     #[deku(seek_from_current = "2")]
     dw0_portid: u8,
-    _dw1: u32,
+    #[deku(pad_bytes_after = "2")]
+    dw1_mtus: u16,
 }
 
 // MI v2.0, 5.6, Figure 106
