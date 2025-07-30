@@ -92,7 +92,7 @@ impl From<DekuError> for ResponseStatus {
 
 impl From<()> for ResponseStatus {
     fn from(_: ()) -> Self {
-        ResponseStatus::InternalError
+        Self::InternalError
     }
 }
 
