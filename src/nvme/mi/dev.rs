@@ -269,22 +269,27 @@ impl RequestHandler for NvmeMiConfigurationSetRequest {
                     return Err(ResponseStatus::InvalidCommandSize);
                 }
 
-                let Some(port) = subsys.ports.get(sifr.dw0_portid as usize) else {
+                let Some(port) = subsys.ports.get_mut(sifr.dw0_portid as usize) else {
                     debug!("Unrecognised port ID: {}", sifr.dw0_portid);
                     return Err(ResponseStatus::InvalidParameter);
                 };
 
-                let crate::PortType::TwoWire(twprt) = port.typ else {
+                let crate::PortType::TwoWire(twprt) = &mut port.typ else {
                     debug!("Port {} is not a TwoWire port: {:?}", sifr.dw0_portid, port);
                     return Err(ResponseStatus::InvalidParameter);
                 };
 
-                if sifr.dw0_sfreq != crate::nvme::mi::SmbusFrequency::Freq100Khz {
-                    if twprt.msmbfreq != super::SmbusFrequency::Freq100Khz {
-                        todo!("Maintain port state and configure the hardware");
-                    }
+                if sifr.dw0_sfreq > twprt.msmbfreq {
+                    debug!("Unsupported SMBus frequency: {:?}", sifr.dw0_sfreq);
                     return Err(ResponseStatus::InvalidParameter);
                 }
+
+                app(CommandEffect::SetSmbusFreq {
+                    port_id: port.id,
+                    freq: sifr.dw0_sfreq,
+                })
+                .await?;
+                twprt.smbfreq = sifr.dw0_sfreq;
 
                 let mh = MessageHeader::respond(MessageType::NvmeMiCommand).encode()?;
 
@@ -391,7 +396,7 @@ impl RequestHandler for NvmeMiConfigurationGetRequest {
 
                 let fr = GetSmbusI2cFrequencyResponse {
                     status: ResponseStatus::Success,
-                    mr_sfreq: twprt.msmbfreq,
+                    mr_sfreq: twprt.smbfreq,
                 }
                 .encode()?;
 

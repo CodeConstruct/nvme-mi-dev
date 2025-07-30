@@ -544,7 +544,7 @@ impl Encode<24> for PciePortDataResponse {}
 
 // MI v2.0, Figure 116, MVPDFREQ
 #[allow(dead_code)]
-#[derive(Clone, Copy, Debug, DekuRead, DekuWrite, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, DekuRead, DekuWrite, Eq, Ord, PartialEq, PartialOrd)]
 #[deku(endian = "endian", ctx = "endian: Endian")]
 #[deku(id_type = "u8")]
 #[repr(u8)]
