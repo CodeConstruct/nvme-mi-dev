@@ -231,13 +231,13 @@ mod read_nvme_mi_data_structure {
             0x00, 0x20, 0x00, 0x00,
             0x02, 0x00, 0x40, 0x00,
             0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x1d, 0x01,
+            0x00, 0x00, 0x1d, 0x02,
             0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00,
-            0xc4, 0x05, 0xbc, 0x27
+            0xf3, 0x83, 0xa2, 0x30
         ];
 
         let resp = ExpectedRespChannel::new(&RESP);
@@ -1232,9 +1232,9 @@ mod configuration_set {
         const REQ: [u8; 19] = [
             0x08, 0x00, 0x00,
             0x03, 0x00, 0x00, 0x00,
-            0x01, 0x02, 0x00, 0x01,
+            0x01, 0x03, 0x00, 0x01,
             0x00, 0x00, 0x00, 0x00,
-            0xa9, 0x37, 0xbf, 0xf5
+            0x61, 0x1b, 0xbc, 0x9d
         ];
 
         let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
@@ -1245,7 +1245,7 @@ mod configuration_set {
     }
 
     #[test]
-    fn smbus_i2c_frequency_supported() {
+    fn smbus_i2c_frequency_supported_effect_failure() {
         setup();
 
         let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
@@ -1259,10 +1259,82 @@ mod configuration_set {
             0xf1, 0x42, 0xba, 0x4d
         ];
 
+        let resp = ExpectedRespChannel::new(&RESP_INTERNAL_ERROR);
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| {
+                Err(CommandEffectError::InternalError)
+            })
+            .await
+        });
+    }
+
+    #[test]
+    fn smbus_i2c_frequency_supported() {
+        setup();
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+
+        #[rustfmt::skip]
+        const REQ_GET_INIT: [u8; 19] = [
+            0x08, 0x00, 0x00,
+            0x04, 0x00, 0x00, 0x00,
+            0x01, 0x00, 0x00, 0x01,
+            0x00, 0x00, 0x00, 0x00,
+            0xa9, 0x42, 0xec, 0xb3
+        ];
+
+        #[rustfmt::skip]
+        const RESP_GET_INIT: [u8; 11] = [
+            0x88, 0x00, 0x00,
+            0x00, 0x01, 0x00, 0x00,
+            0x5a, 0xc7, 0x36, 0x87
+        ];
+
+        let resp = ExpectedRespChannel::new(&RESP_GET_INIT);
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ_GET_INIT, MsgIC(true), resp, async |_| {
+                Ok(())
+            })
+            .await
+        });
+
+        #[rustfmt::skip]
+        const REQ_SET: [u8; 19] = [
+            0x08, 0x00, 0x00,
+            0x03, 0x00, 0x00, 0x00,
+            0x01, 0x02, 0x00, 0x01,
+            0x00, 0x00, 0x00, 0x00,
+            0xa9, 0x37, 0xbf, 0xf5
+        ];
+
         let resp = ExpectedRespChannel::new(&RESP_SUCCESS);
         smol::block_on(async {
-            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+            mep.handle_async(&mut subsys, &REQ_SET, MsgIC(true), resp, async |_| Ok(()))
                 .await
+        });
+
+        #[rustfmt::skip]
+        const REQ_GET_NEW: [u8; 19] = [
+            0x08, 0x00, 0x00,
+            0x04, 0x00, 0x00, 0x00,
+            0x01, 0x00, 0x00, 0x01,
+            0x00, 0x00, 0x00, 0x00,
+            0xa9, 0x42, 0xec, 0xb3
+        ];
+
+        #[rustfmt::skip]
+        const RESP_GET_NEW: [u8; 11] = [
+            0x88, 0x00, 0x00,
+            0x00, 0x02, 0x00, 0x00,
+            0x29, 0x07, 0x18, 0x6d
+        ];
+
+        let resp = ExpectedRespChannel::new(&RESP_GET_NEW);
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ_GET_NEW, MsgIC(true), resp, async |_| {
+                Ok(())
+            })
+            .await
         });
     }
 

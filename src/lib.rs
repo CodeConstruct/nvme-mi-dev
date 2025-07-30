@@ -23,7 +23,14 @@ const MAX_NIDTS: usize = 2;
 
 #[derive(Debug)]
 pub enum CommandEffect {
-    SetMtu { port_id: PortId, mtus: usize },
+    SetMtu {
+        port_id: PortId,
+        mtus: usize,
+    },
+    SetSmbusFreq {
+        port_id: PortId,
+        freq: nvme::mi::SmbusFrequency,
+    },
 }
 
 #[derive(Debug)]
@@ -101,12 +108,15 @@ impl Default for PciePort {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct TwoWirePort {
+    // MI v2.0, 5.7.2, Figure 116
     cvpdaddr: u8,
     mvpdfreq: nvme::mi::SmbusFrequency,
     cmeaddr: u8,
     i3csprt: bool,
     msmbfreq: nvme::mi::SmbusFrequency,
     nvmebms: bool,
+    // Local state
+    smbfreq: nvme::mi::SmbusFrequency,
 }
 
 impl TwoWirePort {
@@ -116,8 +126,9 @@ impl TwoWirePort {
             mvpdfreq: nvme::mi::SmbusFrequency::FreqNotSupported,
             cmeaddr: 0x1d,
             i3csprt: false,
-            msmbfreq: nvme::mi::SmbusFrequency::Freq100Khz,
+            msmbfreq: nvme::mi::SmbusFrequency::Freq400Khz,
             nvmebms: false,
+            smbfreq: nvme::mi::SmbusFrequency::Freq100Khz,
         }
     }
 }
