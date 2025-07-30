@@ -3,7 +3,7 @@ use deku::{DekuError, DekuRead, DekuWrite};
 use flagset::{FlagSet, flags};
 use log::debug;
 
-use crate::{Discriminant, Encode};
+use crate::{CommandEffectError, Discriminant, Encode};
 
 use super::AdminIdentifyCnsRequestType;
 
@@ -93,6 +93,13 @@ impl From<DekuError> for ResponseStatus {
 impl From<()> for ResponseStatus {
     fn from(_: ()) -> Self {
         ResponseStatus::InternalError
+    }
+}
+
+impl From<CommandEffectError> for ResponseStatus {
+    fn from(value: CommandEffectError) -> Self {
+        debug!("Failed to apply command effect: {value:?}");
+        Self::InternalError
     }
 }
 

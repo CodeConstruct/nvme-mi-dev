@@ -69,7 +69,10 @@ mod prohibited {
         ];
 
         let resp = ExpectedRespChannel::new(&RESP_INVALID_COMMAND);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
     }
 }
 
@@ -124,7 +127,10 @@ mod identify {
         ];
 
         let resp = ExpectedRespChannel::new(&RESP_INVALID_COMMAND_SIZE);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
     }
 
     #[test]
@@ -169,7 +175,10 @@ mod identify {
         ];
 
         let resp = ExpectedRespChannel::new(&RESP_INVALID_COMMAND_SIZE);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
     }
 
     #[test]
@@ -211,7 +220,10 @@ mod identify {
         ];
 
         let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
     }
 
     #[test]
@@ -253,7 +265,10 @@ mod identify {
         ];
 
         let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
     }
 
     #[test]
@@ -295,7 +310,10 @@ mod identify {
         ];
 
         let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
     }
 
     #[test]
@@ -337,7 +355,10 @@ mod identify {
         ];
 
         let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
     }
 
     #[test]
@@ -379,7 +400,10 @@ mod identify {
         ];
 
         let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
     }
 
     #[test]
@@ -421,7 +445,10 @@ mod identify {
         ];
 
         let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
     }
 
     #[test]
@@ -479,7 +506,10 @@ mod identify {
         ];
 
         let resp = RelaxedRespChannel::new(resp_fields);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
     }
 
     #[test]
@@ -528,7 +558,10 @@ mod identify {
         ];
 
         let resp = RelaxedRespChannel::new(resp_fields);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
     }
 
     #[test]
@@ -570,7 +603,10 @@ mod identify {
         ];
 
         let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
     }
 
     #[test]
@@ -613,7 +649,10 @@ mod identify {
         ];
 
         let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
     }
 
     #[test]
@@ -655,7 +694,10 @@ mod identify {
         ];
 
         let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
     }
 
     #[test]
@@ -703,7 +745,10 @@ mod identify {
         ];
 
         let resp = RelaxedRespChannel::new(resp_fields);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
     }
 
     #[test]
@@ -754,7 +799,10 @@ mod identify {
         ];
 
         let resp = RelaxedRespChannel::new(resp_fields);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
     }
 
     #[test]
@@ -802,7 +850,10 @@ mod identify {
         ];
 
         let resp = RelaxedRespChannel::new(resp_fields);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
     }
 
     #[test]
@@ -850,7 +901,10 @@ mod identify {
         ];
 
         let resp = RelaxedRespChannel::new(resp_fields);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
     }
 
     #[test]
@@ -898,7 +952,10 @@ mod identify {
         ];
 
         let resp = RelaxedRespChannel::new(resp_fields);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
     }
 
     #[test]
@@ -940,7 +997,10 @@ mod identify {
         ];
 
         let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
     }
 
     #[test]
@@ -982,7 +1042,10 @@ mod identify {
         ];
 
         let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
     }
 
     #[test]
@@ -1024,7 +1087,10 @@ mod identify {
         ];
 
         let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
     }
 
     #[test]
@@ -1066,7 +1132,10 @@ mod identify {
         ];
 
         let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
     }
 
     #[test]
@@ -1108,7 +1177,10 @@ mod identify {
         ];
 
         let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
     }
 
     #[test]
@@ -1162,7 +1234,10 @@ mod identify {
         ];
 
         let resp = RelaxedRespChannel::new(resp_fields);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
     }
 
     #[test]
@@ -1227,7 +1302,7 @@ mod identify {
         let resp = RelaxedRespChannel::new(resp_fields);
         smol::block_on(async {
             t.mep
-                .handle_async(&mut t.subsys, &REQ, MsgIC(true), resp)
+                .handle_async(&mut t.subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
                 .await
         });
     }
@@ -1278,7 +1353,10 @@ mod identify {
         ];
 
         let resp = RelaxedRespChannel::new(resp_fields);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
     }
 
     #[test]
@@ -1326,7 +1404,10 @@ mod identify {
         ];
 
         let resp = RelaxedRespChannel::new(resp_fields);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
     }
 
     #[test]
@@ -1368,7 +1449,10 @@ mod identify {
         ];
 
         let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
     }
 
     #[test]
@@ -1410,7 +1494,10 @@ mod identify {
         ];
 
         let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
     }
 
     #[test]
@@ -1458,6 +1545,9 @@ mod identify {
         ];
 
         let resp = RelaxedRespChannel::new(resp_fields);
-        smol::block_on(async { mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp).await });
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
     }
 }
