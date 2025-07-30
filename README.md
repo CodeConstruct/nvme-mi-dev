@@ -47,7 +47,9 @@ async fn nvme_mi<'a>(router: &'a Router<'a>) -> std::io::Result<()> {
             continue;
         };
 
-        mep.handle_async(&mut subsys, msg, ic, resp).await;
+        // Disregard command effects for demonstration purposes
+        let effects = async |_| Ok(());
+        mep.handle_async(&mut subsys, msg, ic, resp, effects).await;
     }
 }
 ```
