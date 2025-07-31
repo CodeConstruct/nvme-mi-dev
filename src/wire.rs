@@ -2,6 +2,8 @@
 /*
  * Copyright (c) 2025 Code Construct
  */
+mod flags;
+pub use flags::WireFlagSet;
 mod string;
 pub use string::WireString;
 mod uuid;

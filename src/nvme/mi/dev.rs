@@ -932,7 +932,7 @@ impl RequestHandler for AdminIdentifyRequest {
                     acl: 0,
                     aerl: 0,
                     frmw: 0,
-                    lpa: 0,
+                    lpa: FlagSet::empty().into(),
                     elpe: 0,
                     npss: 0,
                     avscc: 0,
