@@ -8,6 +8,7 @@ use deku::ctx::Endian;
 use deku::{DekuRead, DekuWrite, deku_derive};
 use flagset::flags;
 
+use crate::wire::WireFlagSet;
 use crate::wire::WireString;
 use crate::wire::WireUuid;
 use crate::wire::WireVec;
@@ -130,6 +131,20 @@ enum ControllerType {
     AdministrativeController = 0x03,
 }
 
+// Base v2.1, 5.1.13.2.1, Figure 312, LPA
+flags! {
+    #[repr(u8)]
+    pub enum LogPageAttributes: u8 {
+        Smarts,
+        Cses,
+        Lpeds,
+        Ts,
+        Pes,
+        Mlps,
+        Da4s,
+    }
+}
+
 // Base v2.1, 5.1.13.2.1, Figure 312
 #[derive(Debug, DekuRead, DekuWrite)]
 #[deku(endian = "little")]
@@ -159,7 +174,7 @@ struct AdminIdentifyControllerResponse {
     acl: u8,
     aerl: u8,
     frmw: u8,
-    lpa: u8,
+    lpa: WireFlagSet<LogPageAttributes>,
     elpe: u8,
     npss: u8,
     avscc: u8,
