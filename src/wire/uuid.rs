@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: GPL-3.0-only
+/*
+ * Copyright (c) 2025 Code Construct
+ */
 use deku::{DekuError, DekuReader, DekuWriter, no_std_io, reader::Reader, writer::Writer};
 use uuid::Uuid;
 

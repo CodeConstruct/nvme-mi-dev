@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: GPL-3.0-only
+/*
+ * Copyright (c) 2025 Code Construct
+ */
 use deku::{
     DekuError, DekuReader, DekuWriter, deku_error,
     no_std_io::{self},
