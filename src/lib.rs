@@ -8,7 +8,10 @@ use deku::{DekuContainerWrite, DekuError};
 use flagset::FlagSet;
 use hmac::Mac;
 use mctp::AsyncRespChannel;
-use nvme::mi::ResponseStatus;
+use nvme::{
+    AdminGetLogPageLidRequestType, LidSupportedAndEffectsFlags, LogPageAttributes,
+    mi::ResponseStatus,
+};
 use uuid::Uuid;
 
 pub mod nvme;
@@ -240,14 +243,14 @@ pub enum Temperature<T> {
 }
 
 #[derive(Debug)]
-struct OperatingRange {
+struct OperatingRange<T> {
     kind: UnitKind,
-    lower: u16,
-    upper: u16,
+    lower: T,
+    upper: T,
 }
 
-impl OperatingRange {
-    fn new(kind: UnitKind, lower: u16, upper: u16) -> Self {
+impl<T> OperatingRange<T> {
+    fn new(kind: UnitKind, lower: T, upper: T) -> Self {
         Self { kind, lower, upper }
     }
 }
@@ -268,15 +271,17 @@ pub struct Controller {
     secondaries: heapless::Vec<SecondaryController, 0>,
     active_ns: heapless::Vec<NamespaceId, MAX_NAMESPACES>,
     temp: u16,
-    temp_range: OperatingRange,
+    temp_range: OperatingRange<u16>,
     capacity: u64,
     spare: u64,
-    spare_range: OperatingRange,
+    spare_range: OperatingRange<u64>,
     write_age: u64,
     write_lifespan: u64,
     ro: bool,
     cc: nvme::ControllerConfiguration,
     csts: FlagSet<nvme::ControllerStatusFlags>,
+    lpa: FlagSet<LogPageAttributes>,
+    lsaes: [FlagSet<LidSupportedAndEffectsFlags>; 3],
 }
 
 impl Controller {
@@ -296,6 +301,15 @@ impl Controller {
             ro: false,
             cc: nvme::ControllerConfiguration::default(),
             csts: FlagSet::empty(),
+            lpa: FlagSet::empty(),
+            lsaes: {
+                let mut arr = [FlagSet::default(); 3];
+                arr[AdminGetLogPageLidRequestType::SupportedLogPages.id() as usize] =
+                    LidSupportedAndEffectsFlags::Lsupp.into();
+                arr[AdminGetLogPageLidRequestType::SmartHealthInformation.id() as usize] =
+                    LidSupportedAndEffectsFlags::Lsupp.into();
+                arr
+            },
         }
     }
 

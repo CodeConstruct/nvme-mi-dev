@@ -5,7 +5,7 @@ use log::debug;
 
 use crate::{CommandEffectError, Discriminant, Encode};
 
-use super::AdminIdentifyCnsRequestType;
+use super::{AdminGetLogPageLidRequestType, AdminIdentifyCnsRequestType};
 
 // SPDX-License-Identifier: GPL-3.0-only
 /*
@@ -591,7 +591,8 @@ impl Encode<32> for ControllerInformationResponse {}
 enum AdminCommandRequestType {
     DeleteIoSubmissionQueue = 0x00, // P
     CreateIoSubmissionQueue = 0x01, // P
-    GetLogPage = 0x02,              // M
+    #[deku(id = 0x02)]
+    GetLogPage(AdminGetLogPageRequest), // M
     DeleteIoCompletionQueue = 0x04, // P
     CreateIoCompletionQueue = 0x05, // P
     #[deku(id = 0x06)]
@@ -632,6 +633,31 @@ struct AdminCommandRequestHeader {
     ctlid: u16,
     #[deku(ctx = "*opcode")]
     op: AdminCommandRequestType,
+}
+
+// MI v2.0, 6, Figure 136
+// Base v2.1, 5.1.12, Figures 197-201
+#[derive(Debug, DekuRead, DekuWrite, Eq, PartialEq)]
+#[deku(ctx = "endian: Endian", endian = "endian")]
+struct AdminGetLogPageRequest {
+    nsid: u32,
+    #[deku(seek_from_current = "16")]
+    dofst: u32,
+    dlen: u32,
+    #[deku(seek_from_current = "8")]
+    #[deku(update = "self.req.id()")]
+    lid: u8,
+    lsp_rae: u8,
+    numdw: u32, // Synthesised from NUMDL / NUMDU
+    lsi: u16,
+    lpo: u64, // Synthesised from LPOL / LPOU
+    uidx: u8,
+    #[deku(seek_from_current = "1")]
+    ot: u8,
+    csi: u8,
+    #[deku(pad_bytes_after = "4")]
+    #[deku(ctx = "*lid")]
+    req: AdminGetLogPageLidRequestType,
 }
 
 // MI v2.0, 6, Figure 136

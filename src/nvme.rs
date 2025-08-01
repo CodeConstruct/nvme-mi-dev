@@ -106,6 +106,7 @@ unsafe impl Discriminant<u8> for AdminIoCqeStatusType {}
 #[repr(u8)]
 enum AdminIoCqeGenericCommandStatus {
     SuccessfulCompletion = 0x00,
+    InvalidFieldInCommand = 0x02,
 }
 unsafe impl Discriminant<u8> for AdminIoCqeGenericCommandStatus {}
 
@@ -151,6 +152,95 @@ pub struct AdminIdentifyNvmIdentifyNamespaceResponse {
     lbaf0_rp: u8,
 }
 impl Encode<4096> for AdminIdentifyNvmIdentifyNamespaceResponse {}
+
+// Base v2.1, 5.1.12, Figure 202
+// MI v2.0, 6.3, Figure 141
+#[derive(Debug, DekuRead, DekuWrite, Eq, PartialEq)]
+#[deku(ctx = "endian: Endian, lid: u8", id = "lid", endian = "endian")]
+#[repr(u8)]
+pub enum AdminGetLogPageLidRequestType {
+    SupportedLogPages = 0x00,
+    ErrorInformation = 0x01,
+    SmartHealthInformation = 0x02,
+    FeatureIdentifiersSupportedAndEffects = 0x12,
+}
+unsafe impl Discriminant<u8> for AdminGetLogPageLidRequestType {}
+
+// Base v2.1, 5.1.12.1.1, Figure 203
+#[derive(Debug, DekuRead, DekuWrite)]
+#[deku(endian = "little")]
+pub struct AdminGetLogPageSupportedLogPagesResponse {
+    lsids: WireVec<LidSupportedAndEffectsDataStructure, 256>,
+}
+impl Encode<1024> for AdminGetLogPageSupportedLogPagesResponse {}
+
+// Base v2.1, 5.1.12.1.1, Figure 204
+flags! {
+    pub enum LidSupportedAndEffectsFlags: u8 {
+        Lsupp,
+        Ios,
+    }
+}
+
+// Base v2.1, 5.1.12.1.1, Figure 204
+#[derive(Clone, Copy, Debug, DekuRead, DekuWrite)]
+#[deku(ctx = "endian: Endian", endian = "endian")]
+pub struct LidSupportedAndEffectsDataStructure {
+    flags: WireFlagSet<LidSupportedAndEffectsFlags>,
+    #[deku(seek_from_current = "1")]
+    lidsp: u16,
+}
+
+// Base v2.1, 5.1.12.1.3, Figure 206, CW
+flags! {
+    pub enum CriticalWarning: u8 {
+        Ascbt,
+        Ttc,
+        Ndr,
+        Amro,
+        Vmbf,
+        Pmrro,
+    }
+}
+
+// Base v2.1, 5.1.12.1.3, Figure 206, EGCWS
+flags! {
+    pub enum EnduranceGroupCriticalWarningSummary: u8 {
+        Egascbt = 1 << 0,
+        Egdr = 1 << 2,
+        Egro = 1 << 3,
+    }
+}
+
+// Base v2.1, 5.1.12.1.3, Figure 206
+#[derive(Debug, Default, DekuRead, DekuWrite)]
+#[deku(endian = "little")]
+pub struct SmartHealthInformationLogPageResponse {
+    cw: WireFlagSet<CriticalWarning>,
+    ctemp: u16,
+    avsp: u8,
+    avspt: u8,
+    pused: u8,
+    egcws: WireFlagSet<EnduranceGroupCriticalWarningSummary>,
+    #[deku(seek_from_current = "25")]
+    dur: u128,
+    duw: u128,
+    hrc: u128,
+    hwc: u128,
+    cbt: u128,
+    pwrc: u128,
+    poh: u128,
+    upl: u128,
+    mdie: u128,
+    neile: u128,
+    wctt: u32,
+    cctt: u32,
+    tsen: [u16; 8],
+    tmttc: [u32; 2],
+    #[deku(pad_bytes_after = "280")]
+    tttmt: [u32; 2],
+}
+impl Encode<512> for SmartHealthInformationLogPageResponse {}
 
 // Base v2.1, 5.1.13.1, Figure 311
 #[derive(Clone, Copy, Debug, DekuRead, DekuWrite)]
