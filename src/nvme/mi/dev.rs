@@ -11,11 +11,14 @@ use mctp::{AsyncRespChannel, MsgIC};
 use crate::{
     CommandEffect, CommandEffectError, Discriminant, MAX_NAMESPACES,
     nvme::{
+        AdminGetLogPageLidRequestType, AdminGetLogPageSupportedLogPagesResponse,
         AdminIdentifyActiveNamespaceIdListResponse, AdminIdentifyAllocatedNamespaceIdListResponse,
         AdminIdentifyCnsRequestType, AdminIdentifyControllerResponse,
         AdminIdentifyNamespaceIdentificationDescriptorListResponse,
         AdminIdentifyNvmIdentifyNamespaceResponse, AdminIoCqeGenericCommandStatus,
-        AdminIoCqeStatus, AdminIoCqeStatusType, ControllerListResponse, NamespaceIdentifierType,
+        AdminIoCqeStatus, AdminIoCqeStatusType, ControllerListResponse, CriticalWarning,
+        LidSupportedAndEffectsDataStructure, LidSupportedAndEffectsFlags, LogPageAttributes,
+        NamespaceIdentifierType, SmartHealthInformationLogPageResponse,
         mi::{
             AdminCommandRequestHeader, AdminCommandResponseHeader,
             CompositeControllerStatusDataStructureResponse, ControllerInformationResponse,
@@ -32,10 +35,11 @@ use crate::Encode;
 use crate::RequestHandler;
 
 use super::{
-    AdminCommandRequestType, AdminIdentifyRequest, GetHealthStatusChangeResponse,
-    GetMctpTransmissionUnitSizeResponse, GetSmbusI2cFrequencyResponse, MessageHeader,
-    NvmeMiConfigurationGetRequest, NvmeMiConfigurationIdentifierRequestType,
-    NvmeMiConfigurationSetRequest, NvmeMiDataStructureRequest, ResponseStatus,
+    AdminCommandRequestType, AdminGetLogPageRequest, AdminIdentifyRequest,
+    GetHealthStatusChangeResponse, GetMctpTransmissionUnitSizeResponse,
+    GetSmbusI2cFrequencyResponse, MessageHeader, NvmeMiConfigurationGetRequest,
+    NvmeMiConfigurationIdentifierRequestType, NvmeMiConfigurationSetRequest,
+    NvmeMiDataStructureRequest, ResponseStatus,
 };
 
 const ISCSI: crc::Crc<u32> = crc::Crc::<u32>::new(&crc::CRC_32_ISCSI);
@@ -210,7 +214,7 @@ impl RequestHandler for NvmeMiCommandRequestHeader {
                         | (!ctlr.ro as u8) << 3 // AMRO
                         | (!subsys.health.nss.rd as u8) << 2 // NDR
                         | (!(ctlr.temp_range.lower <= ctlr.temp && ctlr.temp <= ctlr.temp_range.upper) as u8) << 1 // TTC
-                        | (!((100 * ctlr.spare / ctlr.capacity) < ctlr.spare_range.lower as u64) as u8),
+                        | (!((100 * ctlr.spare / ctlr.capacity) < ctlr.spare_range.lower) as u8),
                     ctemp: ctemp as u8,
                     pldu: pldu as u8,
                 }
@@ -712,8 +716,11 @@ impl RequestHandler for AdminCommandRequestHeader {
         }
 
         match &self.op {
-            AdminCommandRequestType::Identify(identify) => {
-                identify.handle(ctx, mep, subsys, rest, resp, app).await
+            AdminCommandRequestType::GetLogPage(req) => {
+                req.handle(ctx, mep, subsys, rest, resp, app).await
+            }
+            AdminCommandRequestType::Identify(req) => {
+                req.handle(ctx, mep, subsys, rest, resp, app).await
             }
             op if MI_PROHIBITED_ADMIN_COMMANDS.contains(&self.op) => {
                 debug!("Prohibited MI admin command opcode: {:?}", op.id());
@@ -804,6 +811,212 @@ where
     send_response(resp, &[&mh.0, &acrh.0, body]).await;
 
     Ok(())
+}
+
+async fn admin_send_invalid_field<C>(resp: &mut C) -> Result<(), ResponseStatus>
+where
+    C: AsyncRespChannel,
+{
+    let mh = MessageHeader::respond(MessageType::NvmeAdminCommand).encode()?;
+
+    let acrh = AdminCommandResponseHeader {
+        status: ResponseStatus::Success,
+        cqedw0: 0,
+        cqedw1: 0,
+        cqedw3: AdminIoCqeStatus {
+            cid: 0,
+            p: true,
+            status: AdminIoCqeStatusType::GenericCommandStatus(
+                AdminIoCqeGenericCommandStatus::InvalidFieldInCommand,
+            ),
+            crd: crate::nvme::CommandRetryDelay::None,
+            m: false,
+            dnr: true,
+        }
+        .into(),
+    }
+    .encode()?;
+
+    send_response(resp, &[&mh.0, &acrh.0]).await;
+
+    Ok(())
+}
+
+impl RequestHandler for AdminGetLogPageRequest {
+    type Ctx = AdminCommandRequestHeader;
+
+    async fn handle<A, C>(
+        &self,
+        ctx: &Self::Ctx,
+        _mep: &mut crate::ManagementEndpoint,
+        subsys: &mut crate::Subsystem,
+        rest: &[u8],
+        resp: &mut C,
+        _app: A,
+    ) -> Result<(), ResponseStatus>
+    where
+        A: AsyncFnMut(CommandEffect) -> Result<(), CommandEffectError>,
+        C: AsyncRespChannel,
+    {
+        if !rest.is_empty() {
+            debug!("Invalid request size for Admin Get Log Page");
+            return Err(ResponseStatus::InvalidCommandSize);
+        }
+
+        // Base v2.1, 5.1.12, Figure 202
+        match &self.req {
+            AdminGetLogPageLidRequestType::SupportedLogPages
+            | AdminGetLogPageLidRequestType::FeatureIdentifiersSupportedAndEffects => {
+                if self.csi != 0 {
+                    debug!("Support CSI");
+                    return Err(ResponseStatus::InternalError);
+                }
+            }
+            AdminGetLogPageLidRequestType::ErrorInformation
+            | AdminGetLogPageLidRequestType::SmartHealthInformation => (),
+        };
+
+        let Some(ctlr) = subsys.ctlrs.get(ctx.ctlid as usize) else {
+            debug!("Unrecognised CTLID: {}", ctx.ctlid);
+            return Err(ResponseStatus::InvalidParameter);
+        };
+
+        let Some(flags) = ctlr.lsaes.get(self.req.id() as usize) else {
+            debug!(
+                "LSAE mismatch with known LID {:?} on controller {}",
+                self.req, ctlr.id.0
+            );
+            return Err(ResponseStatus::InternalError);
+        };
+
+        // Base v2.1, 5.1.12
+        if self.ot != 0 {
+            // Base v2.1, 5.1.12, Figure 199, LPOL
+            if flags.contains(LidSupportedAndEffectsFlags::Ios) {
+                todo!("Add OT support");
+            } else {
+                return admin_send_invalid_field(resp).await;
+            }
+        }
+
+        // Base v2.1, 5.1.12
+        let _numdw = if ctlr.lpa.contains(LogPageAttributes::Lpeds) {
+            todo!("Add support for extended NUMDL / NUMDU")
+        } else {
+            self.numdw & ((1u32 << 13) - 1)
+        };
+
+        // TODO: RAE processing
+
+        match &self.req {
+            AdminGetLogPageLidRequestType::SupportedLogPages => {
+                if (self.numdw + 1) * 4 != 1024 {
+                    debug!("Implement support for NUMDL / NUMDU");
+                    return Err(ResponseStatus::InternalError);
+                }
+
+                let mut lsids = WireVec::new();
+                for e in ctlr.lsaes {
+                    let lsaeds = LidSupportedAndEffectsDataStructure {
+                        flags: e.into(),
+                        lidsp: 0,
+                    };
+                    lsids.push(lsaeds).map_err(|_| {
+                        debug!("Failed to push LidSupportedAndEffectsDataStructure");
+                        ResponseStatus::InternalError
+                    })?;
+                }
+
+                let slpr = AdminGetLogPageSupportedLogPagesResponse { lsids }.encode()?;
+
+                admin_send_response_body(
+                    resp,
+                    admin_constrain_body(self.dofst, self.dlen, &slpr.0)?,
+                )
+                .await
+            }
+            AdminGetLogPageLidRequestType::ErrorInformation => todo!(),
+            AdminGetLogPageLidRequestType::SmartHealthInformation => {
+                if (self.numdw + 1) * 4 != 512 {
+                    debug!("Implement support for NUMDL / NUMDU");
+                    return Err(ResponseStatus::InternalError);
+                }
+
+                // Base v2.1, 5.1.2, Figure 199
+                let lpol = self.lpo & !3u64;
+                if lpol > 512 {
+                    return admin_send_invalid_field(resp).await;
+                }
+
+                if self.nsid != 0 && self.nsid != u32::MAX {
+                    if ctlr.lpa.contains(LogPageAttributes::Smarts) {
+                        todo!();
+                    } else {
+                        return admin_send_invalid_field(resp).await;
+                    }
+                }
+
+                let shilpr = SmartHealthInformationLogPageResponse {
+                    cw: {
+                        let mut fs = FlagSet::empty();
+
+                        if ctlr.spare < ctlr.spare_range.lower {
+                            fs |= CriticalWarning::Ascbt;
+                        }
+
+                        if ctlr.temp < ctlr.temp_range.lower || ctlr.temp > ctlr.temp_range.upper {
+                            fs |= CriticalWarning::Ttc;
+                        }
+
+                        // TODO: NDR
+
+                        if ctlr.ro {
+                            fs |= CriticalWarning::Amro;
+                        }
+
+                        // TODO: VMBF
+                        // TODO: PMRRO
+
+                        fs.into()
+                    },
+                    ctemp: ctlr.temp,
+                    avsp: <u8>::try_from(100 * ctlr.spare / ctlr.capacity)
+                        .map_err(|_| ResponseStatus::InternalError)?
+                        .clamp(0, 100),
+                    avspt: <u8>::try_from(100 * ctlr.spare_range.lower / ctlr.capacity)
+                        .map_err(|_| ResponseStatus::InternalError)?
+                        .clamp(0, 100),
+                    pused: (100 * ctlr.write_age / ctlr.write_lifespan).clamp(0, 255) as u8,
+                    egcws: FlagSet::empty().into(), // TODO: Endurance Groups
+                    dur: 0,
+                    duw: 0,
+                    hrc: 0,
+                    hwc: 0,
+                    cbt: 0,
+                    pwrc: 0, // TOOD: track power cycles
+                    poh: 0,  // TODO: Track power on hours
+                    upl: 0,  // TODO: Track unexpected power loss
+                    mdie: 0,
+                    neile: 0, // TODO: Track error log entries
+                    wctt: 0,  // TODO: Track temperature excursions
+                    cctt: 0,  // TODO: track temperature excursions
+                    tsen: [ctlr.temp; 8],
+                    tmttc: [0; 2],
+                    tttmt: [0; 2],
+                }
+                .encode()?;
+
+                admin_send_response_body(
+                    resp,
+                    admin_constrain_body(self.dofst, self.dlen, &shilpr.0)?,
+                )
+                .await
+            }
+            AdminGetLogPageLidRequestType::FeatureIdentifiersSupportedAndEffects => {
+                todo!()
+            }
+        }
+    }
 }
 
 impl RequestHandler for AdminIdentifyRequest {
@@ -924,7 +1137,7 @@ impl RequestHandler for AdminIdentifyRequest {
                     acl: 0,
                     aerl: 0,
                     frmw: 0,
-                    lpa: FlagSet::empty().into(),
+                    lpa: ctlr.lpa.into(),
                     elpe: 0,
                     npss: 0,
                     avscc: 0,
