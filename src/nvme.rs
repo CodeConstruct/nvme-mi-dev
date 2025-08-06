@@ -8,9 +8,9 @@ use deku::ctx::Endian;
 use deku::{DekuRead, DekuWrite, deku_derive};
 use flagset::flags;
 
-use crate::wire::string::WireString;
-use crate::wire::uuid::WireUuid;
-use crate::wire::vec::WireVec;
+use crate::wire::WireString;
+use crate::wire::WireUuid;
+use crate::wire::WireVec;
 use crate::{Discriminant, Encode};
 
 // Base v2.1, 3.1.4, Figure 33
