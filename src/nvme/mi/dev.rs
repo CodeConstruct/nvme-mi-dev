@@ -466,8 +466,6 @@ impl RequestHandler for NvmeMiDataStructureRequest {
         A: AsyncFnMut(CommandEffect) -> Result<(), CommandEffectError>,
         C: AsyncRespChannel,
     {
-        debug!("{self:x?}");
-
         if !rest.is_empty() {
             debug!("Lost coherence decoding NVMe-MI message");
             return Err(ResponseStatus::InvalidCommandInputDataSize);
@@ -814,8 +812,6 @@ impl RequestHandler for AdminIdentifyRequest {
         A: AsyncFnMut(CommandEffect) -> Result<(), CommandEffectError>,
         C: AsyncRespChannel,
     {
-        debug!("{self:x?}");
-
         if !rest.is_empty() {
             debug!("Invalid request size for Admin Identify");
             return Err(ResponseStatus::InvalidCommandSize);
