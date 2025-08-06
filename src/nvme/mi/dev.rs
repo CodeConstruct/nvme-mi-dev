@@ -25,7 +25,7 @@ use crate::{
             PciePortDataResponse, PortInformationResponse, TwoWirePortDataResponse,
         },
     },
-    wire::{string::WireString, vec::WireVec},
+    wire::{WireString, WireVec},
 };
 
 use crate::Encode;
