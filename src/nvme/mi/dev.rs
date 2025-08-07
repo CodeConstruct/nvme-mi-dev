@@ -14,8 +14,8 @@ use crate::{
         AdminIdentifyActiveNamespaceIdListResponse, AdminIdentifyAllocatedNamespaceIdListResponse,
         AdminIdentifyCnsRequestType, AdminIdentifyControllerResponse,
         AdminIdentifyNamespaceIdentificationDescriptorListResponse,
-        AdminIdentifyNvmIdentifyNamespaceResponse, ControllerListResponse, CqeGenericCommandStatus,
-        CqeStatusCodeType, NamespaceIdentifierType,
+        AdminIdentifyNvmIdentifyNamespaceResponse, AdminIoCqeGenericCommandStatus,
+        AdminIoCqeStatus, AdminIoCqeStatusType, ControllerListResponse, NamespaceIdentifierType,
         mi::{
             AdminCommandRequestHeader, AdminCommandResponseHeader,
             CompositeControllerStatusDataStructureResponse, ControllerInformationResponse,
@@ -823,14 +823,17 @@ impl RequestHandler for AdminIdentifyRequest {
             status: ResponseStatus::Success,
             cqedw0: 0,
             cqedw1: 0,
-            #[expect(clippy::identity_op, clippy::erasing_op)]
-            cqedw3: ((false as u32) << 31) // DNR
-                | ((false as u32) << 30) // M
-                | (0u32 & 3) << 28 // CRD
-                | (((CqeStatusCodeType::GenericCommandStatus.id() as u32) & 7) << 25) // SCT
-                | (((CqeGenericCommandStatus::SuccessfulCompletion.id() as u32) & 0x1ff) << 17) // SC
-                | ((true as u32) << 16) // P
-                | (0u32 & 0xffff) << 0, // CID
+            cqedw3: AdminIoCqeStatus {
+                cid: 0,
+                p: true,
+                status: AdminIoCqeStatusType::GenericCommandStatus(
+                    AdminIoCqeGenericCommandStatus::SuccessfulCompletion,
+                ),
+                crd: crate::nvme::CommandRetryDelay::None,
+                m: false,
+                dnr: false,
+            }
+            .into(),
         }
         .encode()?;
 

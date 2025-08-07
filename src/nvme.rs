@@ -41,11 +41,55 @@ flags! {
     }
 }
 
+// Base v2.1, 4.2.3, Figure 100, CRD
+#[expect(dead_code)]
+#[repr(u8)]
+enum CommandRetryDelay {
+    None = 0x00,
+    Time1 = 0x01,
+    Time2 = 0x02,
+    Time3 = 0x03,
+}
+unsafe impl Discriminant<u8> for CommandRetryDelay {}
+
+// Base v2.1, 4.2.1, Figure 98
+struct AdminIoCqeStatus {
+    cid: u16,
+    p: bool,
+    status: AdminIoCqeStatusType,
+    crd: CommandRetryDelay,
+    m: bool,
+    dnr: bool,
+}
+
+impl From<AdminIoCqeStatus> for u32 {
+    fn from(value: AdminIoCqeStatus) -> Self {
+        let dnr: u32 = value.dnr.into();
+        let m: u32 = value.m.into();
+        let crd: u32 = value.crd.id().into();
+        debug_assert_eq!((crd & !3), 0);
+        let sct: u32 = value.status.id().into();
+        debug_assert_eq!((sct & !7), 0);
+        let sc: u32 = match value.status {
+            AdminIoCqeStatusType::GenericCommandStatus(s) => s.id(),
+            AdminIoCqeStatusType::CommandSpecificStatus => todo!(),
+            AdminIoCqeStatusType::MediaAndDataIntegrityErrors => todo!(),
+            AdminIoCqeStatusType::PathRelatedStatus => todo!(),
+            AdminIoCqeStatusType::VendorSpecific => todo!(),
+        }
+        .into();
+        debug_assert_eq!((sc & !0xff), 0);
+        let p: u32 = value.p.into();
+        let cid: u32 = value.cid.into();
+        (dnr << 31) | (m << 30) | (crd << 28) | (sct << 25) | (sc << 17) | (p << 16) | cid
+    }
+}
+
 // Base v2.1, 4.3.2, Figure 101
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u8)]
-enum CqeStatusCodeType {
-    GenericCommandStatus = 0x00,
+enum AdminIoCqeStatusType {
+    GenericCommandStatus(AdminIoCqeGenericCommandStatus) = 0x00,
     #[expect(dead_code)]
     CommandSpecificStatus = 0x01,
     #[expect(dead_code)]
@@ -55,15 +99,15 @@ enum CqeStatusCodeType {
     #[expect(dead_code)]
     VendorSpecific = 0x07,
 }
-unsafe impl Discriminant<u8> for CqeStatusCodeType {}
+unsafe impl Discriminant<u8> for AdminIoCqeStatusType {}
 
 // Base v2.1, 4.2.3.1, Figure 102
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u8)]
-enum CqeGenericCommandStatus {
+enum AdminIoCqeGenericCommandStatus {
     SuccessfulCompletion = 0x00,
 }
-unsafe impl Discriminant<u8> for CqeGenericCommandStatus {}
+unsafe impl Discriminant<u8> for AdminIoCqeGenericCommandStatus {}
 
 // Base v2.1, 5.1.13.1, Figure 310
 #[derive(Clone, Copy, Debug, DekuRead, DekuWrite, Eq, PartialEq)]
