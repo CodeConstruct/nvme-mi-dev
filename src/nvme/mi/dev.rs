@@ -1023,7 +1023,21 @@ impl RequestHandler for AdminGetLogPageRequest {
                 .await
             }
             AdminGetLogPageLidRequestType::FeatureIdentifiersSupportedAndEffects => {
-                todo!()
+                if (self.numdw + 1) * 4 != 1024 {
+                    debug!("Implement support for NUMDL / NUMDU");
+                    return Err(ResponseStatus::InternalError);
+                }
+
+                admin_send_response_body(
+                    resp,
+                    admin_constrain_body(
+                        self.dofst,
+                        self.dlen,
+                        // TODO: Support feature reporting
+                        &[0u8; 1024],
+                    )?,
+                )
+                .await
             }
         }
     }

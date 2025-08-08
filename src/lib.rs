@@ -281,7 +281,7 @@ pub struct Controller {
     cc: nvme::ControllerConfiguration,
     csts: FlagSet<nvme::ControllerStatusFlags>,
     lpa: FlagSet<LogPageAttributes>,
-    lsaes: [FlagSet<LidSupportedAndEffectsFlags>; 3],
+    lsaes: [FlagSet<LidSupportedAndEffectsFlags>; 19],
 }
 
 impl Controller {
@@ -303,11 +303,13 @@ impl Controller {
             csts: FlagSet::empty(),
             lpa: FlagSet::empty(),
             lsaes: {
-                let mut arr = [FlagSet::default(); 3];
+                let mut arr = [FlagSet::default(); 19];
                 arr[AdminGetLogPageLidRequestType::SupportedLogPages.id() as usize] =
                     LidSupportedAndEffectsFlags::Lsupp.into();
                 arr[AdminGetLogPageLidRequestType::SmartHealthInformation.id() as usize] =
                     LidSupportedAndEffectsFlags::Lsupp.into();
+                arr[AdminGetLogPageLidRequestType::FeatureIdentifiersSupportedAndEffects.id()
+                    as usize] = LidSupportedAndEffectsFlags::Lsupp.into();
                 arr
             },
         }
