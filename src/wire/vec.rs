@@ -41,16 +41,16 @@ where
     Ctx: Copy,
     Predicate: FnMut(usize, &T) -> bool,
 {
-    if let Some(cap) = capacity {
-        if cap > S {
-            return Err(deku_error!(
-                DekuError::InvalidParam,
-                "Provided capacity is larger than vector capacity",
-                "{} exceeds {}",
-                cap,
-                S
-            ));
-        }
+    if let Some(cap) = capacity
+        && cap > S
+    {
+        return Err(deku_error!(
+            DekuError::InvalidParam,
+            "Provided capacity is larger than vector capacity",
+            "{} exceeds {}",
+            cap,
+            S
+        ));
     }
     if mem::size_of::<T>() == 0 {
         return Ok(WireVec::new());
