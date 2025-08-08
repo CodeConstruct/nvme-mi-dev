@@ -935,7 +935,17 @@ impl RequestHandler for AdminGetLogPageRequest {
                 )
                 .await
             }
-            AdminGetLogPageLidRequestType::ErrorInformation => todo!(),
+            AdminGetLogPageLidRequestType::ErrorInformation => {
+                if (self.numdw + 1) * 4 != 64 {
+                    debug!("Implement support for NUMDL / NUMDU");
+                    return Err(ResponseStatus::InternalError);
+                }
+                admin_send_response_body(
+                    resp,
+                    admin_constrain_body(self.dofst, self.dlen, &[0u8; 64])?,
+                )
+                .await
+            }
             AdminGetLogPageLidRequestType::SmartHealthInformation => {
                 if (self.numdw + 1) * 4 != 512 {
                     debug!("Implement support for NUMDL / NUMDU");
