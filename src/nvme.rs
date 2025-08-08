@@ -199,6 +199,32 @@ pub struct SmartHealthInformationLogPageResponse {
 }
 impl Encode<512> for SmartHealthInformationLogPageResponse {}
 
+// Base v2.1, 5.1.12.1.18, Figure 262
+flags! {
+    pub enum FidSupportedAndEffectsFlags: u32 {
+        Fsupp = 1 << 0,
+        Udcc = 1 << 1,
+        Ncc = 1 << 2,
+        Nic = 1 << 3,
+        Ccc = 1 << 4,
+        Uss = 1 << 19,
+        FspNscpe = 1 << 20,
+        FspCscpe = 1 << 21,
+        FspNsetscpe = 1 << 22,
+        FspEgscpe = 1 << 23,
+        FspDscpe = 1 << 24,
+        FspNsubscpe = 1 << 25,
+        FspCdqscp = 1 << 26,
+        FspMask = (
+            FidSupportedAndEffectsFlags::FspNscpe
+            | FidSupportedAndEffectsFlags::FspNsetscpe
+            | FidSupportedAndEffectsFlags::FspEgscpe
+            | FidSupportedAndEffectsFlags::FspNsubscpe
+            | FidSupportedAndEffectsFlags::FspCdqscp
+        ).bits()
+    }
+}
+
 // Base v2.1, 5.1.13.1, Figure 310
 #[derive(Clone, Copy, Debug, DekuRead, DekuWrite, Eq, PartialEq)]
 #[deku(ctx = "endian: Endian, cns: u8", id = "cns", endian = "endian")]
@@ -422,4 +448,13 @@ impl ControllerListResponse {
             ids: WireVec::new(),
         }
     }
+}
+
+// Base v2.1, 5.1.25, Figure 385
+// Base v2.1, 3.1.3.6, Figure 32
+#[derive(Debug, DekuRead, DekuWrite)]
+#[deku(ctx = "endian: Endian", endian = "endian", id_type = "u8")]
+#[repr(u8)]
+pub enum FeatureIdentifiers {
+    KeepAliveTimer = 0x0f,
 }
