@@ -41,17 +41,6 @@ flags! {
     }
 }
 
-// Base v2.1, 4.2.3, Figure 100, CRD
-#[expect(dead_code)]
-#[repr(u8)]
-enum CommandRetryDelay {
-    None = 0x00,
-    Time1 = 0x01,
-    Time2 = 0x02,
-    Time3 = 0x03,
-}
-unsafe impl Discriminant<u8> for CommandRetryDelay {}
-
 // Base v2.1, 4.2.1, Figure 98
 struct AdminIoCqeStatus {
     cid: u16,
@@ -85,6 +74,17 @@ impl From<AdminIoCqeStatus> for u32 {
     }
 }
 
+// Base v2.1, 4.2.3, Figure 100, CRD
+#[expect(dead_code)]
+#[repr(u8)]
+enum CommandRetryDelay {
+    None = 0x00,
+    Time1 = 0x01,
+    Time2 = 0x02,
+    Time3 = 0x03,
+}
+unsafe impl Discriminant<u8> for CommandRetryDelay {}
+
 // Base v2.1, 4.3.2, Figure 101
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u8)]
@@ -109,49 +109,6 @@ enum AdminIoCqeGenericCommandStatus {
     InvalidFieldInCommand = 0x02,
 }
 unsafe impl Discriminant<u8> for AdminIoCqeGenericCommandStatus {}
-
-// Base v2.1, 5.1.13.1, Figure 310
-#[derive(Clone, Copy, Debug, DekuRead, DekuWrite, Eq, PartialEq)]
-#[deku(ctx = "endian: Endian, cns: u8", id = "cns", endian = "endian")]
-#[repr(u8)]
-enum AdminIdentifyCnsRequestType {
-    NvmIdentifyNamespace = 0x00,
-    IdentifyController = 0x01,
-    ActiveNamespaceIDList = 0x02,
-    NamespaceIdentificationDescriptorList = 0x03,
-    IoIdentifyNamespace = 0x05,
-    IoIdentifyController = 0x06,
-    IoActiveNamespaceIdList = 0x07,
-    IdentifyNamespace = 0x08,
-    AllocatedNamespaceIdList = 0x10,
-    NvmSubsystemControllerList = 0x13,
-    SecondaryControllerList = 0x15,
-}
-unsafe impl Discriminant<u8> for AdminIdentifyCnsRequestType {}
-
-// Base v2.1, 5.1.13.1, Figure 310
-// NVM Command Set v1.0c, 4.1.5.1, Figure 97
-#[derive(Debug, Default, DekuRead, DekuWrite)]
-#[deku(endian = "little")]
-pub struct AdminIdentifyNvmIdentifyNamespaceResponse {
-    nsze: u64,
-    ncap: u64,
-    nuse: u64,
-    nsfeat: u8,
-    nlbaf: u8,
-    flbas: u8,
-    mc: u8,
-    dpc: u8,
-    dps: u8,
-    #[deku(seek_from_start = "48")]
-    nvmcap: u128,
-    #[deku(seek_from_start = "128")]
-    // FIXME: use another struct
-    lbaf0: u16,
-    lbaf0_lbads: u8,
-    lbaf0_rp: u8,
-}
-impl Encode<4096> for AdminIdentifyNvmIdentifyNamespaceResponse {}
 
 // Base v2.1, 5.1.12, Figure 202
 // MI v2.0, 6.3, Figure 141
@@ -241,6 +198,49 @@ pub struct SmartHealthInformationLogPageResponse {
     tttmt: [u32; 2],
 }
 impl Encode<512> for SmartHealthInformationLogPageResponse {}
+
+// Base v2.1, 5.1.13.1, Figure 310
+#[derive(Clone, Copy, Debug, DekuRead, DekuWrite, Eq, PartialEq)]
+#[deku(ctx = "endian: Endian, cns: u8", id = "cns", endian = "endian")]
+#[repr(u8)]
+enum AdminIdentifyCnsRequestType {
+    NvmIdentifyNamespace = 0x00,
+    IdentifyController = 0x01,
+    ActiveNamespaceIDList = 0x02,
+    NamespaceIdentificationDescriptorList = 0x03,
+    IoIdentifyNamespace = 0x05,
+    IoIdentifyController = 0x06,
+    IoActiveNamespaceIdList = 0x07,
+    IdentifyNamespace = 0x08,
+    AllocatedNamespaceIdList = 0x10,
+    NvmSubsystemControllerList = 0x13,
+    SecondaryControllerList = 0x15,
+}
+unsafe impl Discriminant<u8> for AdminIdentifyCnsRequestType {}
+
+// Base v2.1, 5.1.13.1, Figure 310
+// NVM Command Set v1.0c, 4.1.5.1, Figure 97
+#[derive(Debug, Default, DekuRead, DekuWrite)]
+#[deku(endian = "little")]
+pub struct AdminIdentifyNvmIdentifyNamespaceResponse {
+    nsze: u64,
+    ncap: u64,
+    nuse: u64,
+    nsfeat: u8,
+    nlbaf: u8,
+    flbas: u8,
+    mc: u8,
+    dpc: u8,
+    dps: u8,
+    #[deku(seek_from_start = "48")]
+    nvmcap: u128,
+    #[deku(seek_from_start = "128")]
+    // FIXME: use another struct
+    lbaf0: u16,
+    lbaf0_lbads: u8,
+    lbaf0_rp: u8,
+}
+impl Encode<4096> for AdminIdentifyNvmIdentifyNamespaceResponse {}
 
 // Base v2.1, 5.1.13.1, Figure 311
 #[derive(Clone, Copy, Debug, DekuRead, DekuWrite)]
