@@ -727,73 +727,83 @@ impl RequestHandler for AdminCommandRequestHeader {
     }
 }
 
-impl AdminIdentifyRequest {
-    async fn send_constrained_response<A: AsyncRespChannel>(
-        &self,
-        resp: &mut A,
-        bufs: &[&[u8]],
-        data: &[u8],
-    ) -> Result<(), ResponseStatus> {
-        // See Figure 136 in NVMe MI v2.0
+fn admin_constrain_body(dofst: u32, dlen: u32, body: &[u8]) -> Result<&[u8], ResponseStatus> {
+    // See Figure 136 in NVMe MI v2.0
 
-        // Use send_response() instead
-        assert!(!data.is_empty());
+    // Use send_response() instead
+    assert!(!body.is_empty());
 
-        // TODO: propagate PEL for all errors
-
-        let dofst = self.dofst as usize;
-        if dofst & 3 != 0 {
-            debug!("Unnatural DOFST value: {dofst:?}");
-            return Err(ResponseStatus::InvalidParameter);
-        }
-
-        if dofst >= data.len() {
-            debug!("DOFST value exceeds unconstrained response length: {dofst:?}");
-            return Err(ResponseStatus::InvalidParameter);
-        }
-
-        let dlen = self.dlen as usize;
-
-        if dlen & 3 != 0 {
-            debug!("Unnatural DLEN value: {dlen:?}");
-            return Err(ResponseStatus::InvalidParameter);
-        }
-
-        if dlen > 4096 {
-            debug!("DLEN too large: {dlen:?}");
-            return Err(ResponseStatus::InvalidParameter);
-        }
-
-        if dlen > data.len() || data.len() - dlen < dofst {
-            debug!(
-                "Requested response data range beginning at {:?} for {:?} bytes exceeds bounds of unconstrained response length {:?}",
-                dofst,
-                dlen,
-                data.len()
-            );
-            return Err(ResponseStatus::InvalidParameter);
-        }
-
-        if dlen == 0 {
-            debug!("DLEN cleared for command with data response: {dlen:?}");
-            return Err(ResponseStatus::InvalidParameter);
-        }
-
-        let end = dofst + dlen;
-
-        let Ok(mut bufs) = Vec::<&[u8], MAX_FRAGMENTS>::from_slice(bufs) else {
-            debug!("Failed to gather buffer slice into vec");
-            return Err(ResponseStatus::InternalError);
-        };
-
-        if bufs.push(&data[dofst..end]).is_err() {
-            debug!("Failed to append MIC buffer");
-            return Err(ResponseStatus::InternalError);
-        }
-
-        send_response(resp, bufs.as_slice()).await;
-        Ok(())
+    // TODO: propagate PEL for all errors
+    if dofst & 3 != 0 {
+        debug!("Unnatural DOFST value: {dofst:?}");
+        return Err(ResponseStatus::InvalidParameter);
     }
+
+    // FIXME: casts
+    let dofst = dofst as usize;
+    let dlen = dlen as usize;
+
+    if dofst >= body.len() {
+        debug!("DOFST value exceeds unconstrained response length: {dofst:?}");
+        return Err(ResponseStatus::InvalidParameter);
+    }
+
+    if dlen & 3 != 0 {
+        debug!("Unnatural DLEN value: {dlen:?}");
+        return Err(ResponseStatus::InvalidParameter);
+    }
+
+    if dlen > 4096 {
+        debug!("DLEN too large: {dlen:?}");
+        return Err(ResponseStatus::InvalidParameter);
+    }
+
+    if dlen > body.len() || body.len() - dlen < dofst {
+        debug!(
+            "Requested response data range beginning at {:?} for {:?} bytes exceeds bounds of unconstrained response length {:?}",
+            dofst,
+            dlen,
+            body.len()
+        );
+        return Err(ResponseStatus::InvalidParameter);
+    }
+
+    if dlen == 0 {
+        debug!("DLEN cleared for command with data response: {dlen:?}");
+        return Err(ResponseStatus::InvalidParameter);
+    }
+
+    let end = dofst + dlen;
+    Ok(&body[dofst..end])
+}
+
+async fn admin_send_response_body<C>(resp: &mut C, body: &[u8]) -> Result<(), ResponseStatus>
+where
+    C: AsyncRespChannel,
+{
+    let mh = MessageHeader::respond(MessageType::NvmeAdminCommand).encode()?;
+
+    let acrh = AdminCommandResponseHeader {
+        status: ResponseStatus::Success,
+        cqedw0: 0,
+        cqedw1: 0,
+        cqedw3: AdminIoCqeStatus {
+            cid: 0,
+            p: true,
+            status: AdminIoCqeStatusType::GenericCommandStatus(
+                AdminIoCqeGenericCommandStatus::SuccessfulCompletion,
+            ),
+            crd: crate::nvme::CommandRetryDelay::None,
+            m: false,
+            dnr: false,
+        }
+        .into(),
+    }
+    .encode()?;
+
+    send_response(resp, &[&mh.0, &acrh.0, body]).await;
+
+    Ok(())
 }
 
 impl RequestHandler for AdminIdentifyRequest {
@@ -816,26 +826,6 @@ impl RequestHandler for AdminIdentifyRequest {
             debug!("Invalid request size for Admin Identify");
             return Err(ResponseStatus::InvalidCommandSize);
         }
-
-        let mh = MessageHeader::respond(MessageType::NvmeAdminCommand).encode()?;
-
-        let acrh = AdminCommandResponseHeader {
-            status: ResponseStatus::Success,
-            cqedw0: 0,
-            cqedw1: 0,
-            cqedw3: AdminIoCqeStatus {
-                cid: 0,
-                p: true,
-                status: AdminIoCqeStatusType::GenericCommandStatus(
-                    AdminIoCqeGenericCommandStatus::SuccessfulCompletion,
-                ),
-                crd: crate::nvme::CommandRetryDelay::None,
-                m: false,
-                dnr: false,
-            }
-            .into(),
-        }
-        .encode()?;
 
         match &self.req {
             AdminIdentifyCnsRequestType::NvmIdentifyNamespace => {
@@ -885,8 +875,11 @@ impl RequestHandler for AdminIdentifyRequest {
                 }
                 .encode()?;
 
-                self.send_constrained_response(resp, &[&mh.0, &acrh.0], &ainvminr.0)
-                    .await
+                admin_send_response_body(
+                    resp,
+                    admin_constrain_body(self.dofst, self.dlen, &ainvminr.0)?,
+                )
+                .await
             }
             AdminIdentifyCnsRequestType::IdentifyController => {
                 let Some(ctlr) = subsys.ctlrs.get(ctx.ctlid as usize) else {
@@ -964,8 +957,11 @@ impl RequestHandler for AdminIdentifyRequest {
                 }
                 .encode()?;
 
-                self.send_constrained_response(resp, &[&mh.0, &acrh.0], &aicr.0)
-                    .await
+                admin_send_response_body(
+                    resp,
+                    admin_constrain_body(self.dofst, self.dlen, &aicr.0)?,
+                )
+                .await
             }
             AdminIdentifyCnsRequestType::ActiveNamespaceIDList => {
                 // 5.1.13.2.2, Base v2.1
@@ -992,8 +988,11 @@ impl RequestHandler for AdminIdentifyRequest {
                 }
                 let aianidlr = aianidlr.encode()?;
 
-                self.send_constrained_response(resp, &[&mh.0, &acrh.0], &aianidlr.0)
-                    .await
+                admin_send_response_body(
+                    resp,
+                    admin_constrain_body(self.dofst, self.dlen, &aianidlr.0)?,
+                )
+                .await
             }
             AdminIdentifyCnsRequestType::NamespaceIdentificationDescriptorList => {
                 // 5.1.13.2.3, Base v2.1
@@ -1029,8 +1028,11 @@ impl RequestHandler for AdminIdentifyRequest {
                 }
                 .encode()?;
 
-                self.send_constrained_response(resp, &[&mh.0, &acrh.0], &ainsidlr.0)
-                    .await
+                admin_send_response_body(
+                    resp,
+                    admin_constrain_body(self.dofst, self.dlen, &ainsidlr.0)?,
+                )
+                .await
             }
             AdminIdentifyCnsRequestType::AllocatedNamespaceIdList => {
                 // 5.1.13.2.9, Base v2.1
@@ -1056,8 +1058,11 @@ impl RequestHandler for AdminIdentifyRequest {
                 }
                 .encode()?;
 
-                self.send_constrained_response(resp, &[&mh.0, &acrh.0], &aiansidl.0)
-                    .await
+                admin_send_response_body(
+                    resp,
+                    admin_constrain_body(self.dofst, self.dlen, &aiansidl.0)?,
+                )
+                .await
             }
             AdminIdentifyCnsRequestType::NvmSubsystemControllerList => {
                 assert!(
@@ -1074,7 +1079,8 @@ impl RequestHandler for AdminIdentifyRequest {
                 }
                 cl.update()?;
                 let cl = cl.encode()?;
-                self.send_constrained_response(resp, &[&mh.0, &acrh.0], &cl.0)
+
+                admin_send_response_body(resp, admin_constrain_body(self.dofst, self.dlen, &cl.0)?)
                     .await
             }
             AdminIdentifyCnsRequestType::SecondaryControllerList => {
@@ -1087,8 +1093,11 @@ impl RequestHandler for AdminIdentifyRequest {
                     todo!("Support listing secondary controllers");
                 }
 
-                self.send_constrained_response(resp, &[&mh.0, &acrh.0], &[0u8; 4096])
-                    .await
+                admin_send_response_body(
+                    resp,
+                    admin_constrain_body(self.dofst, self.dlen, &[0u8; 4096])?,
+                )
+                .await
             }
             _ => {
                 debug!("Unimplemented CNS: {self:?}");
