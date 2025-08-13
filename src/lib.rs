@@ -198,6 +198,7 @@ pub struct PortId(u8);
 struct ManagementEndpointControllerState {
     cc: nvme::ControllerConfiguration,
     csts: FlagSet<nvme::ControllerStatusFlags>,
+    chscf: FlagSet<nvme::mi::ControllerHealthStatusChangedFlags>,
 }
 
 #[derive(Debug)]

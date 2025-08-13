@@ -11,6 +11,13 @@ use common::new_device;
 use common::setup;
 
 #[rustfmt::skip]
+const RESP_SUCCESS: [u8; 11] = [
+    0x88, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00,
+    0x24, 0x55, 0x77, 0x22
+];
+
+#[rustfmt::skip]
 pub const RESP_INVALID_PARAMETER: [u8; 11] = [
     0x88, 0x00, 0x00,
     0x04, 0x00, 0x00, 0x00,
@@ -1093,16 +1100,9 @@ mod configuration_set {
     };
 
     use crate::{
-        RESP_INVALID_COMMAND_SIZE, RESP_INVALID_PARAMETER,
+        RESP_INVALID_COMMAND_SIZE, RESP_INVALID_PARAMETER, RESP_SUCCESS,
         common::{DeviceType, ExpectedRespChannel, new_device, setup},
     };
-
-    #[rustfmt::skip]
-    const RESP_SUCCESS: [u8; 11] = [
-        0x88, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00,
-        0x24, 0x55, 0x77, 0x22
-    ];
 
     #[rustfmt::skip]
     const RESP_INTERNAL_ERROR: [u8; 11] = [
@@ -1659,6 +1659,160 @@ mod configuration_set {
                 Ok(())
             })
             .await
+        });
+    }
+}
+
+mod controller_health_status_poll {
+    use mctp::MsgIC;
+    use nvme_mi_dev::{
+        ManagementEndpoint, PciePort, PortType, Subsystem, SubsystemInfo, Temperature, TwoWirePort,
+    };
+
+    use crate::common::{DeviceType, ExpectedRespChannel, new_device, setup};
+
+    #[test]
+    fn controller_health_status_poll_all_one_controller() {
+        setup();
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+
+        #[rustfmt::skip]
+        const REQ: [u8; 19] = [
+            0x08, 0x00, 0x00,
+            0x02, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x02, 0x80,
+            0x00, 0x00, 0x00, 0x00,
+            0x1d, 0xdd, 0xcb, 0xd0
+        ];
+
+        #[rustfmt::skip]
+        const RESP: [u8; 27] = [
+            0x88, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x01,
+            0x00, 0x00, 0x00, 0x00,
+            0x25, 0x01, 0x26, 0x64,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x1c, 0xf3, 0x94, 0x97
+        ];
+
+        let resp = ExpectedRespChannel::new(&RESP);
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
+    }
+
+    #[test]
+    fn controller_health_status_poll_all_clear_rdy_ceco() {
+        setup();
+
+        let mut subsys = Subsystem::new(SubsystemInfo::invalid());
+        let ppid = subsys.add_port(PortType::Pcie(PciePort::new())).unwrap();
+        let ctlrid = subsys.add_controller(ppid).unwrap();
+        let twpid = subsys
+            .add_port(PortType::TwoWire(TwoWirePort::new()))
+            .unwrap();
+        let mut mep = ManagementEndpoint::new(twpid);
+
+        let ctlr = subsys.controller_mut(ctlrid);
+        ctlr.set_property(nvme_mi_dev::nvme::ControllerProperties::Cc(
+            nvme_mi_dev::nvme::ControllerConfiguration { en: true },
+        ));
+
+        #[rustfmt::skip]
+        const REQ_CLEAR: [u8; 19] = [
+            0x08, 0x00, 0x00,
+            0x02, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x02, 0x80,
+            0x00, 0x00, 0x00, 0x80,
+            0x65, 0xe6, 0x3d, 0x52
+        ];
+
+        #[rustfmt::skip]
+        const RESP_CLEAR: [u8; 27] = [
+            0x88, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x01,
+            0x00, 0x00, 0x01, 0x00,
+            0x25, 0x01, 0x26, 0x64,
+            0x00, 0x21, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x2f, 0x09, 0xcb, 0x96
+        ];
+
+        let resp = ExpectedRespChannel::new(&RESP_CLEAR);
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ_CLEAR, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
+
+        #[rustfmt::skip]
+        const REQ: [u8; 19] = [
+            0x08, 0x00, 0x00,
+            0x02, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x02, 0x80,
+            0x00, 0x00, 0x00, 0x00,
+            0x1d, 0xdd, 0xcb, 0xd0
+        ];
+
+        #[rustfmt::skip]
+        const RESP: [u8; 27] = [
+            0x88, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x01,
+            0x00, 0x00, 0x01, 0x00,
+            0x25, 0x01, 0x26, 0x64,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x5a, 0xa6, 0x93, 0xc3
+        ];
+
+        let resp = ExpectedRespChannel::new(&RESP);
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
+    }
+
+    #[test]
+    fn controller_health_status_poll_all_ctemp() {
+        setup();
+
+        let mut subsys = Subsystem::new(SubsystemInfo::invalid());
+        let ppid = subsys.add_port(PortType::Pcie(PciePort::new())).unwrap();
+        let ctlrid = subsys.add_controller(ppid).unwrap();
+        let twpid = subsys
+            .add_port(PortType::TwoWire(TwoWirePort::new()))
+            .unwrap();
+        let mut mep = ManagementEndpoint::new(twpid);
+
+        let ctlr = subsys.controller_mut(ctlrid);
+        ctlr.set_temperature(Temperature::Kelvin(212));
+
+        #[rustfmt::skip]
+        const REQ: [u8; 19] = [
+            0x08, 0x00, 0x00,
+            0x02, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x02, 0x80,
+            0x00, 0x00, 0x00, 0x00,
+            0x1d, 0xdd, 0xcb, 0xd0
+        ];
+
+        #[rustfmt::skip]
+        const RESP: [u8; 27] = [
+            0x88, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x01,
+            0x00, 0x00, 0x00, 0x00,
+            0xd4, 0x00, 0x26, 0x64,
+            0x02, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x42, 0xe2, 0x7f, 0x25
+        ];
+
+        let resp = ExpectedRespChannel::new(&RESP);
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
         });
     }
 }
