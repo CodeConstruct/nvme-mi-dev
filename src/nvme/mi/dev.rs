@@ -9,23 +9,26 @@ use log::debug;
 use mctp::{AsyncRespChannel, MsgIC};
 
 use crate::{
-    CommandEffect, CommandEffectError, Discriminant, MAX_NAMESPACES,
+    CommandEffect, CommandEffectError, Discriminant, MAX_CONTROLLERS, MAX_NAMESPACES,
     nvme::{
         AdminGetLogPageLidRequestType, AdminGetLogPageSupportedLogPagesResponse,
         AdminIdentifyActiveNamespaceIdListResponse, AdminIdentifyAllocatedNamespaceIdListResponse,
         AdminIdentifyCnsRequestType, AdminIdentifyControllerResponse,
         AdminIdentifyNamespaceIdentificationDescriptorListResponse,
         AdminIdentifyNvmIdentifyNamespaceResponse, AdminIoCqeGenericCommandStatus,
-        AdminIoCqeStatus, AdminIoCqeStatusType, ControllerListResponse, CriticalWarningFlags,
+        AdminIoCqeStatus, AdminIoCqeStatusType, ControllerListResponse,
         LidSupportedAndEffectsDataStructure, LidSupportedAndEffectsFlags, LogPageAttributes,
         NamespaceIdentifierType, SmartHealthInformationLogPageResponse,
         mi::{
             AdminCommandRequestHeader, AdminCommandResponseHeader,
-            CompositeControllerStatusDataStructureResponse, ControllerInformationResponse,
-            MessageType, NvmSubsystemHealthDataStructureResponse, NvmSubsystemInformationResponse,
-            NvmeManagementResponse, NvmeMiCommandRequestHeader, NvmeMiCommandRequestType,
-            NvmeMiDataStructureManagementResponse, NvmeMiDataStructureRequestType,
-            PciePortDataResponse, PortInformationResponse, TwoWirePortDataResponse,
+            CompositeControllerStatusDataStructureResponse, CompositeControllerStatusFlagSet,
+            ControllerFunctionAndReportingFlags, ControllerHealthDataStructure,
+            ControllerHealthStatusPollResponse, ControllerInformationResponse,
+            ControllerPropertyFlags, MessageType, NvmSubsystemHealthDataStructureResponse,
+            NvmSubsystemInformationResponse, NvmeManagementResponse, NvmeMiCommandRequestHeader,
+            NvmeMiCommandRequestType, NvmeMiDataStructureManagementResponse,
+            NvmeMiDataStructureRequestType, PciePortDataResponse, PortInformationResponse,
+            TwoWirePortDataResponse,
         },
     },
     wire::{WireString, WireVec},
@@ -230,6 +233,109 @@ impl RequestHandler for NvmeMiCommandRequestHeader {
                 }
 
                 send_response(resp, &[&mh.0, &mr.0, &nvmshds.0, &ccs.0]).await;
+                Ok(())
+            }
+            NvmeMiCommandRequestType::ControllerHealthStatusPoll(req) => {
+                // MI v2.0, 5.3
+                if !rest.is_empty() {
+                    debug!("Lost coherence decoding {:?}", ctx.opcode);
+                    return Err(ResponseStatus::InvalidCommandSize);
+                }
+
+                if !req
+                    .functions
+                    .0
+                    .contains(ControllerFunctionAndReportingFlags::All)
+                {
+                    debug!("TODO: Implement support for property-based selectors");
+                    return Err(ResponseStatus::InternalError);
+                }
+
+                if req.functions.0.contains(
+                    ControllerFunctionAndReportingFlags::Incf
+                        | ControllerFunctionAndReportingFlags::Incpf
+                        | ControllerFunctionAndReportingFlags::Incvf,
+                ) {
+                    debug!("TODO: Implement support for function-base selectors");
+                    return Err(ResponseStatus::InternalError);
+                }
+
+                assert!(MAX_CONTROLLERS <= u8::MAX as usize);
+                if req.maxrent < MAX_CONTROLLERS as u8 {
+                    debug!("TODO: Implement response entry constraint");
+                    return Err(ResponseStatus::InternalError);
+                }
+
+                if req.sctlid > 0 {
+                    debug!("TODO: Implement starting controller ID constraint");
+                    return Err(ResponseStatus::InternalError);
+                }
+
+                let mh = MessageHeader::respond(MessageType::NvmeMiCommand).encode()?;
+
+                let mut chspr = ControllerHealthStatusPollResponse {
+                    status: ResponseStatus::Success,
+                    rent: 0,
+                    body: WireVec::new(),
+                };
+
+                for ctlr in &subsys.ctlrs {
+                    chspr
+                        .body
+                        .push(ControllerHealthDataStructure {
+                            ctlid: ctlr.id.0,
+                            csts: ctlr.csts.into(),
+                            ctemp: ctlr.temp,
+                            pdlu: core::cmp::min(255, 100 * ctlr.write_age / ctlr.write_lifespan)
+                                as u8,
+                            spare: <u8>::try_from(100 * ctlr.spare / ctlr.capacity)
+                                .map_err(|_| ResponseStatus::InternalError)?
+                                .clamp(0, 100),
+                            cwarn: {
+                                let mut fs = FlagSet::empty();
+
+                                if ctlr.spare < ctlr.spare_range.lower {
+                                    fs |= crate::nvme::mi::CriticalWarningFlags::St;
+                                }
+
+                                if ctlr.temp < ctlr.temp_range.lower
+                                    || ctlr.temp > ctlr.temp_range.upper
+                                {
+                                    fs |= crate::nvme::mi::CriticalWarningFlags::Taut;
+                                }
+
+                                // TODO: RD
+
+                                if ctlr.ro {
+                                    fs |= crate::nvme::mi::CriticalWarningFlags::Ro;
+                                }
+
+                                // TODO: VMBF
+                                // TODO: PMRRO
+
+                                fs.into()
+                            },
+                            chsc: {
+                                let mecs = &mut mep.mecss[ctlr.id.0 as usize];
+                                let fs = mecs.chscf;
+
+                                if req.properties.0.contains(ControllerPropertyFlags::Ccf) {
+                                    mecs.chscf.clear();
+                                    // TODO: Clear NAC, FA, TCIDA in controller health
+                                }
+
+                                fs.into()
+                            },
+                        })
+                        .map_err(|_| {
+                            debug!("Failed to push ControllerHealthDataStructure");
+                            ResponseStatus::InternalError
+                        })?;
+                }
+                chspr.update()?;
+                let chspr = chspr.encode()?;
+
+                send_response(resp, &[&mh.0, &chspr.0[..chspr.1]]).await;
                 Ok(())
             }
             NvmeMiCommandRequestType::ConfigurationSet(cid) => {
@@ -970,17 +1076,17 @@ impl RequestHandler for AdminGetLogPageRequest {
                         let mut fs = FlagSet::empty();
 
                         if ctlr.spare < ctlr.spare_range.lower {
-                            fs |= CriticalWarningFlags::Ascbt;
+                            fs |= crate::nvme::CriticalWarningFlags::Ascbt;
                         }
 
                         if ctlr.temp < ctlr.temp_range.lower || ctlr.temp > ctlr.temp_range.upper {
-                            fs |= CriticalWarningFlags::Ttc;
+                            fs |= crate::nvme::CriticalWarningFlags::Ttc;
                         }
 
                         // TODO: NDR
 
                         if ctlr.ro {
-                            fs |= CriticalWarningFlags::Amro;
+                            fs |= crate::nvme::CriticalWarningFlags::Amro;
                         }
 
                         // TODO: VMBF
@@ -1350,15 +1456,34 @@ impl crate::ManagementEndpoint {
         for c in &subsys.ctlrs {
             let mecs = &mut self.mecss[c.id.0 as usize];
 
+            // It might seem tempting to compose self.ccsf with an
+            // assignment-union over each controller's mecs.chscf. However, this
+            // doesn't work in practice due to the requirements of NVMe MI /
+            // Configuration Set / Health Status Change on the behaviour of
+            // clearing the composite controller flags, against the requirements
+            // of NVMe MI / Controller Health Status Poll on the behaviour of
+            // clearing the controller health status flags.
+            //
+            // Instead, update each independently by first gathering the change
+            // flags for the current update cycle, then using union-assignment
+            // into both mecs.chscf and self.ccsf (in the case of the latter,
+            // via the conversion to the composite controller flag set).
+            let mut update = FlagSet::empty();
+
             if mecs.cc.en != c.cc.en {
-                self.ccsf.0 |= crate::nvme::mi::CompositeControllerStatusFlags::Ceco;
+                update |= crate::nvme::mi::ControllerHealthStatusChangedFlags::Ceco;
             }
 
             if mecs.csts.contains(crate::nvme::ControllerStatusFlags::Rdy)
                 != c.csts.contains(crate::nvme::ControllerStatusFlags::Rdy)
             {
-                self.ccsf.0 |= crate::nvme::mi::CompositeControllerStatusFlags::Rdy;
+                update |= crate::nvme::mi::ControllerHealthStatusChangedFlags::Rdy;
             }
+
+            mecs.chscf |= update;
+
+            let update: CompositeControllerStatusFlagSet = update.into();
+            self.ccsf.0 |= update.0;
 
             mecs.cc = c.cc;
             mecs.csts = c.csts;

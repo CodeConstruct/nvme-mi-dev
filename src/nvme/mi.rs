@@ -3,7 +3,8 @@ use deku::{DekuError, DekuRead, DekuWrite};
 use flagset::{FlagSet, flags};
 use log::debug;
 
-use crate::{CommandEffectError, Discriminant, Encode};
+use crate::wire::{WireFlagSet, WireVec};
+use crate::{CommandEffectError, Discriminant, Encode, MAX_CONTROLLERS};
 
 use super::{AdminGetLogPageLidRequestType, AdminIdentifyCnsRequestType};
 
@@ -124,7 +125,8 @@ enum NvmeMiCommandRequestType {
     ReadNvmeMiDataStructure(NvmeMiDataStructureRequest),
     #[deku(id = "0x01")]
     NvmSubsystemHealthStatusPoll(NvmSubsystemHealthStatusPollRequest),
-    ControllerHealthStatusPoll = 0x02,
+    #[deku(id = "0x02")]
+    ControllerHealthStatusPoll(ControllerHealthStatusPollRequest),
     #[deku(id = "0x03")]
     ConfigurationSet(NvmeMiConfigurationSetRequest),
     #[deku(id = "0x04")]
@@ -259,6 +261,137 @@ struct MctpTransmissionUnitSizeRequest {
     dw1_mtus: u16,
 }
 
+// MI v2.0, 5.3, Figure 94
+flags! {
+    pub enum ControllerFunctionAndReportingFlags: u8 {
+        Incf = 1 << 0,
+        Incpf = 1 << 1,
+        Incvf = 1 << 2,
+        All = 1 << 7,
+    }
+}
+
+// MI v2.0, 5.3, Figure 95
+flags! {
+    pub enum ControllerPropertyFlags: u32 {
+        Csts = 1 << 0,
+        Ctemp = 1 << 1,
+        Pldu = 1 << 2,
+        Spare = 1 << 3,
+        Cwarn = 1 << 4,
+        Ccf = 1 << 31,
+    }
+}
+
+// MI v2.0, 5.3, Figures 94, 95
+#[derive(Debug, DekuRead, DekuWrite, Eq, PartialEq)]
+#[deku(ctx = "endian: Endian", endian = "endian")]
+struct ControllerHealthStatusPollRequest {
+    sctlid: u16,
+    maxrent: u8,
+    functions: WireFlagSet<ControllerFunctionAndReportingFlags>,
+    properties: WireFlagSet<ControllerPropertyFlags>,
+}
+
+// MI v2.0, 5.3, Figure 96
+#[derive(Debug, DekuRead, DekuWrite)]
+#[deku(endian = "little")]
+struct ControllerHealthStatusPollResponse {
+    status: ResponseStatus,
+    #[deku(pad_bytes_before = "2", update = "self.body.len() as u8")]
+    rent: u8,
+    body: WireVec<ControllerHealthDataStructure, MAX_CONTROLLERS>,
+}
+impl Encode<{ 4 + 16 * MAX_CONTROLLERS }> for ControllerHealthStatusPollResponse {}
+
+// MI v2.0, 5.3, Figure 97, CSTS
+flags! {
+    pub enum ControllerStatusFlags: u16 {
+        Rdy = 1 << 0,
+        Cfs = 1 << 1,
+        ShstInProgress = 1 << 2,
+        ShstComplete = 1 << 3,
+        ShstReserved = (ControllerStatusFlags::ShstInProgress | ControllerStatusFlags::ShstComplete).bits(),
+        Nssro = 1 << 4,
+        Ceco = 1 << 5,
+        Nac = 1 << 6,
+        Fa = 1 << 7,
+        Tcida = 1 << 8,
+    }
+}
+
+// XXX: Consider improving the data model to handle the incongruence of the two flag
+// sets
+impl From<FlagSet<super::ControllerStatusFlags>> for WireFlagSet<ControllerStatusFlags> {
+    fn from(value: FlagSet<super::ControllerStatusFlags>) -> Self {
+        use super::ControllerStatusFlags as F;
+        use ControllerStatusFlags as T;
+
+        let mut fs = FlagSet::empty();
+
+        for f in value {
+            fs |= match f {
+                F::Rdy => T::Rdy,
+                F::Cfs => T::Cfs,
+                F::ShstInProgress => T::ShstInProgress,
+                F::ShstComplete => T::ShstComplete,
+                F::ShstReserved => T::ShstReserved,
+                F::Nssro => T::Nssro,
+                F::Pp => todo!(),
+                F::St => todo!(),
+            };
+        }
+
+        Self(fs)
+    }
+}
+
+// MI v2.0, 5.3, Figure 97, CWARN
+flags! {
+    pub enum CriticalWarningFlags: u8 {
+        St,
+        Taut,
+        Rd,
+        Ro,
+        Vmbf,
+        Pmre
+    }
+}
+
+// MI v2.0, 5.3, Figure 97
+#[derive(Debug, DekuRead, DekuWrite)]
+#[deku(ctx = "endian: Endian", endian = "endian")]
+struct ControllerHealthDataStructure {
+    ctlid: u16,
+    csts: WireFlagSet<ControllerStatusFlags>,
+    ctemp: u16,
+    pdlu: u8,
+    spare: u8,
+    cwarn: WireFlagSet<CriticalWarningFlags>,
+    #[deku(pad_bytes_after = "5")]
+    chsc: WireFlagSet<ControllerHealthStatusChangedFlags>,
+}
+
+// MI v2.0, 5.3, Figure 98
+flags! {
+    // NOTE: These are the same as CompositeControllerStatusFlags
+    pub enum ControllerHealthStatusChangedFlags: u16 {
+        Rdy = 1 << 0,
+        Cfs = 1 << 1,
+        Shst = 1 << 2,
+        Nssro = 1 << 4,
+        Ceco = 1 << 5,
+        Nac = 1 << 6,
+        Fa = 1 << 7,
+        Csts = 1 << 8,
+        Ctemp = 1 << 9,
+        Pdlu = 1 << 10,
+        Spare = 1 << 11,
+        Cwarn = 1 << 12,
+        Tcida = 1 << 13,
+    }
+}
+
 // MI v2.0, 5.6, Figure 106
 #[derive(Debug, DekuRead, DekuWrite, Eq, PartialEq)]
 #[deku(ctx = "endian: Endian", endian = "endian")]
@@ -320,6 +453,13 @@ impl From<FlagSet<HealthStatusChangeFlags>> for CompositeControllerStatusFlagSet
             }
         }
         Self(converted)
+    }
+}
+
+impl From<FlagSet<ControllerHealthStatusChangedFlags>> for CompositeControllerStatusFlagSet {
+    fn from(value: FlagSet<ControllerHealthStatusChangedFlags>) -> Self {
+        // SAFETY: Separate declarations have the equal definitions
+        Self(FlagSet::new(value.bits()).expect("Divergent flag definitions"))
     }
 }
 
