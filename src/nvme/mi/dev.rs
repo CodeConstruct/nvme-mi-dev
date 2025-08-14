@@ -198,7 +198,7 @@ impl RequestHandler for NvmeMiCommandRequestHeader {
                 debug_assert!(ctemp <= u8::MAX.into());
 
                 // Derive PLDU from write age and expected lifespan
-                let pldu = core::cmp::min(255, 100 * ctlr.write_age / ctlr.write_lifespan);
+                let pdlu = core::cmp::min(255, 100 * ctlr.write_age / ctlr.write_lifespan);
 
                 let nvmshds = NvmSubsystemHealthDataStructureResponse {
                     nss: (subsys.health.nss.atf as u8) << 7
@@ -215,7 +215,7 @@ impl RequestHandler for NvmeMiCommandRequestHeader {
                         | (!(ctlr.temp_range.lower <= ctlr.temp && ctlr.temp <= ctlr.temp_range.upper) as u8) << 1 // TTC
                         | (!((100 * ctlr.spare / ctlr.capacity) < ctlr.spare_range.lower) as u8),
                     ctemp: ctemp as u8,
-                    pldu: pldu as u8,
+                    pldu: pdlu as u8,
                 }
                 .encode()?;
 
