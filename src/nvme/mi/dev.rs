@@ -16,7 +16,7 @@ use crate::{
         AdminIdentifyCnsRequestType, AdminIdentifyControllerResponse,
         AdminIdentifyNamespaceIdentificationDescriptorListResponse,
         AdminIdentifyNvmIdentifyNamespaceResponse, AdminIoCqeGenericCommandStatus,
-        AdminIoCqeStatus, AdminIoCqeStatusType, ControllerListResponse, CriticalWarning,
+        AdminIoCqeStatus, AdminIoCqeStatusType, ControllerListResponse, CriticalWarningFlags,
         LidSupportedAndEffectsDataStructure, LidSupportedAndEffectsFlags, LogPageAttributes,
         NamespaceIdentifierType, SmartHealthInformationLogPageResponse,
         mi::{
@@ -970,17 +970,17 @@ impl RequestHandler for AdminGetLogPageRequest {
                         let mut fs = FlagSet::empty();
 
                         if ctlr.spare < ctlr.spare_range.lower {
-                            fs |= CriticalWarning::Ascbt;
+                            fs |= CriticalWarningFlags::Ascbt;
                         }
 
                         if ctlr.temp < ctlr.temp_range.lower || ctlr.temp > ctlr.temp_range.upper {
-                            fs |= CriticalWarning::Ttc;
+                            fs |= CriticalWarningFlags::Ttc;
                         }
 
                         // TODO: NDR
 
                         if ctlr.ro {
-                            fs |= CriticalWarning::Amro;
+                            fs |= CriticalWarningFlags::Amro;
                         }
 
                         // TODO: VMBF
