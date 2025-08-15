@@ -12,5 +12,5 @@ jobs:
           toolchain: stable
 
       - run: cargo clippy --all-targets -- -D warnings
-      - run: cargo build
-      - run: cargo test
+      - run: cargo build --locked
+      - run: cargo test --locked
