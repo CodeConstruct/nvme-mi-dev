@@ -150,7 +150,7 @@ pub struct LidSupportedAndEffectsDataStructure {
 
 // Base v2.1, 5.1.12.1.3, Figure 206, CW
 flags! {
-    pub enum CriticalWarning: u8 {
+    pub enum CriticalWarningFlags: u8 {
         Ascbt,
         Ttc,
         Ndr,
@@ -162,7 +162,7 @@ flags! {
 
 // Base v2.1, 5.1.12.1.3, Figure 206, EGCWS
 flags! {
-    pub enum EnduranceGroupCriticalWarningSummary: u8 {
+    pub enum EnduranceGroupCriticalWarningSummaryFlags: u8 {
         Egascbt = 1 << 0,
         Egdr = 1 << 2,
         Egro = 1 << 3,
@@ -173,12 +173,12 @@ flags! {
 #[derive(Debug, Default, DekuRead, DekuWrite)]
 #[deku(endian = "little")]
 pub struct SmartHealthInformationLogPageResponse {
-    cw: WireFlagSet<CriticalWarning>,
+    cw: WireFlagSet<CriticalWarningFlags>,
     ctemp: u16,
     avsp: u8,
     avspt: u8,
     pused: u8,
-    egcws: WireFlagSet<EnduranceGroupCriticalWarningSummary>,
+    egcws: WireFlagSet<EnduranceGroupCriticalWarningSummaryFlags>,
     #[deku(seek_from_current = "25")]
     dur: u128,
     duw: u128,
