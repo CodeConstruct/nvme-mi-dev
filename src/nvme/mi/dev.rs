@@ -93,22 +93,21 @@ impl RequestHandler for MessageHeader {
         };
 
         match nmimt {
-            MessageType::NvmeMiCommand => {
-                let Ok(((rest, _), ch)) = NvmeMiCommandRequestHeader::from_bytes((rest, 0)) else {
-                    debug!("Message too short to extract NVMeMICommandHeader");
-                    return Err(ResponseStatus::InvalidCommandSize);
-                };
-
-                ch.handle(&ch, mep, subsys, rest, resp, app).await
-            }
-            MessageType::NvmeAdminCommand => {
-                let Ok(((rest, _), ch)) = AdminCommandRequestHeader::from_bytes((rest, 0)) else {
-                    debug!("Message too short to extract AdminCommandHeader");
-                    return Err(ResponseStatus::InvalidCommandSize);
-                };
-
-                ch.handle(&ch, mep, subsys, rest, resp, app).await
-            }
+            MessageType::NvmeMiCommand => match NvmeMiCommandRequestHeader::from_bytes((rest, 0)) {
+                Ok(((rest, _), ch)) => ch.handle(&ch, mep, subsys, rest, resp, app).await,
+                Err(err) => {
+                    debug!("Unable to parse NVMeMICommandHeader from message buffer: {err:?}");
+                    Err(ResponseStatus::InvalidCommandSize)
+                }
+            },
+            MessageType::NvmeAdminCommand => match AdminCommandRequestHeader::from_bytes((rest, 0))
+            {
+                Ok(((rest, _), ch)) => ch.handle(&ch, mep, subsys, rest, resp, app).await,
+                Err(err) => {
+                    debug!("Unable to parse AdminCommandHeader from message buffer: {err:?}");
+                    Err(ResponseStatus::InvalidCommandSize)
+                }
+            },
             _ => {
                 debug!("Unimplemented NMINT: {:?}", ctx.nmimt());
                 Err(ResponseStatus::InternalError)
