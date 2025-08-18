@@ -20,7 +20,7 @@ use crate::{
         LidSupportedAndEffectsDataStructure, LidSupportedAndEffectsFlags, LogPageAttributes,
         NamespaceIdentifierType, SmartHealthInformationLogPageResponse,
         mi::{
-            AdminCommandRequestHeader, AdminCommandResponseHeader,
+            AdminCommandRequestHeader, AdminCommandResponseHeader, AdminNamespaceManagementRequest,
             CompositeControllerStatusDataStructureResponse, CompositeControllerStatusFlagSet,
             ControllerFunctionAndReportingFlags, ControllerHealthDataStructure,
             ControllerHealthStatusPollResponse, ControllerInformationResponse,
@@ -827,6 +827,9 @@ impl RequestHandler for AdminCommandRequestHeader {
             AdminCommandRequestType::Identify(req) => {
                 req.handle(ctx, mep, subsys, rest, resp, app).await
             }
+            AdminCommandRequestType::NamespaceManagement(req) => {
+                req.handle(ctx, mep, subsys, rest, resp, app).await
+            }
             op if MI_PROHIBITED_ADMIN_COMMANDS.contains(&self.op) => {
                 debug!("Prohibited MI admin command opcode: {:?}", op.id());
                 Err(ResponseStatus::InvalidCommandOpcode)
@@ -1455,6 +1458,68 @@ impl RequestHandler for AdminIdentifyRequest {
                 debug!("Unimplemented CNS: {self:?}");
                 Err(ResponseStatus::InternalError)
             }
+        }
+    }
+}
+
+impl RequestHandler for AdminNamespaceManagementRequest {
+    type Ctx = AdminCommandRequestHeader;
+
+    async fn handle<A, C>(
+        &self,
+        _ctx: &Self::Ctx,
+        _mep: &mut crate::ManagementEndpoint,
+        subsys: &mut crate::Subsystem,
+        rest: &[u8],
+        resp: &mut C,
+        _app: A,
+    ) -> Result<(), ResponseStatus>
+    where
+        A: AsyncFnMut(CommandEffect) -> Result<(), CommandEffectError>,
+        C: AsyncRespChannel,
+    {
+        if !rest.is_empty() {
+            debug!("Invalid request size for Admin Identify");
+            return Err(ResponseStatus::InvalidCommandSize);
+        }
+
+        match &self.req {
+            crate::nvme::mi::AdminNamespaceManagementSelect::Create(req) => {
+                if self.csi != 0 {
+                    debug!("Support CSI {}", self.csi);
+                    return Err(ResponseStatus::InternalError);
+                }
+
+                let Ok(nsid) = subsys.add_namespace(req.ncap) else {
+                    debug!("Failed to create namespace");
+                    // TODO: Implement Base v2.1, 5.1.21.1, Figure 370
+                    return Err(ResponseStatus::InternalError);
+                };
+                let mh = MessageHeader::respond(MessageType::NvmeAdminCommand).encode()?;
+
+                let acrh = AdminCommandResponseHeader {
+                    status: ResponseStatus::Success,
+                    cqedw0: nsid.0,
+                    cqedw1: 0,
+                    cqedw3: AdminIoCqeStatus {
+                        cid: 0,
+                        p: true,
+                        status: AdminIoCqeStatusType::GenericCommandStatus(
+                            AdminIoCqeGenericCommandStatus::SuccessfulCompletion,
+                        ),
+                        crd: crate::nvme::CommandRetryDelay::None,
+                        m: false,
+                        dnr: false,
+                    }
+                    .into(),
+                }
+                .encode()?;
+
+                send_response(resp, &[&mh.0, &acrh.0]).await;
+
+                Ok(())
+            }
+            crate::nvme::mi::AdminNamespaceManagementSelect::Delete => todo!(),
         }
     }
 }

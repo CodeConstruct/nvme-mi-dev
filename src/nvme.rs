@@ -450,6 +450,38 @@ impl ControllerListResponse {
     }
 }
 
+// Base v2.1, 5.1.21, Figure 376, SEL
+#[derive(Debug, DekuRead, DekuWrite, Eq, PartialEq)]
+#[deku(ctx = "endian: Endian, sel: u8", endian = "endian", id = "sel")]
+#[repr(u8)]
+enum AdminNamespaceManagementSelect {
+    #[deku(id = 0x00)]
+    Create(NvmNamespaceManagementCreate),
+    Delete = 0x01,
+}
+
+// Base v2.1, 5.1.21
+// NVM Command Set v1.0c, 4.1.6, Figure 105
+#[derive(Debug, DekuRead, DekuWrite, Eq, PartialEq)]
+#[deku(ctx = "endian: Endian", endian = "endian")]
+struct NvmNamespaceManagementCreate {
+    nsze: u64,
+    ncap: u64,
+    #[deku(seek_from_current = "10")]
+    flbas: u8,
+    #[deku(seek_from_current = "2")]
+    dps: u8,
+    nmic: u8,
+    #[deku(seek_from_current = "61")]
+    anagrpid: u32,
+    #[deku(seek_from_current = "4")]
+    nvmsetid: u16,
+    endgid: u16,
+    #[deku(seek_from_current = "280")]
+    #[deku(pad_bytes_after = "3704")]
+    lbstm: u64,
+}
+
 // Base v2.1, 5.1.25, Figure 385
 // Base v2.1, 3.1.3.6, Figure 32
 #[derive(Debug, DekuRead, DekuWrite)]
