@@ -3,6 +3,7 @@ use deku::{DekuError, DekuRead, DekuWrite};
 use flagset::{FlagSet, flags};
 use log::debug;
 
+use crate::nvme::AdminNamespaceManagementSelect;
 use crate::wire::{WireFlagSet, WireVec};
 use crate::{CommandEffectError, Discriminant, Encode, MAX_CONTROLLERS};
 
@@ -740,26 +741,28 @@ enum AdminCommandRequestType {
     Abort = 0x08,                   // P
     GetFeatures = 0x0a,             // M
     AsynchronousEventRequest = 0x0c, // P
-    KeepAlive = 0x18,               // P
-    DirectiveSend = 0x19,           // P
-    DirectiveReceive = 0x1a,        // P
-    NvmeMiSend = 0x1d,              // P
-    NvmeMiReceive = 0x1e,           // P
+    #[deku(id = 0x0d)]
+    NamespaceManagement(AdminNamespaceManagementRequest),
+    KeepAlive = 0x18,                      // P
+    DirectiveSend = 0x19,                  // P
+    DirectiveReceive = 0x1a,               // P
+    NvmeMiSend = 0x1d,                     // P
+    NvmeMiReceive = 0x1e,                  // P
     DiscoveryInformationManagement = 0x21, // P
-    FabricZoningReceive = 0x22,     // P
-    FabricZoningLookup = 0x25,      // P
-    FabricZoningSend = 0x29,        // P
-    SendDiscoveryLogPage = 0x39,    // P
-    TrackSend = 0x3d,               // P
-    TrackReceive = 0x3e,            // P
-    MigrationSend = 0x41,           // P
-    MigrationReceive = 0x42,        // P
-    ControllerDataQueue = 0x45,     // P
-    DoorbellBufferConfig = 0x7c,    // P
-    FabricsCommands = 0x7f,         // P
-    LoadProgram = 0x85,             // P
-    ProgramActivationManagement = 0x88, // P
-    MemoryRangeSetManagement = 0x89, // P
+    FabricZoningReceive = 0x22,            // P
+    FabricZoningLookup = 0x25,             // P
+    FabricZoningSend = 0x29,               // P
+    SendDiscoveryLogPage = 0x39,           // P
+    TrackSend = 0x3d,                      // P
+    TrackReceive = 0x3e,                   // P
+    MigrationSend = 0x41,                  // P
+    MigrationReceive = 0x42,               // P
+    ControllerDataQueue = 0x45,            // P
+    DoorbellBufferConfig = 0x7c,           // P
+    FabricsCommands = 0x7f,                // P
+    LoadProgram = 0x85,                    // P
+    ProgramActivationManagement = 0x88,    // P
+    MemoryRangeSetManagement = 0x89,       // P
 }
 unsafe impl Discriminant<u8> for AdminCommandRequestType {}
 
@@ -822,6 +825,24 @@ struct AdminIdentifyRequest {
     #[deku(pad_bytes_after = "7")]
     #[deku(ctx = "*cns")]
     req: AdminIdentifyCnsRequestType,
+}
+
+// MI v2.0, 6, Figure 136
+// Base v2.1, 5.1.21, Figures 367-369
+#[derive(Debug, DekuRead, DekuWrite, Eq, PartialEq)]
+#[deku(ctx = "endian: Endian", endian = "endian")]
+struct AdminNamespaceManagementRequest {
+    nsid: u32,
+    #[deku(seek_from_current = "16")]
+    dofst: u32,
+    dlen: u32,
+    #[deku(seek_from_current = "8")]
+    sel: u8, // NOTE: SEL is the bottom nibble
+    #[deku(seek_from_current = "6")]
+    csi: u8,
+    #[deku(seek_from_current = "16")]
+    #[deku(ctx = "*sel")]
+    req: AdminNamespaceManagementSelect,
 }
 
 // MI v2.0, 6, Figure 138
