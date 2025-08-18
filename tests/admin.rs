@@ -701,6 +701,57 @@ mod identify {
     }
 
     #[test]
+    fn namespace_broadcast() {
+        setup();
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+
+        #[rustfmt::skip]
+        const REQ: [u8; 71] = [
+            0x10, 0x00, 0x00,
+            0x06, 0x00, 0x00, 0x00,
+
+            // SQE DWORD 1
+            0xff, 0xff, 0xff, 0xff,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // DOFST
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x10, 0x00, 0x00,
+
+            // Reserved
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // SQE DWORD 10
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // MIC
+            0xdc, 0xee, 0xe8, 0xf2
+        ];
+
+        #[rustfmt::skip]
+        let resp_fields: Vec<ExpectedField> = vec![
+            (0, &[0x90]),
+            (19 + 130, &[0x09]), // LBADS
+        ];
+
+        let resp = RelaxedRespChannel::new(resp_fields);
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
+    }
+
+    #[test]
     fn namespace_inactive() {
         setup();
 
