@@ -1174,8 +1174,17 @@ impl RequestHandler for AdminIdentifyRequest {
                 assert!(subsys.nss.len() <= u32::MAX.try_into().unwrap());
 
                 if self.nsid == u32::MAX {
-                    debug!("Support with broadcast NSID");
-                    return Err(ResponseStatus::InternalError);
+                    let ainvminr = AdminIdentifyNvmIdentifyNamespaceResponse {
+                        lbaf0_lbads: 9, // TODO: Tie to controller model
+                        ..Default::default()
+                    }
+                    .encode()?;
+
+                    return admin_send_response_body(
+                        resp,
+                        admin_constrain_body(self.dofst, self.dlen, &ainvminr.0)?,
+                    )
+                    .await;
                 }
 
                 if self.nsid == 0 || self.nsid > subsys.nss.capacity() as u32 {
