@@ -7,6 +7,7 @@
 use deku::{DekuContainerWrite, DekuError};
 use flagset::FlagSet;
 use hmac::Mac;
+use log::debug;
 use mctp::AsyncRespChannel;
 use nvme::{
     AdminGetLogPageLidRequestType, LidSupportedAndEffectsFlags, LogPageAttributes,
@@ -365,6 +366,7 @@ pub enum NamespaceIdentifierType {
 
 #[derive(Debug)]
 pub struct Namespace {
+    id: NamespaceId,
     size: u64,
     capacity: u64,
     used: u64,
@@ -385,18 +387,24 @@ impl Namespace {
         uuid::Builder::from_random_bytes(digest).into_uuid()
     }
 
-    pub fn new(id: Uuid, capacity: u64) -> Self {
+    pub fn new(nsid: NamespaceId, uuid: Uuid, capacity: u64) -> Self {
         Self {
+            id: nsid,
             size: capacity,
             capacity,
             used: 0,
             block_order: 9,
             nids: [
-                NamespaceIdentifierType::Nuuid(id),
+                NamespaceIdentifierType::Nuuid(uuid),
                 NamespaceIdentifierType::Csi(nvme::CommandSetIdentifier::Nvm),
             ],
         }
     }
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum SubsystemError {
+    NamespaceIdentifierUnavailable,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -480,6 +488,7 @@ pub struct Subsystem {
     caps: nvme::mi::SubsystemCapabilities,
     ports: heapless::Vec<Port, MAX_PORTS>,
     ctlrs: heapless::Vec<Controller, MAX_CONTROLLERS>,
+    nsids: u32,
     nss: heapless::Vec<Namespace, MAX_NAMESPACES>,
     health: SubsystemHealth,
     mi: MiCapability,
@@ -495,6 +504,7 @@ impl Subsystem {
             caps: nvme::mi::SubsystemCapabilities::new(),
             ports: heapless::Vec::new(),
             ctlrs: heapless::Vec::new(),
+            nsids: 0,
             nss: heapless::Vec::new(),
             health: SubsystemHealth::new(),
             mi: MiCapability::new(),
@@ -523,16 +533,33 @@ impl Subsystem {
             .expect("Invalid ControllerId provided")
     }
 
-    pub fn add_namespace(&mut self, capacity: u64) -> Result<NamespaceId, u8> {
-        debug_assert!(self.nss.len() <= u32::MAX.try_into().unwrap());
-        let nsid = NamespaceId((self.nss.len() + 1).try_into().unwrap());
+    pub fn add_namespace(&mut self, capacity: u64) -> Result<NamespaceId, SubsystemError> {
+        let Some(allocated) = self.nsids.checked_add(1) else {
+            debug!("Implement allocation tracking with reuse");
+            return Err(SubsystemError::NamespaceIdentifierUnavailable);
+        };
+        self.nsids = allocated;
+        let nsid = NamespaceId(self.nsids);
         let ns = Namespace::new(
+            nsid,
             Namespace::generate_uuid(&self.info.instance, nsid),
             capacity,
         );
         match self.nss.push(ns) {
             Ok(_) => Ok(nsid),
-            Err(_) => Err(0x16), // Namespace Identifier Unavailable
+            Err(_) => Err(SubsystemError::NamespaceIdentifierUnavailable),
         }
+    }
+
+    pub fn remove_namespace(&mut self, nsid: NamespaceId) -> Result<(), SubsystemError> {
+        if nsid.0 == u32::MAX {
+            self.nss.clear();
+            return Ok(());
+        }
+        let Some(e) = self.nss.iter().enumerate().find(|args| args.1.id == nsid) else {
+            return Err(SubsystemError::NamespaceIdentifierUnavailable);
+        };
+        let _ = self.nss.swap_remove(e.0);
+        Ok(())
     }
 }

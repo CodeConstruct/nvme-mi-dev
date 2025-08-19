@@ -9,16 +9,17 @@ use log::debug;
 use mctp::{AsyncRespChannel, MsgIC};
 
 use crate::{
-    CommandEffect, CommandEffectError, Discriminant, MAX_CONTROLLERS, MAX_NAMESPACES,
+    CommandEffect, CommandEffectError, Discriminant, MAX_CONTROLLERS, MAX_NAMESPACES, NamespaceId,
+    SubsystemError,
     nvme::{
         AdminGetLogPageLidRequestType, AdminGetLogPageSupportedLogPagesResponse,
         AdminIdentifyActiveNamespaceIdListResponse, AdminIdentifyAllocatedNamespaceIdListResponse,
         AdminIdentifyCnsRequestType, AdminIdentifyControllerResponse,
         AdminIdentifyNamespaceIdentificationDescriptorListResponse,
-        AdminIdentifyNvmIdentifyNamespaceResponse, AdminIoCqeGenericCommandStatus,
-        AdminIoCqeStatus, AdminIoCqeStatusType, ControllerListResponse,
-        LidSupportedAndEffectsDataStructure, LidSupportedAndEffectsFlags, LogPageAttributes,
-        NamespaceIdentifierType, SmartHealthInformationLogPageResponse,
+        AdminIdentifyNvmIdentifyNamespaceResponse, AdminIoCqeCommandSpecificStatus,
+        AdminIoCqeGenericCommandStatus, AdminIoCqeStatus, AdminIoCqeStatusType,
+        ControllerListResponse, LidSupportedAndEffectsDataStructure, LidSupportedAndEffectsFlags,
+        LogPageAttributes, NamespaceIdentifierType, SmartHealthInformationLogPageResponse,
         mi::{
             AdminCommandRequestHeader, AdminCommandResponseHeader, AdminNamespaceManagementRequest,
             CompositeControllerStatusDataStructureResponse, CompositeControllerStatusFlagSet,
@@ -1519,7 +1520,41 @@ impl RequestHandler for AdminNamespaceManagementRequest {
 
                 Ok(())
             }
-            crate::nvme::mi::AdminNamespaceManagementSelect::Delete => todo!(),
+            crate::nvme::mi::AdminNamespaceManagementSelect::Delete => {
+                let res = subsys.remove_namespace(NamespaceId(self.nsid));
+                let status = match &res {
+                    Ok(_) => AdminIoCqeStatusType::GenericCommandStatus(
+                        AdminIoCqeGenericCommandStatus::SuccessfulCompletion,
+                    ),
+                    Err(err) => {
+                        assert_eq!(err, &SubsystemError::NamespaceIdentifierUnavailable);
+                        AdminIoCqeStatusType::CommandSpecificStatus(
+                            AdminIoCqeCommandSpecificStatus::NamespaceIdentifierUnavailable,
+                        )
+                    }
+                };
+                let mh = MessageHeader::respond(MessageType::NvmeAdminCommand).encode()?;
+
+                let acrh = AdminCommandResponseHeader {
+                    status: ResponseStatus::Success,
+                    cqedw0: self.nsid, // TODO: Base v2.1, 5.1.21 unclear, test against hardware
+                    cqedw1: 0,
+                    cqedw3: AdminIoCqeStatus {
+                        cid: 0,
+                        p: true,
+                        status,
+                        crd: crate::nvme::CommandRetryDelay::None,
+                        m: false,
+                        dnr: res.is_err(),
+                    }
+                    .into(),
+                }
+                .encode()?;
+
+                send_response(resp, &[&mh.0, &acrh.0]).await;
+
+                Ok(())
+            }
         }
     }
 }

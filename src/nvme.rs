@@ -61,7 +61,7 @@ impl From<AdminIoCqeStatus> for u32 {
         debug_assert_eq!((sct & !7), 0);
         let sc: u32 = match value.status {
             AdminIoCqeStatusType::GenericCommandStatus(s) => s.id(),
-            AdminIoCqeStatusType::CommandSpecificStatus => todo!(),
+            AdminIoCqeStatusType::CommandSpecificStatus(s) => s.id(),
             AdminIoCqeStatusType::MediaAndDataIntegrityErrors => todo!(),
             AdminIoCqeStatusType::PathRelatedStatus => todo!(),
             AdminIoCqeStatusType::VendorSpecific => todo!(),
@@ -90,8 +90,7 @@ unsafe impl Discriminant<u8> for CommandRetryDelay {}
 #[repr(u8)]
 enum AdminIoCqeStatusType {
     GenericCommandStatus(AdminIoCqeGenericCommandStatus) = 0x00,
-    #[expect(dead_code)]
-    CommandSpecificStatus = 0x01,
+    CommandSpecificStatus(AdminIoCqeCommandSpecificStatus) = 0x01,
     #[expect(dead_code)]
     MediaAndDataIntegrityErrors = 0x02,
     #[expect(dead_code)]
@@ -109,6 +108,14 @@ enum AdminIoCqeGenericCommandStatus {
     InvalidFieldInCommand = 0x02,
 }
 unsafe impl Discriminant<u8> for AdminIoCqeGenericCommandStatus {}
+
+// Base v2.1, 4.2.3.2, Figure 103
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[repr(u8)]
+enum AdminIoCqeCommandSpecificStatus {
+    NamespaceIdentifierUnavailable = 0x16,
+}
+unsafe impl Discriminant<u8> for AdminIoCqeCommandSpecificStatus {}
 
 // Base v2.1, 5.1.12, Figure 202
 // MI v2.0, 6.3, Figure 141
