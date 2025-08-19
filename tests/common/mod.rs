@@ -102,7 +102,8 @@ impl mctp::AsyncRespChannel for ExpectedRespChannel<'_> {
 
         assert!(
             self.resp.is_empty() == bufs.iter().all(|b| b.is_empty()),
-            "Failed emptiness consensus"
+            "Failed emptiness consensus:\n\tExpected: {:02x?}\n\tFound: {bufs:02x?}",
+            self.resp
         );
         assert!(
             core::iter::zip(self.resp, bufs.iter().flat_map(|b| b.iter())).all(|(e, f)| e == f),
