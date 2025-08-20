@@ -192,19 +192,19 @@ pub fn setup() {
 #[allow(dead_code)]
 pub enum DeviceType {
     // Ports: 1 PCIe, 1 Two-wire
-    // Controllers: 1 Admin
+    // Controllers: 1 IO
     // Namespaces: 0 Allocated, 0 Active
-    P1p1tC1aN0a0a,
+    P1p1tC1iN0a0a,
 
     // Ports: 1 PCIe, 1 Two-wire
-    // Controllers: 1 Admin
+    // Controllers: 1 IO
     // Namespaces: 1 Allocated, 0 Active
-    P1p1tC1aN1a0a,
+    P1p1tC1iN1a0a,
 
     // Ports: 1 PCIe, 1 Two-wire
-    // Controllers: 1 Admin
+    // Controllers: 1 IO
     // Namespaces: 1 Allocated, 1 Active
-    P1p1tC1aN1a1a,
+    P1p1tC1iN1a1a,
 }
 
 pub struct TestDevice {
@@ -230,11 +230,11 @@ pub fn new_device(typ: DeviceType) -> (ManagementEndpoint, Subsystem) {
 
     let ctlrid = tdev.subsys.add_controller(tdev.ppid).unwrap();
     match typ {
-        DeviceType::P1p1tC1aN0a0a => {}
-        DeviceType::P1p1tC1aN1a0a => {
+        DeviceType::P1p1tC1iN0a0a => {}
+        DeviceType::P1p1tC1iN1a0a => {
             tdev.subsys.add_namespace(1024).unwrap();
         }
-        DeviceType::P1p1tC1aN1a1a => {
+        DeviceType::P1p1tC1iN1a1a => {
             let nsid = tdev.subsys.add_namespace(1024).unwrap();
             tdev.subsys
                 .controller_mut(ctlrid)

@@ -34,7 +34,7 @@ mod prohibited {
     fn delete_io_submission_queue() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -92,7 +92,7 @@ mod identify {
     fn controller_short() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 67] = [
@@ -137,7 +137,7 @@ mod identify {
     fn controller_long() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 75] = [
@@ -185,7 +185,7 @@ mod identify {
     fn controller_unnatural_dofst() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -230,7 +230,7 @@ mod identify {
     fn controller_large_dofst() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -275,7 +275,7 @@ mod identify {
     fn controller_unnatural_dlen() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -320,7 +320,7 @@ mod identify {
     fn controller_large_dlen() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -365,7 +365,7 @@ mod identify {
     fn controller_uncontained_range() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -410,7 +410,7 @@ mod identify {
     fn controller_improper_dlen() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -455,7 +455,7 @@ mod identify {
     fn controller() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -516,7 +516,7 @@ mod identify {
     fn nvm_subsystem_controller_list() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -568,7 +568,7 @@ mod identify {
     fn namespace_invalid_nsid() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -614,7 +614,7 @@ mod identify {
     fn namespace_broadcast_nsid() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -659,7 +659,7 @@ mod identify {
     fn namespace_unallocated_nsid() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -704,7 +704,7 @@ mod identify {
     fn namespace_broadcast() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -755,7 +755,7 @@ mod identify {
     fn namespace_inactive() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN1a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -806,7 +806,7 @@ mod identify {
     fn namespace_active() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN1a1a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a1a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -860,7 +860,7 @@ mod identify {
     fn active_namespace_id_list_empty() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN1a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -911,7 +911,7 @@ mod identify {
     fn active_namespace_id_list_populated() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN1a1a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a1a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -962,7 +962,7 @@ mod identify {
     fn active_namespace_id_list_constrained_empty() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN1a1a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a1a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -1013,7 +1013,7 @@ mod identify {
     fn namespace_identification_descriptor_list_bad_nsid() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN1a1a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a1a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -1058,7 +1058,7 @@ mod identify {
     fn namespace_identification_descriptor_list_broadcast_nsid() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN1a1a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a1a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -1103,7 +1103,7 @@ mod identify {
     fn namespace_identification_descriptor_list_invalid_nsid_zero() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN1a1a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a1a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -1148,7 +1148,7 @@ mod identify {
     fn namespace_identification_descriptor_list_invalid_nsid_exceeds() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN1a1a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a1a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -1193,7 +1193,7 @@ mod identify {
     fn namespace_identification_descriptor_list_unallocated_nsid() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN1a1a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a1a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -1238,7 +1238,7 @@ mod identify {
     fn namespace_identification_descriptor_list() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN1a1a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a1a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -1362,7 +1362,7 @@ mod identify {
     fn allocated_namespace_id_list_populated() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN1a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -1414,7 +1414,7 @@ mod identify {
     fn allocated_namespace_id_list_constrained_empty() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN1a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -1465,7 +1465,7 @@ mod identify {
     fn allocated_namespace_id_list_constrained_bad_nsid() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN1a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -1510,7 +1510,7 @@ mod identify {
     fn allocated_namespace_id_list_constrained_broadcast_nsid() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN1a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -1555,7 +1555,7 @@ mod identify {
     fn secondary_controller_list() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN1a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -1632,7 +1632,7 @@ mod get_log_page {
     fn get_supported_log_pages_short() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN1a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 67] = [
@@ -1677,7 +1677,7 @@ mod get_log_page {
     fn get_supported_log_pages_long() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN1a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 75] = [
@@ -1723,7 +1723,7 @@ mod get_log_page {
     fn get_supported_log_pages_bad_ctlid() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN1a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -1768,7 +1768,7 @@ mod get_log_page {
     fn get_supported_log_pages() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN1a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -1820,7 +1820,7 @@ mod get_log_page {
     fn smart_health_information_short() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN1a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 67] = [
@@ -1865,7 +1865,7 @@ mod get_log_page {
     fn smart_health_information_long() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN1a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 75] = [
@@ -1911,7 +1911,7 @@ mod get_log_page {
     fn smart_health_information_bad_ctlid() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN1a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -1956,7 +1956,7 @@ mod get_log_page {
     fn smart_health_information_bad_ot() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN1a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -2001,7 +2001,7 @@ mod get_log_page {
     fn smart_health_information_bad_lpo() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN1a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -2046,7 +2046,7 @@ mod get_log_page {
     fn smart_health_information_bad_nsid() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN1a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -2091,7 +2091,7 @@ mod get_log_page {
     fn smart_health_information() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN1a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -2211,7 +2211,7 @@ mod get_log_page {
     fn error_information_short() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN1a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 67] = [
@@ -2256,7 +2256,7 @@ mod get_log_page {
     fn error_information_long() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN1a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 75] = [
@@ -2302,7 +2302,7 @@ mod get_log_page {
     fn error_information() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN1a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -2373,7 +2373,7 @@ mod get_log_page {
     fn feature_identifiers_supported_and_effects_short() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 67] = [
@@ -2418,7 +2418,7 @@ mod get_log_page {
     fn feature_identifiers_supported_and_effects_long() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 75] = [
@@ -2464,7 +2464,7 @@ mod get_log_page {
     fn feature_identifiers_supported_and_effects() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -2520,7 +2520,7 @@ mod namespace_management {
     fn create_short() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -2567,7 +2567,7 @@ mod namespace_management {
     fn create_long() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ_DATA: [u8; 67] = [
@@ -2616,7 +2616,7 @@ mod namespace_management {
     fn create() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ_DATA: [u8; 83] = [
@@ -2684,7 +2684,7 @@ mod namespace_management {
     fn delete_short() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN1a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 67] = [
@@ -2729,7 +2729,7 @@ mod namespace_management {
     fn delete_long() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN1a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 75] = [
@@ -2775,7 +2775,7 @@ mod namespace_management {
     fn delete_unallocated() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -2829,7 +2829,7 @@ mod namespace_management {
     fn delete_allocated() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN1a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
@@ -2884,7 +2884,7 @@ mod namespace_management {
     fn delete_all() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN1a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 71] = [
