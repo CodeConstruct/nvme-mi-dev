@@ -42,7 +42,7 @@ pub const RESP_INVALID_COMMAND_INPUT_DATA_SIZE: [u8; 11] = [
 fn short_header_object() {
     setup();
 
-    let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+    let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
     #[rustfmt::skip]
     const REQ: [u8; 10] = [
@@ -80,7 +80,7 @@ mod read_nvme_mi_data_structure {
     fn short_request() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 15] = [
@@ -102,7 +102,7 @@ mod read_nvme_mi_data_structure {
     fn long_request() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 23] = [
@@ -125,7 +125,7 @@ mod read_nvme_mi_data_structure {
     fn nvm_subsystem_information() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 19] = [
@@ -162,7 +162,7 @@ mod read_nvme_mi_data_structure {
     fn port_information_invalid() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 19] = [
@@ -184,7 +184,7 @@ mod read_nvme_mi_data_structure {
     fn port_information_pcie() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 19] = [
@@ -221,7 +221,7 @@ mod read_nvme_mi_data_structure {
     fn port_information_twowire() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 19] = [
@@ -258,7 +258,7 @@ mod read_nvme_mi_data_structure {
     fn controller_list_all() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 19] = [
@@ -288,7 +288,7 @@ mod read_nvme_mi_data_structure {
     fn controller_list_single_partial_empty() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 19] = [
@@ -392,7 +392,7 @@ mod read_nvme_mi_data_structure {
     fn controller_information_single_valid() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 19] = [
@@ -418,7 +418,7 @@ mod read_nvme_mi_data_structure {
     fn controller_information_single_invalid() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 19] = [
@@ -450,7 +450,7 @@ mod nvm_subsystem_status_health_poll {
     fn short_request() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
         #[rustfmt::skip]
         const REQ: [u8; 15] = [
             0x08, 0x00, 0x00,
@@ -470,7 +470,7 @@ mod nvm_subsystem_status_health_poll {
     fn long_request() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 23] = [
@@ -493,7 +493,7 @@ mod nvm_subsystem_status_health_poll {
     fn clear_status() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 19] = [
@@ -806,7 +806,7 @@ mod configuration_get {
     fn short_request() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 15] = [
@@ -828,7 +828,7 @@ mod configuration_get {
     fn long_request() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 23] = [
@@ -852,7 +852,7 @@ mod configuration_get {
     fn reserved() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 19] = [
@@ -874,7 +874,7 @@ mod configuration_get {
     fn smbus_i2c_frequency() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 19] = [
@@ -903,7 +903,7 @@ mod configuration_get {
     fn smbus_i2c_frequency_bad_port_type_for_index() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 19] = [
@@ -925,7 +925,7 @@ mod configuration_get {
     fn smbus_i2c_frequency_bad_port_index() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 19] = [
@@ -947,7 +947,7 @@ mod configuration_get {
     fn mctp_transmission_unit_size() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 19] = [
@@ -976,7 +976,7 @@ mod configuration_get {
     fn mctp_transmission_unit_size_long() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 23] = [
@@ -999,7 +999,7 @@ mod configuration_get {
     fn mctp_transmission_unit_size_bad_port_index() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 19] = [
@@ -1021,7 +1021,7 @@ mod configuration_get {
     fn health_status_change_short() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 15] = [
@@ -1043,7 +1043,7 @@ mod configuration_get {
     fn health_status_change_long() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 23] = [
@@ -1066,7 +1066,7 @@ mod configuration_get {
     fn health_status_change() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 19] = [
@@ -1115,7 +1115,7 @@ mod configuration_set {
     fn reserved() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 19] = [
@@ -1137,7 +1137,7 @@ mod configuration_set {
     fn smbus_i2c_frequency_short() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 15] = [
@@ -1159,7 +1159,7 @@ mod configuration_set {
     fn smbus_i2c_frequency_long() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 23] = [
@@ -1182,7 +1182,7 @@ mod configuration_set {
     fn smbus_i2c_frequency_bad_port_index() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 19] = [
@@ -1204,7 +1204,7 @@ mod configuration_set {
     fn smbus_i2c_frequency_bad_port_type_for_index() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 19] = [
@@ -1226,7 +1226,7 @@ mod configuration_set {
     fn smbus_i2c_frequency_unsupported() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 19] = [
@@ -1248,7 +1248,7 @@ mod configuration_set {
     fn smbus_i2c_frequency_supported_effect_failure() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 19] = [
@@ -1272,7 +1272,7 @@ mod configuration_set {
     fn smbus_i2c_frequency_supported() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ_GET_INIT: [u8; 19] = [
@@ -1342,7 +1342,7 @@ mod configuration_set {
     fn health_status_change_short() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 15] = [
@@ -1364,7 +1364,7 @@ mod configuration_set {
     fn health_status_change_long() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 23] = [
@@ -1387,7 +1387,7 @@ mod configuration_set {
     fn health_status_change_identity() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 19] = [
@@ -1505,7 +1505,7 @@ mod configuration_set {
     fn mctp_transmission_unit_size_short() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 15] = [
@@ -1527,7 +1527,7 @@ mod configuration_set {
     fn mctp_transmission_unit_size_long() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 23] = [
@@ -1550,7 +1550,7 @@ mod configuration_set {
     fn mctp_transmission_unit_size_invalid_port() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 19] = [
@@ -1572,7 +1572,7 @@ mod configuration_set {
     fn mctp_transmission_unit_size_effect_failure() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 19] = [
@@ -1596,7 +1596,7 @@ mod configuration_set {
     fn mctp_transmission_unit_size() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ_GET_INIT: [u8; 19] = [
@@ -1675,7 +1675,7 @@ mod controller_health_status_poll {
     fn controller_health_status_poll_all_one_controller() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1aN0a0a);
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
 
         #[rustfmt::skip]
         const REQ: [u8; 19] = [
