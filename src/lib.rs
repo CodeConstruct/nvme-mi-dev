@@ -20,7 +20,7 @@ mod wire;
 extern crate deku;
 
 const MAX_CONTROLLERS: usize = 2;
-const MAX_NAMESPACES: usize = 2;
+const MAX_NAMESPACES: usize = 4;
 const MAX_PORTS: usize = 2;
 const MAX_NIDTS: usize = 2;
 
@@ -510,6 +510,7 @@ impl Subsystem {
         self.ports.push(p).map(|_p| self.ports.last().unwrap().id)
     }
 
+    #[expect(clippy::result_large_err)]
     pub fn add_controller(&mut self, port: PortId) -> Result<ControllerId, Controller> {
         debug_assert!(self.ctlrs.len() <= u16::MAX.into());
         let c = Controller::new(ControllerId(self.ctlrs.len() as u16), port);

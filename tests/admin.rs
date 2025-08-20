@@ -502,7 +502,7 @@ mod identify {
             (274, &[0x03]), // MEC
             (285, &[0x57, 0x01]), // WCTEMP
             (287, &[0x57, 0x01]), // CCTEMP
-            (535, &[0x02]), // NN
+            (535, &[0x04]), // NN
         ];
 
         let resp = RelaxedRespChannel::new(resp_fields);
