@@ -471,11 +471,11 @@ impl ControllerListResponse {
 
 // Base v2.1, 5.1.20.1, Figure 364, SEL
 #[derive(Debug, DekuRead, Eq, PartialEq)]
-#[deku(ctx = "endian: Endian, sel: u8", endian = "endian", id = "sel")]
+#[deku(ctx = "endian: Endian", endian = "endian", id_type = "u8")]
 #[repr(u8)]
 enum AdminNamespaceAttachmentSelect {
-    #[deku(id = 0x00)]
-    ControllerAttach(ControllerListRequest),
+    ControllerAttach = 0x00,
+    ControllerDetach = 0x01,
 }
 
 // Base v2.1, 5.1.21, Figure 376, SEL

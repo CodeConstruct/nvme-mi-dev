@@ -3,7 +3,9 @@ use deku::{DekuError, DekuRead, DekuWrite};
 use flagset::{FlagSet, flags};
 use log::debug;
 
-use crate::nvme::{AdminNamespaceAttachmentSelect, AdminNamespaceManagementSelect};
+use crate::nvme::{
+    AdminNamespaceAttachmentSelect, AdminNamespaceManagementSelect, ControllerListRequest,
+};
 use crate::wire::{WireFlagSet, WireVec};
 use crate::{CommandEffectError, Discriminant, Encode, MAX_CONTROLLERS};
 
@@ -857,10 +859,9 @@ struct AdminNamespaceAttachmentRequest {
     dofst: u32,
     dlen: u32,
     #[deku(seek_from_current = "8")]
-    sel: u8, // NOTE: SEL is the bottom nibble
+    sel: AdminNamespaceAttachmentSelect, // NOTE: SEL is the bottom nibble
     #[deku(seek_from_current = "23")]
-    #[deku(ctx = "*sel")]
-    req: AdminNamespaceAttachmentSelect,
+    body: ControllerListRequest,
 }
 
 // MI v2.0, 6, Figure 138

@@ -299,6 +299,7 @@ pub struct Controller {
 #[derive(Debug)]
 pub enum ControllerError {
     NamespaceAlreadyAttached,
+    NamespaceNotAttached,
     NamespaceAttachmentLimitExceeded,
 }
 
@@ -364,6 +365,22 @@ impl Controller {
         if self.active_ns.push(nsid).is_err() {
             return Err(ControllerError::NamespaceAttachmentLimitExceeded);
         }
+
+        Ok(())
+    }
+
+    pub fn detach_namespace(&mut self, nsid: NamespaceId) -> Result<(), ControllerError> {
+        debug!("Detaching NSID {} from CTRLID {}", nsid.0, self.id.0);
+        let Some((idx, _)) = self
+            .active_ns
+            .iter()
+            .enumerate()
+            .find(|args| args.1.0 == nsid.0)
+        else {
+            return Err(ControllerError::NamespaceNotAttached);
+        };
+
+        let _ = self.active_ns.swap_remove(idx);
 
         Ok(())
     }
