@@ -765,9 +765,11 @@ enum AdminCommandRequestType {
     ControllerDataQueue = 0x45,            // P
     DoorbellBufferConfig = 0x7c,           // P
     FabricsCommands = 0x7f,                // P
-    LoadProgram = 0x85,                    // P
-    ProgramActivationManagement = 0x88,    // P
-    MemoryRangeSetManagement = 0x89,       // P
+    #[deku(id = 0x84)]
+    Sanitize(AdminSanitizeRequest),
+    LoadProgram = 0x85,                 // P
+    ProgramActivationManagement = 0x88, // P
+    MemoryRangeSetManagement = 0x89,    // P
 }
 unsafe impl Discriminant<u8> for AdminCommandRequestType {}
 
@@ -862,6 +864,21 @@ struct AdminNamespaceAttachmentRequest {
     sel: AdminNamespaceAttachmentSelect, // NOTE: SEL is the bottom nibble
     #[deku(seek_from_current = "23")]
     body: ControllerListRequest,
+}
+
+// MI v2.0, 6, Figure 136
+// Base v2.1, 5.1.22, Figure 372
+#[derive(Debug, DekuRead, Eq, PartialEq)]
+#[deku(ctx = "endian: Endian", endian = "endian")]
+struct AdminSanitizeRequest {
+    nsid: u32,
+    #[deku(seek_from_current = "16")]
+    dofst: u32,
+    dlen: u32,
+    #[deku(seek_from_current = "8")]
+    config: u32,
+    #[deku(pad_bytes_after = "16")]
+    ovrpat: u32,
 }
 
 // MI v2.0, 6, Figure 138

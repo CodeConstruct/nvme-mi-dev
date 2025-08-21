@@ -129,8 +129,9 @@ pub enum AdminGetLogPageLidRequestType {
     ErrorInformation = 0x01,
     SmartHealthInformation = 0x02,
     FeatureIdentifiersSupportedAndEffects = 0x12,
+    SanitizeStatus = 0x81,
 }
-unsafe impl Discriminant<u8> for AdminGetLogPageLidRequestType {}
+unsafe impl crate::Discriminant<u8> for AdminGetLogPageLidRequestType {}
 
 // Base v2.1, 5.1.12.1.1, Figure 203
 #[derive(Debug, DekuRead, DekuWrite)]
@@ -234,6 +235,84 @@ flags! {
     }
 }
 
+// Base v2.1, 5.1.12.1.33, Figure 291, SSTAT, SOS
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[repr(u8)]
+pub enum SanitizeOperationStatus {
+    #[default]
+    SanitizeNeverStarted = 0b000,
+    Sanitized = 0b001,
+    Sanitizing = 0b010,
+    SanitizeFailed = 0b011,
+    SanitizedUnexpectedDeallocate = 0b100,
+}
+unsafe impl crate::Discriminant<u8> for SanitizeOperationStatus {}
+
+// Base v2.1, 5.1.12.1.33, Figure 291, SSTAT
+#[derive(Clone, Copy, Debug, Default)]
+pub struct SanitizeStatus {
+    sos: SanitizeOperationStatus,
+    opc: u8,
+    gde: bool,
+    mvcncled: bool,
+}
+
+impl From<SanitizeStatus> for u16 {
+    fn from(value: SanitizeStatus) -> Self {
+        ((value.mvcncled as u16) << 9)
+            | ((value.gde as u16) << 8)
+            | ((value.opc & ((1 << 6) - 1)) << 3) as u16
+            | value.sos.id() as u16
+    }
+}
+
+// Base v2.1, 5.12.1.33, Fgure 291, SSI, SANS
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[repr(u8)]
+#[expect(dead_code)]
+enum SanitizeState {
+    #[default]
+    Idle = 0x00,
+    RestrictedProcessing = 0x01,
+    RestrictedFailure = 0x02,
+    UnrestrictedProcessing = 0x03,
+    UnrestrictedFailure = 0x04,
+    MediaVerification = 0x05,
+    PostVerificationDeallocation = 0x06,
+}
+unsafe impl crate::Discriminant<u8> for SanitizeState {}
+
+// Base v2.1, 5.1.12.1.33, Figure 291, SSI
+#[derive(Clone, Copy, Debug, Default)]
+pub struct SanitizeStateInformation {
+    sans: SanitizeState,
+    fails: u8,
+}
+
+impl From<SanitizeStateInformation> for u8 {
+    fn from(value: SanitizeStateInformation) -> Self {
+        (value.fails << 4) | (value.sans.id())
+    }
+}
+
+// Base v2.1, 5.1.12.1.33, Figure 291
+#[derive(Debug, DekuRead, DekuWrite)]
+#[deku(endian = "little")]
+struct SanitizeStatusLogPageResponse {
+    sprog: u16,
+    sstat: u16,
+    scdw10: u32,
+    eto: u32,
+    etbe: u32,
+    etce: u32,
+    etodmm: u32,
+    etbenmm: u32,
+    etcenmm: u32,
+    etpvds: u32,
+    ssi: u8,
+}
+impl Encode<512> for SanitizeStatusLogPageResponse {}
+
 // Base v2.1, 5.1.13.1, Figure 310
 #[derive(Clone, Copy, Debug, DekuRead, DekuWrite, Eq, PartialEq)]
 #[deku(ctx = "endian: Endian, cns: u8", id = "cns", endian = "endian")]
@@ -324,6 +403,53 @@ flags! {
     }
 }
 
+// Base v2.1, 5.1.13.2.1, Figure 312, SANICAP, NODMMAS
+#[derive(Clone, Copy, Debug, Default)]
+#[repr(u8)]
+pub enum NoDeallocateModifiesMediaAfterSanitize {
+    Undefined = 0b00,
+    #[default]
+    Unmodified = 0b01,
+    Modified = 0b10,
+    Reserved = 0b11,
+}
+unsafe impl Discriminant<u8> for NoDeallocateModifiesMediaAfterSanitize {}
+
+// Base v2.1, 5.1.13.2.1, Figure 312, SANICAP
+#[derive(Clone, Copy, Debug)]
+pub struct SanitizeCapabilities {
+    ces: bool,
+    bes: bool,
+    ows: bool,
+    vers: bool,
+    ndi: bool,
+    nodmmas: NoDeallocateModifiesMediaAfterSanitize,
+}
+
+impl From<SanitizeCapabilities> for u32 {
+    fn from(value: SanitizeCapabilities) -> Self {
+        (((value.nodmmas.id() & 0b11) as u32) << 30)
+            | ((value.ndi as u32) << 29)
+            | ((value.vers as u32) << 3)
+            | ((value.ows as u32) << 2)
+            | ((value.bes as u32) << 1)
+            | (value.ces as u32)
+    }
+}
+
+impl Default for SanitizeCapabilities {
+    fn default() -> Self {
+        Self {
+            ces: true,
+            bes: true,
+            ows: true,
+            vers: false,
+            ndi: true,
+            nodmmas: NoDeallocateModifiesMediaAfterSanitize::Unmodified,
+        }
+    }
+}
+
 // Base v2.1, 5.1.13.2.1, Figure 312
 #[derive(Debug, DekuRead, DekuWrite)]
 #[deku(endian = "little")]
@@ -363,7 +489,9 @@ struct AdminIdentifyControllerResponse {
     #[deku(seek_from_current = "49")]
     fwug: u8,
     kas: u16,
-    #[deku(seek_from_current = "64")]
+    #[deku(seek_from_current = "6")]
+    sanicap: u32,
+    #[deku(seek_from_current = "54")]
     cqt: u16,
     #[deku(seek_from_current = "124")]
     sqes: u8,
@@ -508,6 +636,72 @@ struct NvmNamespaceManagementCreate {
     #[deku(seek_from_current = "280")]
     #[deku(pad_bytes_after = "3704")]
     lbstm: u64,
+}
+
+// Base v2.1, 5.1.22, Figure 372, SANACT
+#[derive(Clone, Copy, Debug)]
+#[repr(u8)]
+enum SanitizeAction {
+    Reserved = 0x00,
+    ExitFailureMode = 0x01,
+    StartBlockErase = 0x02,
+    StartOverwrite = 0x03,
+    StartCryptoErase = 0x04,
+    ExitMediaVerificationState = 0x05,
+}
+unsafe impl Discriminant<u8> for SanitizeAction {}
+
+impl TryFrom<u32> for SanitizeAction {
+    type Error = ();
+
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
+        match value {
+            0x00 => Ok(Self::Reserved),
+            0x01 => Ok(Self::ExitFailureMode),
+            0x02 => Ok(Self::StartBlockErase),
+            0x03 => Ok(Self::StartOverwrite),
+            0x04 => Ok(Self::StartCryptoErase),
+            0x05 => Ok(Self::ExitMediaVerificationState),
+            _ => Err(()),
+        }
+    }
+}
+
+// Base v2.1, 5.1.22, Figure 372
+#[derive(Clone, Copy, Debug)]
+pub struct AdminSanitizeConfiguration {
+    sanact: SanitizeAction,
+    ause: bool,
+    owpass: u8,
+    oipbp: bool,
+    ndas: bool,
+    emvs: bool,
+}
+
+impl TryFrom<u32> for AdminSanitizeConfiguration {
+    type Error = ();
+
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
+        Ok(Self {
+            sanact: TryInto::try_into(value & 0x7)?,
+            ause: ((value >> 3) & 1) == 1,
+            owpass: ((value >> 4) & 0xf) as u8,
+            oipbp: ((value >> 8) & 1) == 1,
+            ndas: ((value >> 9) & 1) == 1,
+            emvs: ((value >> 10) & 1) == 1,
+        })
+    }
+}
+
+impl From<AdminSanitizeConfiguration> for u32 {
+    fn from(value: AdminSanitizeConfiguration) -> Self {
+        ((value.emvs as u32) << 10)
+            | ((value.ndas as u32) << 9)
+            | ((value.oipbp as u32) << 8)
+            | (((value.owpass & 0xf) as u32) << 4)
+            | ((value.ause as u32) << 3)
+            | value.sanact.id() as u32
+    }
 }
 
 // Base v2.1, 5.1.25, Figure 385

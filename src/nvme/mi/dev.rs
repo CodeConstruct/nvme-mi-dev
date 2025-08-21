@@ -17,19 +17,22 @@ use crate::{
         AdminIdentifyCnsRequestType, AdminIdentifyControllerResponse,
         AdminIdentifyNamespaceIdentificationDescriptorListResponse,
         AdminIdentifyNvmIdentifyNamespaceResponse, AdminIoCqeGenericCommandStatus,
-        AdminIoCqeStatus, AdminIoCqeStatusType, ControllerListResponse,
+        AdminIoCqeStatus, AdminIoCqeStatusType, AdminSanitizeConfiguration, ControllerListResponse,
         LidSupportedAndEffectsDataStructure, LidSupportedAndEffectsFlags, LogPageAttributes,
-        NamespaceIdentifierType, SmartHealthInformationLogPageResponse,
+        NamespaceIdentifierType, SanitizeAction, SanitizeOperationStatus, SanitizeState,
+        SanitizeStateInformation, SanitizeStatus, SanitizeStatusLogPageResponse,
+        SmartHealthInformationLogPageResponse,
         mi::{
             AdminCommandRequestHeader, AdminCommandResponseHeader, AdminNamespaceAttachmentRequest,
-            AdminNamespaceManagementRequest, CompositeControllerStatusDataStructureResponse,
-            CompositeControllerStatusFlagSet, ControllerFunctionAndReportingFlags,
-            ControllerHealthDataStructure, ControllerHealthStatusPollResponse,
-            ControllerInformationResponse, ControllerPropertyFlags, MessageType,
-            NvmSubsystemHealthDataStructureResponse, NvmSubsystemInformationResponse,
-            NvmeManagementResponse, NvmeMiCommandRequestHeader, NvmeMiCommandRequestType,
-            NvmeMiDataStructureManagementResponse, NvmeMiDataStructureRequestType,
-            PciePortDataResponse, PortInformationResponse, TwoWirePortDataResponse,
+            AdminNamespaceManagementRequest, AdminSanitizeRequest,
+            CompositeControllerStatusDataStructureResponse, CompositeControllerStatusFlagSet,
+            ControllerFunctionAndReportingFlags, ControllerHealthDataStructure,
+            ControllerHealthStatusPollResponse, ControllerInformationResponse,
+            ControllerPropertyFlags, MessageType, NvmSubsystemHealthDataStructureResponse,
+            NvmSubsystemInformationResponse, NvmeManagementResponse, NvmeMiCommandRequestHeader,
+            NvmeMiCommandRequestType, NvmeMiDataStructureManagementResponse,
+            NvmeMiDataStructureRequestType, PciePortDataResponse, PortInformationResponse,
+            TwoWirePortDataResponse,
         },
     },
     wire::{WireString, WireVec},
@@ -807,6 +810,9 @@ impl RequestHandler for AdminCommandRequestHeader {
             AdminCommandRequestType::NamespaceManagement(req) => {
                 req.handle(ctx, mep, subsys, rest, resp, app).await
             }
+            AdminCommandRequestType::Sanitize(req) => {
+                req.handle(ctx, mep, subsys, rest, resp, app).await
+            }
             AdminCommandRequestType::DeleteIoSubmissionQueue
             | AdminCommandRequestType::CreateIoSubmissionQueue
             | AdminCommandRequestType::DeleteIoCompletionQueue
@@ -983,7 +989,8 @@ impl RequestHandler for AdminGetLogPageRequest {
                 }
             }
             AdminGetLogPageLidRequestType::ErrorInformation
-            | AdminGetLogPageLidRequestType::SmartHealthInformation => (),
+            | AdminGetLogPageLidRequestType::SmartHealthInformation
+            | AdminGetLogPageLidRequestType::SanitizeStatus => (),
         };
 
         let Some(ctlr) = subsys.ctlrs.get(ctx.ctlid as usize) else {
@@ -1149,6 +1156,39 @@ impl RequestHandler for AdminGetLogPageRequest {
                 )
                 .await
             }
+            AdminGetLogPageLidRequestType::SanitizeStatus => {
+                if (self.numdw + 1) * 4 != 512 {
+                    debug!("Implement support for NUMDL / NUMDU");
+                    return Err(ResponseStatus::InternalError);
+                }
+
+                let sslpr = SanitizeStatusLogPageResponse {
+                    sprog: u16::MAX,
+                    sstat: subsys.sstat.into(),
+                    scdw10: {
+                        if let Some(sconf) = subsys.sconf {
+                            sconf.into()
+                        } else {
+                            0
+                        }
+                    },
+                    eto: u32::MAX,
+                    etbe: u32::MAX,
+                    etce: u32::MAX,
+                    etodmm: u32::MAX,
+                    etbenmm: u32::MAX,
+                    etcenmm: u32::MAX,
+                    etpvds: u32::MAX,
+                    ssi: subsys.ssi.into(),
+                }
+                .encode()?;
+
+                admin_send_response_body(
+                    resp,
+                    admin_constrain_body(self.dofst, self.dlen, &sslpr.0)?,
+                )
+                .await
+            }
         }
     }
 }
@@ -1311,6 +1351,7 @@ impl RequestHandler for AdminIdentifyRequest {
                     msdbd: 0,
                     ofcs: 0,
                     apsta: 0,
+                    sanicap: subsys.sanicap.into(),
                 }
                 .encode()?;
 
@@ -1695,6 +1736,80 @@ impl RequestHandler for AdminNamespaceAttachmentRequest {
         send_response(resp, &[&mh.0, &acrh.0]).await;
 
         Ok(())
+    }
+}
+
+impl RequestHandler for AdminSanitizeRequest {
+    type Ctx = AdminCommandRequestHeader;
+
+    async fn handle<A, C>(
+        &self,
+        _ctx: &Self::Ctx,
+        _mep: &mut crate::ManagementEndpoint,
+        subsys: &mut crate::Subsystem,
+        rest: &[u8],
+        resp: &mut C,
+        _app: A,
+    ) -> Result<(), ResponseStatus>
+    where
+        A: AsyncFnMut(CommandEffect) -> Result<(), CommandEffectError>,
+        C: AsyncRespChannel,
+    {
+        if !rest.is_empty() {
+            debug!("Invalid request size for Admin Sanitize");
+            return Err(ResponseStatus::InvalidCommandSize);
+        }
+
+        let Ok(config) = TryInto::<AdminSanitizeConfiguration>::try_into(self.config) else {
+            debug!("Invalid sanitize configuration: {}", self.config);
+            return Err(ResponseStatus::InvalidParameter);
+        };
+
+        if subsys.sanicap.ndi && config.ndas {
+            debug!("Request for No-Deallocate After Sanitize when No-Deallocate is inhibited");
+            return Err(ResponseStatus::InvalidParameter);
+        }
+
+        // TODO: Implement action latency, progress state machine, error states
+        match config.sanact {
+            SanitizeAction::Reserved => Err(ResponseStatus::InvalidParameter),
+            SanitizeAction::ExitFailureMode | SanitizeAction::ExitMediaVerificationState => {
+                if subsys.ssi.sans != SanitizeState::Idle {
+                    todo!("Implement sanitize state machine!");
+                }
+                admin_send_response_body(resp, &[]).await
+            }
+            SanitizeAction::StartBlockErase | SanitizeAction::StartCryptoErase => {
+                subsys.ssi = SanitizeStateInformation {
+                    sans: SanitizeState::Idle,
+                    fails: 0,
+                };
+                subsys.sstat = SanitizeStatus {
+                    sos: SanitizeOperationStatus::Sanitized,
+                    opc: 0,
+                    gde: true,
+                    mvcncled: false,
+                };
+                subsys.sconf = Some(self.config.try_into()?);
+
+                admin_send_response_body(resp, &[]).await
+            }
+            SanitizeAction::StartOverwrite => {
+                subsys.ssi = SanitizeStateInformation {
+                    sans: SanitizeState::Idle,
+                    fails: 0,
+                };
+                subsys.sstat = SanitizeStatus {
+                    sos: SanitizeOperationStatus::Sanitized,
+                    opc: config.owpass,
+                    gde: true,
+                    mvcncled: false,
+                };
+                subsys.sconf = Some(self.config.try_into()?);
+
+                admin_send_response_body(resp, &[]).await
+            }
+        }
     }
 }
 
