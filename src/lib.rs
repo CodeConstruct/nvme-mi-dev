@@ -293,7 +293,7 @@ pub struct Controller {
     cc: nvme::ControllerConfiguration,
     csts: FlagSet<nvme::ControllerStatusFlags>,
     lpa: FlagSet<LogPageAttributes>,
-    lsaes: [FlagSet<LidSupportedAndEffectsFlags>; 19],
+    lsaes: [FlagSet<LidSupportedAndEffectsFlags>; 130],
 }
 
 #[derive(Debug)]
@@ -323,13 +323,15 @@ impl Controller {
             csts: FlagSet::empty(),
             lpa: FlagSet::empty(),
             lsaes: {
-                let mut arr = [FlagSet::default(); 19];
+                let mut arr = [FlagSet::default(); 130];
                 arr[AdminGetLogPageLidRequestType::SupportedLogPages.id() as usize] =
                     LidSupportedAndEffectsFlags::Lsupp.into();
                 arr[AdminGetLogPageLidRequestType::SmartHealthInformation.id() as usize] =
                     LidSupportedAndEffectsFlags::Lsupp.into();
                 arr[AdminGetLogPageLidRequestType::FeatureIdentifiersSupportedAndEffects.id()
                     as usize] = LidSupportedAndEffectsFlags::Lsupp.into();
+                arr[AdminGetLogPageLidRequestType::SanitizeStatus.id() as usize] =
+                    LidSupportedAndEffectsFlags::Lsupp.into();
                 arr
             },
         }
@@ -535,6 +537,10 @@ pub struct Subsystem {
     nsids: u32,
     nss: heapless::Vec<Namespace, MAX_NAMESPACES>,
     health: SubsystemHealth,
+    sanicap: nvme::SanitizeCapabilities,
+    ssi: nvme::SanitizeStateInformation,
+    sstat: nvme::SanitizeStatus,
+    sconf: Option<nvme::AdminSanitizeConfiguration>,
     mi: MiCapability,
     sn: &'static str,
     mn: &'static str,
@@ -555,6 +561,10 @@ impl Subsystem {
             sn: "1000",
             mn: "MIDEV",
             fr: "00.00.01",
+            sstat: Default::default(),
+            sconf: None,
+            ssi: Default::default(),
+            sanicap: Default::default(),
         }
     }
 
