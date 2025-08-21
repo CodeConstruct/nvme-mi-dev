@@ -9,7 +9,7 @@ use log::debug;
 use mctp::{AsyncRespChannel, MsgIC};
 
 use crate::{
-    CommandEffect, CommandEffectError, ControllerError, ControllerType, Discriminant,
+    CommandEffect, CommandEffectError, Controller, ControllerError, ControllerType, Discriminant,
     MAX_CONTROLLERS, MAX_NAMESPACES, NamespaceId, SubsystemError,
     nvme::{
         AdminGetLogPageLidRequestType, AdminGetLogPageSupportedLogPagesResponse,
@@ -1586,6 +1586,7 @@ impl RequestHandler for AdminNamespaceAttachmentRequest {
         #[repr(u8)]
         enum CommandSpecificStatus {
             NamespaceAlreadyAttached = 0x18,
+            NamespaceNotAttached = 0x1a,
             ControllerListInvalid = 0x1c,
             NamespaceAttachmentLimitExceeded = 0x27,
         }
@@ -1598,96 +1599,102 @@ impl RequestHandler for AdminNamespaceAttachmentRequest {
                     ControllerError::NamespaceAttachmentLimitExceeded => {
                         Self::NamespaceAttachmentLimitExceeded
                     }
+                    ControllerError::NamespaceNotAttached => Self::NamespaceNotAttached,
                 }
             }
         }
 
-        match &self.req {
-            crate::nvme::AdminNamespaceAttachmentSelect::ControllerAttach(req) => {
-                // SAFETY: Protected in parsing by DekuError::InvalidParam
-                debug_assert!(req.numids <= 2047);
+        // SAFETY: Protected in parsing by DekuError::InvalidParam
+        debug_assert!(self.body.numids <= 2047);
 
-                let expected = (2047 - (req.numids as usize)) * core::mem::size_of::<u16>();
-                if rest.len() != expected {
-                    debug!(
-                        "Invalid request size for Admin Namespace Attachment: Found {}, expected {expected}",
-                        rest.len()
-                    );
-                    return Err(ResponseStatus::InvalidCommandSize);
-                }
+        let expected = (2047 - (self.body.numids as usize)) * core::mem::size_of::<u16>();
+        if rest.len() != expected {
+            debug!(
+                "Invalid request size for Admin Namespace Attachment: Found {}, expected {expected}",
+                rest.len()
+            );
+            return Err(ResponseStatus::InvalidCommandSize);
+        }
 
-                if self.nsid == u32::MAX {
-                    debug!("Refusing to attach broadcast NSID");
-                    return Err(ResponseStatus::InvalidParameter);
-                }
+        if self.nsid == u32::MAX {
+            debug!("Refusing to perform {:?} for broadcast NSID", self.sel);
+            return Err(ResponseStatus::InvalidParameter);
+        }
 
-                // TODO: Handle MAXCNA
+        // TODO: Handle MAXCNA
 
-                let mut status = AdminIoCqeStatusType::GenericCommandStatus(
-                    AdminIoCqeGenericCommandStatus::SuccessfulCompletion,
+        let mut status = AdminIoCqeStatusType::GenericCommandStatus(
+            AdminIoCqeGenericCommandStatus::SuccessfulCompletion,
+        );
+
+        let action = match &self.sel {
+            crate::nvme::AdminNamespaceAttachmentSelect::ControllerAttach => {
+                |ctlr: &mut Controller, ns: NamespaceId| ctlr.attach_namespace(ns)
+            }
+            crate::nvme::AdminNamespaceAttachmentSelect::ControllerDetach => {
+                |ctlr: &mut Controller, ns: NamespaceId| ctlr.detach_namespace(ns)
+            }
+        };
+
+        for cid in &self.body.ids.0 {
+            let Some(ctlr) = subsys.ctlrs.get_mut(*cid as usize) else {
+                debug!("Unrecognised controller ID: {cid}");
+                status = AdminIoCqeStatusType::CommandSpecificStatus(
+                    CommandSpecificStatus::ControllerListInvalid.id(),
                 );
+                break;
+            };
 
-                for cid in &req.ids.0 {
-                    let Some(ctlr) = subsys.ctlrs.get_mut(*cid as usize) else {
-                        debug!("Unrecognised controller ID: {cid}");
-                        status = AdminIoCqeStatusType::CommandSpecificStatus(
-                            CommandSpecificStatus::ControllerListInvalid.id(),
-                        );
-                        break;
-                    };
+            // TODO: Allow addition of non-IO controllers
+            if ctlr.cntrltype != ControllerType::Io {
+                debug!(
+                    "Require {:?} controller type, have {:?}",
+                    ControllerType::Io,
+                    ctlr.cntrltype
+                );
+                status = AdminIoCqeStatusType::CommandSpecificStatus(
+                    CommandSpecificStatus::ControllerListInvalid.id(),
+                );
+                break;
+            }
 
-                    // TODO: Allow addition of non-IO controllers
-                    if ctlr.cntrltype != ControllerType::Io {
-                        debug!(
-                            "Require {:?} controller type, have {:?}",
-                            ControllerType::Io,
-                            ctlr.cntrltype
-                        );
-                        status = AdminIoCqeStatusType::CommandSpecificStatus(
-                            CommandSpecificStatus::ControllerListInvalid.id(),
-                        );
-                        break;
-                    }
+            // TODO: Handle Namespace Is Private
+            // TODO: Handle I/O Command Set Not Supported
+            // TODO: Handle I/O Command Set Not Enabled
 
-                    // TODO: Handle Namespace Is Private
-                    // TODO: Handle I/O Command Set Not Supported
-                    // TODO: Handle I/O Command Set Not Enabled
-
-                    // XXX: Should this be transactional? Two loops?
-                    if let Err(err) = ctlr.attach_namespace(NamespaceId(self.nsid)) {
-                        let err: CommandSpecificStatus = err.into();
-                        status = AdminIoCqeStatusType::CommandSpecificStatus(err.id());
-                        break;
-                    }
-                }
-
-                let mh = MessageHeader::respond(MessageType::NvmeAdminCommand).encode()?;
-
-                let acrh = AdminCommandResponseHeader {
-                    status: ResponseStatus::Success,
-                    cqedw0: self.nsid,
-                    cqedw1: 0,
-                    cqedw3: AdminIoCqeStatus {
-                        cid: 0,
-                        p: true,
-                        status,
-                        crd: crate::nvme::CommandRetryDelay::None,
-                        m: false,
-                        dnr: {
-                            AdminIoCqeStatusType::GenericCommandStatus(
-                                AdminIoCqeGenericCommandStatus::SuccessfulCompletion,
-                            ) != status
-                        },
-                    }
-                    .into(),
-                }
-                .encode()?;
-
-                send_response(resp, &[&mh.0, &acrh.0]).await;
-
-                Ok(())
+            // XXX: Should this be transactional? Two loops?
+            if let Err(err) = action(ctlr, NamespaceId(self.nsid)) {
+                let err: CommandSpecificStatus = err.into();
+                status = AdminIoCqeStatusType::CommandSpecificStatus(err.id());
+                break;
             }
         }
+
+        let mh = MessageHeader::respond(MessageType::NvmeAdminCommand).encode()?;
+
+        let acrh = AdminCommandResponseHeader {
+            status: ResponseStatus::Success,
+            cqedw0: self.nsid,
+            cqedw1: 0,
+            cqedw3: AdminIoCqeStatus {
+                cid: 0,
+                p: true,
+                status,
+                crd: crate::nvme::CommandRetryDelay::None,
+                m: false,
+                dnr: {
+                    AdminIoCqeStatusType::GenericCommandStatus(
+                        AdminIoCqeGenericCommandStatus::SuccessfulCompletion,
+                    ) != status
+                },
+            }
+            .into(),
+        }
+        .encode()?;
+
+        send_response(resp, &[&mh.0, &acrh.0]).await;
+
+        Ok(())
     }
 }
 
