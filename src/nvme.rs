@@ -258,9 +258,9 @@ pub struct AdminIdentifyNvmIdentifyNamespaceResponse {
     mc: u8,
     dpc: u8,
     dps: u8,
-    #[deku(seek_from_start = "48")]
+    #[deku(seek_from_current = "18")]
     nvmcap: u128,
-    #[deku(seek_from_start = "128")]
+    #[deku(seek_from_current = "64")]
     // FIXME: use another struct
     lbaf0: u16,
     lbaf0_lbads: u8,
@@ -324,9 +324,9 @@ struct AdminIdentifyControllerResponse {
     rtd3e: u32,
     oaes: u32,
     ctratt: u32,
-    #[deku(seek_from_start = "111")]
+    #[deku(seek_from_current = "11")]
     cntrltype: crate::nvme::ControllerType,
-    #[deku(seek_from_start = "253")]
+    #[deku(seek_from_current = "141")]
     nvmsr: u8,
     vwci: u8,
     mec: u8,
@@ -338,15 +338,15 @@ struct AdminIdentifyControllerResponse {
     elpe: u8,
     npss: u8,
     avscc: u8,
-    #[deku(seek_from_start = "266")]
+    apsta: u8,
     wctemp: u16,
     cctemp: u16,
-    #[deku(seek_from_start = "319")]
+    #[deku(seek_from_current = "49")]
     fwug: u8,
     kas: u16,
-    #[deku(seek_from_start = "386")]
+    #[deku(seek_from_current = "64")]
     cqt: u16,
-    #[deku(seek_from_start = "512")]
+    #[deku(seek_from_current = "124")]
     sqes: u8,
     cqes: u8,
     maxcmd: u16,
@@ -359,11 +359,11 @@ struct AdminIdentifyControllerResponse {
     awupf: u16,
     icsvscc: u8,
     nwpc: u8,
-    #[deku(seek_from_start = "540")]
+    #[deku(seek_from_current = "8")]
     mnan: u32,
-    #[deku(seek_from_start = "768")]
+    #[deku(seek_from_current = "224")]
     subnqn: WireString<256>,
-    #[deku(seek_from_start = "1802")]
+    #[deku(seek_from_current = "778")]
     fcatt: u8,
     msdbd: u8,
     ofcs: u16,

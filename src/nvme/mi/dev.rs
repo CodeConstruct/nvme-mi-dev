@@ -1190,6 +1190,7 @@ impl RequestHandler for AdminIdentifyRequest {
                     fcatt: 0,
                     msdbd: 0,
                     ofcs: 0,
+                    apsta: 0,
                 }
                 .encode()?;
 
