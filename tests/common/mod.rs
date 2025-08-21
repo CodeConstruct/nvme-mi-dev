@@ -162,7 +162,8 @@ impl mctp::AsyncRespChannel for RelaxedRespChannel<'_> {
         for (offset, data) in self.fields.iter() {
             assert!(
                 reified.iter().skip(*offset).zip(*data).all(|p| p.0 == p.1),
-                "Field match failed at offset {offset}: expected {data:x?} in response\n{reified:x?}"
+                "Field match failed: Expected {data:x?} in response at offset {offset}, found {:x?}\n",
+                &reified[*offset..{ offset + data.len() }]
             );
         }
         Ok(())
