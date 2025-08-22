@@ -119,6 +119,54 @@ struct ControllerListRequest {
     ids: WireVec<u16, 2047>,
 }
 
+// Base v2.1, 5.1.10, Figure 189, SES
+#[derive(Debug)]
+#[repr(u8)]
+enum SecureEraseSettings {
+    NoOperation = 0b000,
+    UserDataErase = 0b001,
+    CryptographicErase = 0b010,
+}
+unsafe impl Discriminant<u8> for SecureEraseSettings {}
+
+impl TryFrom<u32> for SecureEraseSettings {
+    type Error = ();
+
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
+        match value {
+            0b000 => Ok(Self::NoOperation),
+            0b001 => Ok(Self::UserDataErase),
+            0b010 => Ok(Self::CryptographicErase),
+            _ => Err(()),
+        }
+    }
+}
+
+// Base v2.1, 5.1.10, Figure 189
+#[derive(Debug)]
+#[expect(dead_code)]
+struct AdminFormatNvmConfiguration {
+    lbafi: u8,
+    mset: bool,
+    pi: u8,
+    pil: bool,
+    ses: SecureEraseSettings,
+}
+
+impl TryFrom<u32> for AdminFormatNvmConfiguration {
+    type Error = ();
+
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
+        Ok(Self {
+            lbafi: ((((value >> 12) & 0x3) << 4) | (value & 0xf)) as u8,
+            mset: ((value >> 4) & 1) == 1,
+            pi: ((value >> 5) & 0x3) as u8,
+            pil: ((value >> 6) & 1) == 1,
+            ses: TryFrom::try_from((value >> 9) & 0x7)?,
+        })
+    }
+}
+
 // Base v2.1, 5.1.12, Figure 202
 // MI v2.0, 6.3, Figure 141
 #[derive(Debug, DekuRead, DekuWrite, Eq, PartialEq)]
@@ -450,6 +498,16 @@ impl Default for SanitizeCapabilities {
     }
 }
 
+// Base v2.1, 5.1.13.2.1, Figure 312, FNA
+flags! {
+    pub enum FormatNvmAttributes: u8 {
+        Fns,
+        Sens,
+        Cryes,
+        Fnvmbs,
+    }
+}
+
 // Base v2.1, 5.1.13.2.1, Figure 312
 #[derive(Debug, DekuRead, DekuWrite)]
 #[deku(endian = "little")]
@@ -500,7 +558,7 @@ struct AdminIdentifyControllerResponse {
     nn: u32,
     oncs: u16,
     fuses: u16,
-    fna: u8,
+    fna: WireFlagSet<FormatNvmAttributes>,
     vwc: u8,
     awun: u16,
     awupf: u16,

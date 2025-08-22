@@ -765,6 +765,8 @@ enum AdminCommandRequestType {
     ControllerDataQueue = 0x45,            // P
     DoorbellBufferConfig = 0x7c,           // P
     FabricsCommands = 0x7f,                // P
+    #[deku(id = 0x80)]
+    FormatNvm(AdminFormatNvmRequest),
     #[deku(id = 0x84)]
     Sanitize(AdminSanitizeRequest),
     LoadProgram = 0x85,                 // P
@@ -782,6 +784,20 @@ struct AdminCommandRequestHeader {
     ctlid: u16,
     #[deku(ctx = "*_opcode")]
     op: AdminCommandRequestType,
+}
+
+// MI v2.0, 6, Figure 136
+// Base v2.1, 5.1.10, Figure 189
+#[derive(Debug, DekuRead, DekuWrite, Eq, PartialEq)]
+#[deku(ctx = "endian: Endian", endian = "endian")]
+struct AdminFormatNvmRequest {
+    nsid: u32,
+    #[deku(seek_from_current = "16")]
+    dofst: u32,
+    dlen: u32,
+    #[deku(seek_from_current = "8")]
+    #[deku(pad_bytes_after = "20")]
+    config: u32,
 }
 
 // MI v2.0, 6, Figure 136
