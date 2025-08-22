@@ -294,6 +294,7 @@ pub struct Controller {
     csts: FlagSet<nvme::ControllerStatusFlags>,
     lpa: FlagSet<LogPageAttributes>,
     lsaes: [FlagSet<LidSupportedAndEffectsFlags>; 130],
+    fna: FlagSet<nvme::FormatNvmAttributes>,
 }
 
 #[derive(Debug)]
@@ -334,6 +335,9 @@ impl Controller {
                     LidSupportedAndEffectsFlags::Lsupp.into();
                 arr
             },
+            fna: (nvme::FormatNvmAttributes::Fns
+                | nvme::FormatNvmAttributes::Sens
+                | nvme::FormatNvmAttributes::Fnvmbs),
         }
     }
 

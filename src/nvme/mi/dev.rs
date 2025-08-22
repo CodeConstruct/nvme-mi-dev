@@ -12,9 +12,10 @@ use crate::{
     CommandEffect, CommandEffectError, Controller, ControllerError, ControllerType, Discriminant,
     MAX_CONTROLLERS, MAX_NAMESPACES, NamespaceId, SubsystemError,
     nvme::{
-        AdminGetLogPageLidRequestType, AdminGetLogPageSupportedLogPagesResponse,
-        AdminIdentifyActiveNamespaceIdListResponse, AdminIdentifyAllocatedNamespaceIdListResponse,
-        AdminIdentifyCnsRequestType, AdminIdentifyControllerResponse,
+        AdminFormatNvmConfiguration, AdminGetLogPageLidRequestType,
+        AdminGetLogPageSupportedLogPagesResponse, AdminIdentifyActiveNamespaceIdListResponse,
+        AdminIdentifyAllocatedNamespaceIdListResponse, AdminIdentifyCnsRequestType,
+        AdminIdentifyControllerResponse,
         AdminIdentifyNamespaceIdentificationDescriptorListResponse,
         AdminIdentifyNvmIdentifyNamespaceResponse, AdminIoCqeGenericCommandStatus,
         AdminIoCqeStatus, AdminIoCqeStatusType, AdminSanitizeConfiguration, ControllerListResponse,
@@ -23,8 +24,8 @@ use crate::{
         SanitizeStateInformation, SanitizeStatus, SanitizeStatusLogPageResponse,
         SmartHealthInformationLogPageResponse,
         mi::{
-            AdminCommandRequestHeader, AdminCommandResponseHeader, AdminNamespaceAttachmentRequest,
-            AdminNamespaceManagementRequest, AdminSanitizeRequest,
+            AdminCommandRequestHeader, AdminCommandResponseHeader, AdminFormatNvmRequest,
+            AdminNamespaceAttachmentRequest, AdminNamespaceManagementRequest, AdminSanitizeRequest,
             CompositeControllerStatusDataStructureResponse, CompositeControllerStatusFlagSet,
             ControllerFunctionAndReportingFlags, ControllerHealthDataStructure,
             ControllerHealthStatusPollResponse, ControllerInformationResponse,
@@ -810,6 +811,9 @@ impl RequestHandler for AdminCommandRequestHeader {
             AdminCommandRequestType::NamespaceManagement(req) => {
                 req.handle(ctx, mep, subsys, rest, resp, app).await
             }
+            AdminCommandRequestType::FormatNvm(req) => {
+                req.handle(ctx, mep, subsys, rest, resp, app).await
+            }
             AdminCommandRequestType::Sanitize(req) => {
                 req.handle(ctx, mep, subsys, rest, resp, app).await
             }
@@ -1339,7 +1343,7 @@ impl RequestHandler for AdminIdentifyRequest {
                         .expect("Too many namespaces"),
                     oncs: 0,
                     fuses: 0,
-                    fna: 0,
+                    fna: ctlr.fna.into(),
                     vwc: 0,
                     awun: 0,
                     awupf: 0,
@@ -1810,6 +1814,53 @@ impl RequestHandler for AdminSanitizeRequest {
                 admin_send_response_body(resp, &[]).await
             }
         }
+    }
+}
+
+impl RequestHandler for AdminFormatNvmRequest {
+    type Ctx = AdminCommandRequestHeader;
+
+    async fn handle<A, C>(
+        &self,
+        ctx: &Self::Ctx,
+        _mep: &mut crate::ManagementEndpoint,
+        subsys: &mut crate::Subsystem,
+        rest: &[u8],
+        resp: &mut C,
+        _app: A,
+    ) -> Result<(), ResponseStatus>
+    where
+        A: AsyncFnMut(CommandEffect) -> Result<(), CommandEffectError>,
+        C: AsyncRespChannel,
+    {
+        if !rest.is_empty() {
+            debug!("Invalid request size for Admin Format NVM");
+            return Err(ResponseStatus::InvalidCommandSize);
+        }
+
+        let Some(ctlr) = subsys.ctlrs.iter().find(|c| c.id.0 == ctx.ctlid) else {
+            debug!("Unrecognised CTLID: {}", ctx.ctlid);
+            return Err(ResponseStatus::InvalidParameter);
+        };
+
+        let Ok(config) = TryInto::<AdminFormatNvmConfiguration>::try_into(self.config) else {
+            debug!("Invalid configuration for Admin Format NVM");
+            return Err(ResponseStatus::InvalidParameter);
+        };
+
+        if config.lbafi != 0 {
+            debug!("Unsupported LBA format index: {}", config.lbafi);
+            return Err(ResponseStatus::InvalidParameter);
+        }
+
+        if !ctlr.active_ns.iter().any(|ns| ns.0 == self.nsid) && self.nsid != u32::MAX {
+            debug!("Unrecognised NSID: {}", self.nsid);
+            return Err(ResponseStatus::InvalidParameter);
+        }
+
+        // TODO: handle config.ses
+
+        admin_send_response_body(resp, &[]).await
     }
 }
 
