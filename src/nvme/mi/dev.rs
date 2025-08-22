@@ -9,27 +9,27 @@ use log::debug;
 use mctp::{AsyncRespChannel, MsgIC};
 
 use crate::{
-    CommandEffect, CommandEffectError, Discriminant, MAX_CONTROLLERS, MAX_NAMESPACES, NamespaceId,
-    SubsystemError,
+    CommandEffect, CommandEffectError, ControllerError, ControllerType, Discriminant,
+    MAX_CONTROLLERS, MAX_NAMESPACES, NamespaceId, SubsystemError,
     nvme::{
         AdminGetLogPageLidRequestType, AdminGetLogPageSupportedLogPagesResponse,
         AdminIdentifyActiveNamespaceIdListResponse, AdminIdentifyAllocatedNamespaceIdListResponse,
         AdminIdentifyCnsRequestType, AdminIdentifyControllerResponse,
         AdminIdentifyNamespaceIdentificationDescriptorListResponse,
-        AdminIdentifyNvmIdentifyNamespaceResponse, AdminIoCqeCommandSpecificStatus,
-        AdminIoCqeGenericCommandStatus, AdminIoCqeStatus, AdminIoCqeStatusType,
-        ControllerListResponse, LidSupportedAndEffectsDataStructure, LidSupportedAndEffectsFlags,
-        LogPageAttributes, NamespaceIdentifierType, SmartHealthInformationLogPageResponse,
+        AdminIdentifyNvmIdentifyNamespaceResponse, AdminIoCqeGenericCommandStatus,
+        AdminIoCqeStatus, AdminIoCqeStatusType, ControllerListResponse,
+        LidSupportedAndEffectsDataStructure, LidSupportedAndEffectsFlags, LogPageAttributes,
+        NamespaceIdentifierType, SmartHealthInformationLogPageResponse,
         mi::{
-            AdminCommandRequestHeader, AdminCommandResponseHeader, AdminNamespaceManagementRequest,
-            CompositeControllerStatusDataStructureResponse, CompositeControllerStatusFlagSet,
-            ControllerFunctionAndReportingFlags, ControllerHealthDataStructure,
-            ControllerHealthStatusPollResponse, ControllerInformationResponse,
-            ControllerPropertyFlags, MessageType, NvmSubsystemHealthDataStructureResponse,
-            NvmSubsystemInformationResponse, NvmeManagementResponse, NvmeMiCommandRequestHeader,
-            NvmeMiCommandRequestType, NvmeMiDataStructureManagementResponse,
-            NvmeMiDataStructureRequestType, PciePortDataResponse, PortInformationResponse,
-            TwoWirePortDataResponse,
+            AdminCommandRequestHeader, AdminCommandResponseHeader, AdminNamespaceAttachmentRequest,
+            AdminNamespaceManagementRequest, CompositeControllerStatusDataStructureResponse,
+            CompositeControllerStatusFlagSet, ControllerFunctionAndReportingFlags,
+            ControllerHealthDataStructure, ControllerHealthStatusPollResponse,
+            ControllerInformationResponse, ControllerPropertyFlags, MessageType,
+            NvmSubsystemHealthDataStructureResponse, NvmSubsystemInformationResponse,
+            NvmeManagementResponse, NvmeMiCommandRequestHeader, NvmeMiCommandRequestType,
+            NvmeMiDataStructureManagementResponse, NvmeMiDataStructureRequestType,
+            PciePortDataResponse, PortInformationResponse, TwoWirePortDataResponse,
         },
     },
     wire::{WireString, WireVec},
@@ -101,6 +101,7 @@ impl RequestHandler for MessageHeader {
                 Ok(((rest, _), ch)) => ch.handle(&ch, mep, subsys, rest, resp, app).await,
                 Err(err) => {
                     debug!("Unable to parse NVMeMICommandHeader from message buffer: {err:?}");
+                    // TODO: This is a bad assumption: Can see DekuError::InvalidParam too
                     Err(ResponseStatus::InvalidCommandSize)
                 }
             },
@@ -109,6 +110,7 @@ impl RequestHandler for MessageHeader {
                 Ok(((rest, _), ch)) => ch.handle(&ch, mep, subsys, rest, resp, app).await,
                 Err(err) => {
                     debug!("Unable to parse AdminCommandHeader from message buffer: {err:?}");
+                    // TODO: This is a bad assumption: Can see DekuError::InvalidParam too
                     Err(ResponseStatus::InvalidCommandSize)
                 }
             },
@@ -768,35 +770,6 @@ impl RequestHandler for NvmeMiDataStructureRequest {
     }
 }
 
-const MI_PROHIBITED_ADMIN_COMMANDS: [AdminCommandRequestType; 26] = [
-    AdminCommandRequestType::DeleteIoSubmissionQueue,
-    AdminCommandRequestType::CreateIoSubmissionQueue,
-    AdminCommandRequestType::DeleteIoCompletionQueue,
-    AdminCommandRequestType::CreateIoCompletionQueue,
-    AdminCommandRequestType::Abort,
-    AdminCommandRequestType::AsynchronousEventRequest,
-    AdminCommandRequestType::KeepAlive,
-    AdminCommandRequestType::DirectiveSend,
-    AdminCommandRequestType::DirectiveReceive,
-    AdminCommandRequestType::NvmeMiSend,
-    AdminCommandRequestType::NvmeMiReceive,
-    AdminCommandRequestType::DiscoveryInformationManagement,
-    AdminCommandRequestType::FabricZoningReceive,
-    AdminCommandRequestType::FabricZoningLookup,
-    AdminCommandRequestType::FabricZoningSend,
-    AdminCommandRequestType::SendDiscoveryLogPage,
-    AdminCommandRequestType::TrackSend,
-    AdminCommandRequestType::TrackReceive,
-    AdminCommandRequestType::MigrationSend,
-    AdminCommandRequestType::MigrationReceive,
-    AdminCommandRequestType::ControllerDataQueue,
-    AdminCommandRequestType::DoorbellBufferConfig,
-    AdminCommandRequestType::FabricsCommands,
-    AdminCommandRequestType::LoadProgram,
-    AdminCommandRequestType::ProgramActivationManagement,
-    AdminCommandRequestType::MemoryRangeSetManagement,
-];
-
 impl RequestHandler for AdminCommandRequestHeader {
     type Ctx = Self;
 
@@ -828,11 +801,39 @@ impl RequestHandler for AdminCommandRequestHeader {
             AdminCommandRequestType::Identify(req) => {
                 req.handle(ctx, mep, subsys, rest, resp, app).await
             }
+            AdminCommandRequestType::NamespaceAttachement(req) => {
+                req.handle(ctx, mep, subsys, rest, resp, app).await
+            }
             AdminCommandRequestType::NamespaceManagement(req) => {
                 req.handle(ctx, mep, subsys, rest, resp, app).await
             }
-            op if MI_PROHIBITED_ADMIN_COMMANDS.contains(&self.op) => {
-                debug!("Prohibited MI admin command opcode: {:?}", op.id());
+            AdminCommandRequestType::DeleteIoSubmissionQueue
+            | AdminCommandRequestType::CreateIoSubmissionQueue
+            | AdminCommandRequestType::DeleteIoCompletionQueue
+            | AdminCommandRequestType::CreateIoCompletionQueue
+            | AdminCommandRequestType::Abort
+            | AdminCommandRequestType::AsynchronousEventRequest
+            | AdminCommandRequestType::KeepAlive
+            | AdminCommandRequestType::DirectiveSend
+            | AdminCommandRequestType::DirectiveReceive
+            | AdminCommandRequestType::NvmeMiSend
+            | AdminCommandRequestType::NvmeMiReceive
+            | AdminCommandRequestType::DiscoveryInformationManagement
+            | AdminCommandRequestType::FabricZoningReceive
+            | AdminCommandRequestType::FabricZoningLookup
+            | AdminCommandRequestType::FabricZoningSend
+            | AdminCommandRequestType::SendDiscoveryLogPage
+            | AdminCommandRequestType::TrackSend
+            | AdminCommandRequestType::TrackReceive
+            | AdminCommandRequestType::MigrationSend
+            | AdminCommandRequestType::MigrationReceive
+            | AdminCommandRequestType::ControllerDataQueue
+            | AdminCommandRequestType::DoorbellBufferConfig
+            | AdminCommandRequestType::FabricsCommands
+            | AdminCommandRequestType::LoadProgram
+            | AdminCommandRequestType::ProgramActivationManagement
+            | AdminCommandRequestType::MemoryRangeSetManagement => {
+                debug!("Prohibited MI admin command opcode: {:?}", self.op.id());
                 Err(ResponseStatus::InvalidCommandOpcode)
             }
             _ => {
@@ -1268,7 +1269,7 @@ impl RequestHandler for AdminIdentifyRequest {
                         | ((false as u32) << 13) // DEG
                         | ((false as u32) << 4) // EGS
                         | ((false as u32) << 2), // NSETS
-                    cntrltype: crate::nvme::ControllerType::AdministrativeController,
+                    cntrltype: ctlr.cntrltype.into(),
                     // TODO: Tie to data model
                     nvmsr: ((false as u8) << 1) // NVMEE
                         | (true as u8), // NVMESD
@@ -1479,6 +1480,12 @@ impl RequestHandler for AdminNamespaceManagementRequest {
         A: AsyncFnMut(CommandEffect) -> Result<(), CommandEffectError>,
         C: AsyncRespChannel,
     {
+        #[repr(u8)]
+        enum CommandSpecificStatus {
+            NamespaceIdentifierUnavailable = 0x16,
+        }
+        unsafe impl Discriminant<u8> for CommandSpecificStatus {}
+
         if !rest.is_empty() {
             debug!("Invalid request size for Admin Identify");
             return Err(ResponseStatus::InvalidCommandSize);
@@ -1529,7 +1536,7 @@ impl RequestHandler for AdminNamespaceManagementRequest {
                     Err(err) => {
                         assert_eq!(err, &SubsystemError::NamespaceIdentifierUnavailable);
                         AdminIoCqeStatusType::CommandSpecificStatus(
-                            AdminIoCqeCommandSpecificStatus::NamespaceIdentifierUnavailable,
+                            CommandSpecificStatus::NamespaceIdentifierUnavailable.id(),
                         )
                     }
                 };
@@ -1546,6 +1553,131 @@ impl RequestHandler for AdminNamespaceManagementRequest {
                         crd: crate::nvme::CommandRetryDelay::None,
                         m: false,
                         dnr: res.is_err(),
+                    }
+                    .into(),
+                }
+                .encode()?;
+
+                send_response(resp, &[&mh.0, &acrh.0]).await;
+
+                Ok(())
+            }
+        }
+    }
+}
+
+impl RequestHandler for AdminNamespaceAttachmentRequest {
+    type Ctx = AdminCommandRequestHeader;
+
+    async fn handle<A, C>(
+        &self,
+        _ctx: &Self::Ctx,
+        _mep: &mut crate::ManagementEndpoint,
+        subsys: &mut crate::Subsystem,
+        rest: &[u8],
+        resp: &mut C,
+        _app: A,
+    ) -> Result<(), ResponseStatus>
+    where
+        A: AsyncFnMut(CommandEffect) -> Result<(), CommandEffectError>,
+        C: AsyncRespChannel,
+    {
+        // Base v2.1, 5.1.20.1, Figure 365
+        #[repr(u8)]
+        enum CommandSpecificStatus {
+            NamespaceAlreadyAttached = 0x18,
+            ControllerListInvalid = 0x1c,
+            NamespaceAttachmentLimitExceeded = 0x27,
+        }
+        unsafe impl Discriminant<u8> for CommandSpecificStatus {}
+
+        impl From<ControllerError> for CommandSpecificStatus {
+            fn from(value: ControllerError) -> Self {
+                match value {
+                    ControllerError::NamespaceAlreadyAttached => Self::NamespaceAlreadyAttached,
+                    ControllerError::NamespaceAttachmentLimitExceeded => {
+                        Self::NamespaceAttachmentLimitExceeded
+                    }
+                }
+            }
+        }
+
+        match &self.req {
+            crate::nvme::AdminNamespaceAttachmentSelect::ControllerAttach(req) => {
+                // SAFETY: Protected in parsing by DekuError::InvalidParam
+                debug_assert!(req.numids <= 2047);
+
+                let expected = (2047 - (req.numids as usize)) * core::mem::size_of::<u16>();
+                if rest.len() != expected {
+                    debug!(
+                        "Invalid request size for Admin Namespace Attachment: Found {}, expected {expected}",
+                        rest.len()
+                    );
+                    return Err(ResponseStatus::InvalidCommandSize);
+                }
+
+                if self.nsid == u32::MAX {
+                    debug!("Refusing to attach broadcast NSID");
+                    return Err(ResponseStatus::InvalidParameter);
+                }
+
+                // TODO: Handle MAXCNA
+
+                let mut status = AdminIoCqeStatusType::GenericCommandStatus(
+                    AdminIoCqeGenericCommandStatus::SuccessfulCompletion,
+                );
+
+                for cid in &req.ids.0 {
+                    let Some(ctlr) = subsys.ctlrs.get_mut(*cid as usize) else {
+                        debug!("Unrecognised controller ID: {cid}");
+                        status = AdminIoCqeStatusType::CommandSpecificStatus(
+                            CommandSpecificStatus::ControllerListInvalid.id(),
+                        );
+                        break;
+                    };
+
+                    // TODO: Allow addition of non-IO controllers
+                    if ctlr.cntrltype != ControllerType::Io {
+                        debug!(
+                            "Require {:?} controller type, have {:?}",
+                            ControllerType::Io,
+                            ctlr.cntrltype
+                        );
+                        status = AdminIoCqeStatusType::CommandSpecificStatus(
+                            CommandSpecificStatus::ControllerListInvalid.id(),
+                        );
+                        break;
+                    }
+
+                    // TODO: Handle Namespace Is Private
+                    // TODO: Handle I/O Command Set Not Supported
+                    // TODO: Handle I/O Command Set Not Enabled
+
+                    // XXX: Should this be transactional? Two loops?
+                    if let Err(err) = ctlr.attach_namespace(NamespaceId(self.nsid)) {
+                        let err: CommandSpecificStatus = err.into();
+                        status = AdminIoCqeStatusType::CommandSpecificStatus(err.id());
+                        break;
+                    }
+                }
+
+                let mh = MessageHeader::respond(MessageType::NvmeAdminCommand).encode()?;
+
+                let acrh = AdminCommandResponseHeader {
+                    status: ResponseStatus::Success,
+                    cqedw0: self.nsid,
+                    cqedw1: 0,
+                    cqedw3: AdminIoCqeStatus {
+                        cid: 0,
+                        p: true,
+                        status,
+                        crd: crate::nvme::CommandRetryDelay::None,
+                        m: false,
+                        dnr: {
+                            AdminIoCqeStatusType::GenericCommandStatus(
+                                AdminIoCqeGenericCommandStatus::SuccessfulCompletion,
+                            ) != status
+                        },
                     }
                     .into(),
                 }

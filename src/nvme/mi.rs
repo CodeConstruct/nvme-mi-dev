@@ -3,7 +3,7 @@ use deku::{DekuError, DekuRead, DekuWrite};
 use flagset::{FlagSet, flags};
 use log::debug;
 
-use crate::nvme::AdminNamespaceManagementSelect;
+use crate::nvme::{AdminNamespaceAttachmentSelect, AdminNamespaceManagementSelect};
 use crate::wire::{WireFlagSet, WireVec};
 use crate::{CommandEffectError, Discriminant, Encode, MAX_CONTROLLERS};
 
@@ -726,7 +726,8 @@ struct ControllerInformationResponse {
 impl Encode<32> for ControllerInformationResponse {}
 
 // MI v2.0, 6, Figure 134
-#[derive(Debug, DekuRead, DekuWrite, PartialEq, Eq)]
+#[expect(clippy::large_enum_variant)] // FIXME
+#[derive(Debug, DekuRead, PartialEq, Eq)]
 #[deku(ctx = "endian: Endian, opcode: u8", id = "opcode", endian = "endian")]
 #[repr(u8)]
 enum AdminCommandRequestType {
@@ -743,6 +744,8 @@ enum AdminCommandRequestType {
     AsynchronousEventRequest = 0x0c, // P
     #[deku(id = 0x0d)]
     NamespaceManagement(AdminNamespaceManagementRequest),
+    #[deku(id = 0x15)]
+    NamespaceAttachement(AdminNamespaceAttachmentRequest),
     KeepAlive = 0x18,                      // P
     DirectiveSend = 0x19,                  // P
     DirectiveReceive = 0x1a,               // P
@@ -767,14 +770,13 @@ enum AdminCommandRequestType {
 unsafe impl Discriminant<u8> for AdminCommandRequestType {}
 
 // MI v2.0, 6, Figure 136
-#[derive(Debug, DekuRead, DekuWrite)]
+#[derive(Debug, DekuRead)]
 #[deku(endian = "little")]
 struct AdminCommandRequestHeader {
-    #[deku(update = "self.op.id()")]
-    opcode: u8,
+    _opcode: u8,
     cflgs: u8,
     ctlid: u16,
-    #[deku(ctx = "*opcode")]
+    #[deku(ctx = "*_opcode")]
     op: AdminCommandRequestType,
 }
 
@@ -843,6 +845,22 @@ struct AdminNamespaceManagementRequest {
     #[deku(seek_from_current = "16")]
     #[deku(ctx = "*sel")]
     req: AdminNamespaceManagementSelect,
+}
+
+// MI v2.0, 6, Figure 136
+// Base v2.1, 5.1.20, Figure 364
+#[derive(Debug, DekuRead, Eq, PartialEq)]
+#[deku(ctx = "endian: Endian", endian = "endian")]
+struct AdminNamespaceAttachmentRequest {
+    nsid: u32,
+    #[deku(seek_from_current = "16")]
+    dofst: u32,
+    dlen: u32,
+    #[deku(seek_from_current = "8")]
+    sel: u8, // NOTE: SEL is the bottom nibble
+    #[deku(seek_from_current = "23")]
+    #[deku(ctx = "*sel")]
+    req: AdminNamespaceAttachmentSelect,
 }
 
 // MI v2.0, 6, Figure 138

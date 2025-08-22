@@ -61,7 +61,7 @@ impl From<AdminIoCqeStatus> for u32 {
         debug_assert_eq!((sct & !7), 0);
         let sc: u32 = match value.status {
             AdminIoCqeStatusType::GenericCommandStatus(s) => s.id(),
-            AdminIoCqeStatusType::CommandSpecificStatus(s) => s.id(),
+            AdminIoCqeStatusType::CommandSpecificStatus(v) => v,
             AdminIoCqeStatusType::MediaAndDataIntegrityErrors => todo!(),
             AdminIoCqeStatusType::PathRelatedStatus => todo!(),
             AdminIoCqeStatusType::VendorSpecific => todo!(),
@@ -90,7 +90,7 @@ unsafe impl Discriminant<u8> for CommandRetryDelay {}
 #[repr(u8)]
 enum AdminIoCqeStatusType {
     GenericCommandStatus(AdminIoCqeGenericCommandStatus) = 0x00,
-    CommandSpecificStatus(AdminIoCqeCommandSpecificStatus) = 0x01,
+    CommandSpecificStatus(u8) = 0x01,
     #[expect(dead_code)]
     MediaAndDataIntegrityErrors = 0x02,
     #[expect(dead_code)]
@@ -109,13 +109,15 @@ enum AdminIoCqeGenericCommandStatus {
 }
 unsafe impl Discriminant<u8> for AdminIoCqeGenericCommandStatus {}
 
-// Base v2.1, 4.2.3.2, Figure 103
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[repr(u8)]
-enum AdminIoCqeCommandSpecificStatus {
-    NamespaceIdentifierUnavailable = 0x16,
+// Base v2.1, 4.6.1, Figure 137
+// TODO: Unify with ControllerListResponse
+#[derive(Debug, DekuRead, Eq, PartialEq)]
+#[deku(ctx = "endian: Endian", endian = "little")]
+struct ControllerListRequest {
+    numids: u16,
+    #[deku(count = "*numids")]
+    ids: WireVec<u16, 2047>,
 }
-unsafe impl Discriminant<u8> for AdminIoCqeCommandSpecificStatus {}
 
 // Base v2.1, 5.1.12, Figure 202
 // MI v2.0, 6.3, Figure 141
@@ -298,6 +300,16 @@ enum ControllerType {
     AdministrativeController = 0x03,
 }
 
+impl From<crate::ControllerType> for ControllerType {
+    fn from(value: crate::ControllerType) -> Self {
+        match value {
+            crate::ControllerType::Io => Self::IoController,
+            crate::ControllerType::Discovery => Self::DiscoveryController,
+            crate::ControllerType::Administrative => Self::AdministrativeController,
+        }
+    }
+}
+
 // Base v2.1, 5.1.13.2.1, Figure 312, LPA
 flags! {
     #[repr(u8)]
@@ -438,7 +450,7 @@ struct AdminIdentifyAllocatedNamespaceIdListResponse {
 impl Encode<4096> for AdminIdentifyAllocatedNamespaceIdListResponse {}
 
 // Base v2.1, Section 5.1.13.2.12
-#[derive(Debug, DekuRead, DekuWrite)]
+#[derive(Debug, DekuWrite)]
 #[deku(endian = "little")]
 struct ControllerListResponse {
     #[deku(update = "self.ids.len()")]
@@ -455,6 +467,15 @@ impl ControllerListResponse {
             ids: WireVec::new(),
         }
     }
+}
+
+// Base v2.1, 5.1.20.1, Figure 364, SEL
+#[derive(Debug, DekuRead, Eq, PartialEq)]
+#[deku(ctx = "endian: Endian, sel: u8", endian = "endian", id = "sel")]
+#[repr(u8)]
+enum AdminNamespaceAttachmentSelect {
+    #[deku(id = 0x00)]
+    ControllerAttach(ControllerListRequest),
 }
 
 // Base v2.1, 5.1.21, Figure 376, SEL

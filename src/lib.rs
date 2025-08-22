@@ -266,9 +266,19 @@ pub struct SecondaryController {
     id: ControllerId,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum ControllerType {
+    Io,
+    #[expect(dead_code)]
+    Discovery,
+    #[expect(dead_code)]
+    Administrative,
+}
+
 #[derive(Debug)]
 pub struct Controller {
     id: ControllerId,
+    cntrltype: ControllerType,
     port: PortId,
     secondaries: heapless::Vec<SecondaryController, 0>,
     active_ns: heapless::Vec<NamespaceId, MAX_NAMESPACES>,
@@ -286,10 +296,17 @@ pub struct Controller {
     lsaes: [FlagSet<LidSupportedAndEffectsFlags>; 19],
 }
 
+#[derive(Debug)]
+pub enum ControllerError {
+    NamespaceAlreadyAttached,
+    NamespaceAttachmentLimitExceeded,
+}
+
 impl Controller {
     fn new(id: ControllerId, port: PortId) -> Self {
         Self {
             id,
+            cntrltype: ControllerType::Io,
             port,
             secondaries: heapless::Vec::new(),
             active_ns: heapless::Vec::new(),
@@ -338,8 +355,17 @@ impl Controller {
         self.temp = k;
     }
 
-    pub fn attach_namespace(&mut self, nsid: NamespaceId) -> Result<(), NamespaceId> {
-        self.active_ns.push(nsid)
+    pub fn attach_namespace(&mut self, nsid: NamespaceId) -> Result<(), ControllerError> {
+        debug!("Attaching NSID {} to CTLRID {}", nsid.0, self.id.0);
+        if self.active_ns.iter().any(|ns| ns.0 == nsid.0) {
+            return Err(ControllerError::NamespaceAlreadyAttached);
+        }
+
+        if self.active_ns.push(nsid).is_err() {
+            return Err(ControllerError::NamespaceAttachmentLimitExceeded);
+        }
+
+        Ok(())
     }
 }
 
@@ -404,6 +430,7 @@ impl Namespace {
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum SubsystemError {
+    ControllerLimitExceeded,
     NamespaceIdentifierUnavailable,
 }
 
@@ -520,11 +547,14 @@ impl Subsystem {
         self.ports.push(p).map(|_p| self.ports.last().unwrap().id)
     }
 
-    #[expect(clippy::result_large_err)]
-    pub fn add_controller(&mut self, port: PortId) -> Result<ControllerId, Controller> {
+    pub fn add_controller(&mut self, port: PortId) -> Result<ControllerId, SubsystemError> {
         debug_assert!(self.ctlrs.len() <= u16::MAX.into());
-        let c = Controller::new(ControllerId(self.ctlrs.len() as u16), port);
-        self.ctlrs.push(c).map(|_c| self.ctlrs.last().unwrap().id)
+        let cid = ControllerId(self.ctlrs.len() as u16);
+        let c = Controller::new(cid, port);
+        self.ctlrs
+            .push(c)
+            .map_err(|_| SubsystemError::ControllerLimitExceeded)?;
+        Ok(cid)
     }
 
     pub fn controller_mut(&mut self, id: ControllerId) -> &mut Controller {
