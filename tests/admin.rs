@@ -497,7 +497,7 @@ mod identify {
             (83, &[0x30, 0x30, 0x2e, 0x30, 0x30, 0x2e, 0x30, 0x31]), // FR
             (95, &[0x01]), // CMIC
             (98, &[0x00, 0x00]), // CNTLID
-            (130, &[0x03]), // CNTRLTYPE
+            (130, &[0x01]), // CNTRLTYPE
             (272, &[0x01]), // NVMSR
             (274, &[0x03]), // MEC
             (285, &[0x57, 0x01]), // WCTEMP
@@ -2931,6 +2931,398 @@ mod namespace_management {
         let resp = ExpectedRespChannel::new(&RESP);
         smol::block_on(async {
             mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
+    }
+}
+
+mod namespace_attachment {
+    use mctp::MsgIC;
+
+    use crate::{
+        RESP_INVALID_COMMAND_SIZE, RESP_INVALID_PARAMETER,
+        common::{DeviceType, ExpectedRespChannel, new_device, setup},
+    };
+
+    #[test]
+    fn attach_short() {
+        setup();
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a0a);
+
+        #[rustfmt::skip]
+        const REQ_DATA: [u8; 67] = [
+            0x10, 0x00, 0x00,
+            0x15, 0x00, 0x00, 0x00,
+
+            // SQE DWORD 1
+            0x01, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // DOFST
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x10, 0x00, 0x00,
+
+            // Reserved
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // SQE DWORD 10
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+        ];
+
+        const REQ_MIC: [u8; 4] = [0x4e, 0x9c, 0x58, 0x64];
+
+        let mut req = [0u8; { 71 + 4096 - 4 }];
+        let len = req.len();
+        req[..REQ_DATA.len()].copy_from_slice(&REQ_DATA);
+        req[{ len - REQ_MIC.len() }..].copy_from_slice(&REQ_MIC);
+
+        let resp = ExpectedRespChannel::new(&RESP_INVALID_COMMAND_SIZE);
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &req, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
+    }
+
+    #[test]
+    fn attach_long() {
+        setup();
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a0a);
+
+        #[rustfmt::skip]
+        const REQ_DATA: [u8; 67] = [
+            0x10, 0x00, 0x00,
+            0x15, 0x00, 0x00, 0x00,
+
+            // SQE DWORD 1
+            0x01, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // DOFST
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x10, 0x00, 0x00,
+
+            // Reserved
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // SQE DWORD 10
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+        ];
+
+        const REQ_MIC: [u8; 4] = [0x12, 0xdb, 0x3c, 0x87];
+
+        let mut req = [0u8; { 71 + 4096 + 4 }];
+        let len = req.len();
+        req[..REQ_DATA.len()].copy_from_slice(&REQ_DATA);
+        req[{ len - REQ_MIC.len() }..].copy_from_slice(&REQ_MIC);
+
+        let resp = ExpectedRespChannel::new(&RESP_INVALID_COMMAND_SIZE);
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &req, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
+    }
+
+    #[test]
+    fn attach_too_many_nsids() {
+        setup();
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a0a);
+
+        #[rustfmt::skip]
+        const REQ_DATA: [u8; 71] = [
+            0x10, 0x00, 0x00,
+            0x15, 0x00, 0x01, 0x00,
+
+            // SQE DWORD 1
+            0x01, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // DOFST
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x10, 0x00, 0x00,
+
+            // Reserved
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // SQE DWORD 10
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            0x00, 0x08, 0x00, 0x00,
+        ];
+
+        const REQ_MIC: [u8; 4] = [0x8b, 0x24, 0x56, 0x55];
+
+        let mut req = [0u8; { 71 + 4096 }];
+        let len = req.len();
+        req[..REQ_DATA.len()].copy_from_slice(&REQ_DATA);
+        req[{ len - REQ_MIC.len() }..].copy_from_slice(&REQ_MIC);
+
+        let resp = ExpectedRespChannel::new(&RESP_INVALID_COMMAND_SIZE);
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &req, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
+    }
+
+    #[test]
+    fn attach_broadcast_nsid() {
+        setup();
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a0a);
+
+        #[rustfmt::skip]
+        const REQ_DATA: [u8; 71] = [
+            0x10, 0x00, 0x00,
+            0x15, 0x00, 0x01, 0x00,
+
+            // SQE DWORD 1
+            0xff, 0xff, 0xff, 0xff,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // DOFST
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x10, 0x00, 0x00,
+
+            // Reserved
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // SQE DWORD 10
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            0x01, 0x00, 0x00, 0x00,
+        ];
+
+        const REQ_MIC: [u8; 4] = [0x21, 0xf1, 0x06, 0x35];
+
+        let mut req = [0u8; { 71 + 4096 }];
+        let len = req.len();
+        req[..REQ_DATA.len()].copy_from_slice(&REQ_DATA);
+        req[{ len - REQ_MIC.len() }..].copy_from_slice(&REQ_MIC);
+
+        let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &req, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
+    }
+
+    #[test]
+    fn attach_unrecognised_controller() {
+        setup();
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a0a);
+
+        #[rustfmt::skip]
+        const REQ_DATA: [u8; 71] = [
+            0x10, 0x00, 0x00,
+            0x15, 0x00, 0x01, 0x00,
+
+            // SQE DWORD 1
+            0x01, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // DOFST
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x10, 0x00, 0x00,
+
+            // Reserved
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // SQE DWORD 10
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            0x01, 0x00, 0x01, 0x00,
+        ];
+
+        const REQ_MIC: [u8; 4] = [0x31, 0x70, 0xa4, 0x05];
+
+        let mut req = [0u8; { 71 + 4096 }];
+        let len = req.len();
+        req[..REQ_DATA.len()].copy_from_slice(&REQ_DATA);
+        req[{ len - REQ_MIC.len() }..].copy_from_slice(&REQ_MIC);
+
+        #[rustfmt::skip]
+        const RESP: [u8; 23] = [
+            0x90, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x01, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x39, 0x82,
+            0xb4, 0x9b, 0x44, 0x14
+        ];
+
+        let resp = ExpectedRespChannel::new(&RESP);
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &req, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
+    }
+
+    #[test]
+    fn attach_already_attached() {
+        setup();
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a1a);
+
+        #[rustfmt::skip]
+        const REQ_DATA: [u8; 71] = [
+            0x10, 0x00, 0x00,
+            0x15, 0x00, 0x01, 0x00,
+
+            // SQE DWORD 1
+            0x01, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // DOFST
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x10, 0x00, 0x00,
+
+            // Reserved
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // SQE DWORD 10
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            0x01, 0x00, 0x00, 0x00,
+        ];
+
+        const REQ_MIC: [u8; 4] = [0xac, 0x85, 0xf8, 0xf9];
+
+        let mut req = [0u8; { 71 + 4096 }];
+        let len = req.len();
+        req[..REQ_DATA.len()].copy_from_slice(&REQ_DATA);
+        req[{ len - REQ_MIC.len() }..].copy_from_slice(&REQ_MIC);
+
+        #[rustfmt::skip]
+        const RESP: [u8; 23] = [
+            0x90, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x01, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x31, 0x82,
+            0x0c, 0x58, 0x50, 0x89
+        ];
+
+        let resp = ExpectedRespChannel::new(&RESP);
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &req, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
+    }
+
+    #[test]
+    fn attach() {
+        setup();
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a0a);
+
+        #[rustfmt::skip]
+        const REQ_DATA: [u8; 71] = [
+            0x10, 0x00, 0x00,
+            0x15, 0x00, 0x01, 0x00,
+
+            // SQE DWORD 1
+            0x01, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // DOFST
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x10, 0x00, 0x00,
+
+            // Reserved
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // SQE DWORD 10
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            0x01, 0x00, 0x00, 0x00,
+        ];
+
+        const REQ_MIC: [u8; 4] = [0xac, 0x85, 0xf8, 0xf9];
+
+        let mut req = [0u8; { 71 + 4096 }];
+        let len = req.len();
+        req[..REQ_DATA.len()].copy_from_slice(&REQ_DATA);
+        req[{ len - REQ_MIC.len() }..].copy_from_slice(&REQ_MIC);
+
+        #[rustfmt::skip]
+        const RESP: [u8; 23] = [
+            0x90, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x01, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x01, 0x00,
+            0x00, 0x01, 0xd3, 0xaa
+        ];
+
+        let resp = ExpectedRespChannel::new(&RESP);
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &req, MsgIC(true), resp, async |_| Ok(()))
                 .await
         });
     }

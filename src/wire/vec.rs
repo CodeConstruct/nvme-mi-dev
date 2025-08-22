@@ -13,8 +13,8 @@ use deku::{
     writer::Writer,
 };
 
-#[derive(Debug)]
-pub struct WireVec<T, const S: usize>(heapless::Vec<T, S>);
+#[derive(Debug, Eq, PartialEq)]
+pub struct WireVec<T, const S: usize>(pub heapless::Vec<T, S>);
 
 impl<T, const S: usize> WireVec<T, S> {
     pub fn new() -> Self {
