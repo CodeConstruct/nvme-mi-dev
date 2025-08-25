@@ -101,23 +101,26 @@ impl RequestHandler for MessageHeader {
         };
 
         match nmimt {
-            MessageType::NvmeMiCommand => match NvmeMiCommandRequestHeader::from_bytes((rest, 0)) {
-                Ok(((rest, _), ch)) => ch.handle(&ch, mep, subsys, rest, resp, app).await,
-                Err(err) => {
-                    debug!("Unable to parse NVMeMICommandHeader from message buffer: {err:?}");
-                    // TODO: This is a bad assumption: Can see DekuError::InvalidParam too
-                    Err(ResponseStatus::InvalidCommandSize)
+            MessageType::NvmeMiCommand => {
+                match &NvmeMiCommandRequestHeader::from_bytes((rest, 0)) {
+                    Ok(((rest, _), ch)) => ch.handle(ch, mep, subsys, rest, resp, app).await,
+                    Err(err) => {
+                        debug!("Unable to parse NVMeMICommandHeader from message buffer: {err:?}");
+                        // TODO: This is a bad assumption: Can see DekuError::InvalidParam too
+                        Err(ResponseStatus::InvalidCommandSize)
+                    }
                 }
-            },
-            MessageType::NvmeAdminCommand => match AdminCommandRequestHeader::from_bytes((rest, 0))
-            {
-                Ok(((rest, _), ch)) => ch.handle(&ch, mep, subsys, rest, resp, app).await,
-                Err(err) => {
-                    debug!("Unable to parse AdminCommandHeader from message buffer: {err:?}");
-                    // TODO: This is a bad assumption: Can see DekuError::InvalidParam too
-                    Err(ResponseStatus::InvalidCommandSize)
+            }
+            MessageType::NvmeAdminCommand => {
+                match &AdminCommandRequestHeader::from_bytes((rest, 0)) {
+                    Ok(((rest, _), ch)) => ch.handle(ch, mep, subsys, rest, resp, app).await,
+                    Err(err) => {
+                        debug!("Unable to parse AdminCommandHeader from message buffer: {err:?}");
+                        // TODO: This is a bad assumption: Can see DekuError::InvalidParam too
+                        Err(ResponseStatus::InvalidCommandSize)
+                    }
                 }
-            },
+            }
             _ => {
                 debug!("Unimplemented NMINT: {:?}", ctx.nmimt());
                 Err(ResponseStatus::InternalError)
