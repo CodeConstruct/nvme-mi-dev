@@ -11,8 +11,9 @@ creates two namespaces in a subsystem with one controller, one PCIe port, and
 one two-wire port. One of the namespaces is attached to the controller:
 
 ```rust
-use nvme_mi_dev::nvme::{
-    ManagementEndpoint, PciePort, PortType, Subsystem, SubsystemInfo, TwoWirePort,
+use nvme_mi_dev::{
+    ManagementEndpoint, PciePort, PortType, Subsystem, SubsystemInfo,
+    TwoWirePort,
 };
 
 async fn nvme_mi<'a>(router: &'a Router<'a>) -> std::io::Result<()> {
