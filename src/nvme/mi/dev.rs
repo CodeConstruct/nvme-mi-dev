@@ -10,7 +10,7 @@ use mctp::{AsyncRespChannel, MsgIC};
 
 use crate::{
     CommandEffect, CommandEffectError, Controller, ControllerError, ControllerType, Discriminant,
-    MAX_CONTROLLERS, MAX_NAMESPACES, NamespaceId, SubsystemError,
+    MAX_CONTROLLERS, MAX_NAMESPACES, NamespaceId, NamespaceIdDisposition, SubsystemError,
     nvme::{
         AdminFormatNvmConfiguration, AdminGetLogPageLidRequestType,
         AdminGetLogPageSupportedLogPagesResponse, AdminIdentifyActiveNamespaceIdListResponse,
@@ -1242,59 +1242,43 @@ impl RequestHandler for AdminIdentifyRequest {
 
         match &self.req {
             AdminIdentifyCnsRequestType::NvmIdentifyNamespace => {
-                assert!(subsys.nss.len() <= u32::MAX.try_into().unwrap());
-
-                if self.nsid == u32::MAX {
-                    let ainvminr = AdminIdentifyNvmIdentifyNamespaceResponse {
-                        lbaf0_lbads: 9, // TODO: Tie to controller model
-                        ..Default::default()
+                let ainvminr = match NamespaceId(self.nsid).disposition(subsys) {
+                    NamespaceIdDisposition::Invalid => {
+                        debug!("Invalid NSID: {}", self.nsid);
+                        Err(ResponseStatus::InvalidParameter)
                     }
-                    .encode()?;
-
-                    return admin_send_response_body(
-                        resp,
-                        admin_constrain_body(self.dofst, self.dlen, &ainvminr.0)?,
-                    )
-                    .await;
-                }
-
-                if self.nsid == 0 || self.nsid > subsys.nss.capacity() as u32 {
-                    debug!("Invalid NSID: {}", self.nsid);
-                    return Err(ResponseStatus::InvalidParameter);
-                }
-
-                let Some(ns) = subsys.nss.get(self.nsid as usize - 1) else {
-                    debug!("Unallocated NSID: {}", self.nsid);
-                    return Err(ResponseStatus::InvalidParameter);
-                };
-
-                // 4.1.5.1 NVM Command Set Spec, v1.0c
-                // TODO: Ensure the associated controller is an IO controller
-                // FIXME: Improve determination algo
-                let active = subsys
-                    .ctlrs
-                    .iter()
-                    .flat_map(|c| c.active_ns.iter())
-                    .any(|&nsid| nsid.0 == self.nsid);
-                let ainvminr = if active {
-                    AdminIdentifyNvmIdentifyNamespaceResponse {
-                        nsze: ns.size,
-                        ncap: ns.capacity,
-                        nuse: ns.used,
-                        nsfeat: ((ns.size == ns.capacity) as u8),
-                        nlbaf: 0,
-                        flbas: 0,
-                        mc: 0,
-                        dpc: 0,
-                        dps: 0,
-                        nvmcap: 2_u128.pow(ns.block_order as u32) * ns.size as u128,
-                        lbaf0: 0,
-                        lbaf0_lbads: ns.block_order,
-                        lbaf0_rp: 0,
+                    NamespaceIdDisposition::Broadcast => {
+                        Ok(AdminIdentifyNvmIdentifyNamespaceResponse {
+                            lbaf0_lbads: 9, // TODO: Tie to controller model
+                            ..Default::default()
+                        })
                     }
-                } else {
-                    AdminIdentifyNvmIdentifyNamespaceResponse::default()
-                }
+                    NamespaceIdDisposition::Unallocated => {
+                        debug!("Unallocated NSID: {}", self.nsid);
+                        Err(ResponseStatus::InvalidParameter)
+                    }
+                    NamespaceIdDisposition::Inactive(_) => {
+                        Ok(AdminIdentifyNvmIdentifyNamespaceResponse::default())
+                    }
+                    // 4.1.5.1 NVM Command Set Spec, v1.0c
+                    NamespaceIdDisposition::Active(ns) => {
+                        Ok(AdminIdentifyNvmIdentifyNamespaceResponse {
+                            nsze: ns.size,
+                            ncap: ns.capacity,
+                            nuse: ns.used,
+                            nsfeat: ((ns.size == ns.capacity) as u8),
+                            nlbaf: 0,
+                            flbas: 0,
+                            mc: 0,
+                            dpc: 0,
+                            dps: 0,
+                            nvmcap: 2_u128.pow(ns.block_order as u32) * ns.size as u128,
+                            lbaf0: 0,
+                            lbaf0_lbads: ns.block_order,
+                            lbaf0_rp: 0,
+                        })
+                    }
+                }?
                 .encode()?;
 
                 admin_send_response_body(
@@ -1358,11 +1342,7 @@ impl RequestHandler for AdminIdentifyRequest {
                     sqes: 0,
                     cqes: 0,
                     maxcmd: 0,
-                    nn: subsys
-                        .nss
-                        .capacity()
-                        .try_into()
-                        .expect("Too many namespaces"),
+                    nn: NamespaceId::max(subsys),
                     oncs: 0,
                     fuses: 0,
                     fna: ctlr.fna.into(),
@@ -1420,36 +1400,43 @@ impl RequestHandler for AdminIdentifyRequest {
             }
             AdminIdentifyCnsRequestType::NamespaceIdentificationDescriptorList => {
                 // 5.1.13.2.3, Base v2.1
-                if self.nsid >= u32::MAX - 1 {
-                    debug!("Unacceptable NSID for Namespace Identification Descriptor List");
-                    return Err(ResponseStatus::InvalidParameter);
-                }
-
-                if self.nsid == 0 || self.nsid > subsys.nss.capacity() as u32 {
-                    debug!("Invalid NSID: {}", self.nsid);
-                    return Err(ResponseStatus::InvalidParameter);
-                }
-
-                let Some(ns) = subsys.nss.get(self.nsid as usize - 1) else {
-                    debug!("Unallocated NSID: {}", self.nsid);
-                    return Err(ResponseStatus::InvalidParameter);
-                };
-
-                let ainsidlr = AdminIdentifyNamespaceIdentificationDescriptorListResponse {
-                    nids: {
-                        let mut vec = WireVec::new();
-                        for nid in &ns.nids {
-                            if vec
-                                .push(Into::<NamespaceIdentifierType>::into(*nid))
-                                .is_err()
-                            {
-                                debug!("Failed to push NID {nid:?}");
-                                return Err(ResponseStatus::InternalError);
-                            }
+                let ainsidlr = match NamespaceId(self.nsid).disposition(subsys) {
+                    NamespaceIdDisposition::Invalid => {
+                        if self.nsid == u32::MAX - 1 {
+                            debug!(
+                                "Unacceptable NSID for Namespace Identification Descriptor List"
+                            );
+                        } else {
+                            debug!("Invalid NSID: {}", self.nsid);
                         }
-                        vec
-                    },
-                }
+                        Err(ResponseStatus::InvalidParameter)
+                    }
+                    NamespaceIdDisposition::Broadcast => {
+                        debug!("Invalid NSID: {}", self.nsid);
+                        Err(ResponseStatus::InvalidParameter)
+                    }
+                    NamespaceIdDisposition::Unallocated => {
+                        debug!("Unallocated NSID: {}", self.nsid);
+                        Err(ResponseStatus::InvalidParameter)
+                    }
+                    NamespaceIdDisposition::Inactive(ns) | NamespaceIdDisposition::Active(ns) => {
+                        Ok(AdminIdentifyNamespaceIdentificationDescriptorListResponse {
+                            nids: {
+                                let mut vec = WireVec::new();
+                                for nid in &ns.nids {
+                                    if vec
+                                        .push(Into::<NamespaceIdentifierType>::into(*nid))
+                                        .is_err()
+                                    {
+                                        debug!("Failed to push NID {nid:?}");
+                                        return Err(ResponseStatus::InternalError);
+                                    }
+                                }
+                                vec
+                            },
+                        })
+                    }
+                }?
                 .encode()?;
 
                 admin_send_response_body(
@@ -1465,13 +1452,18 @@ impl RequestHandler for AdminIdentifyRequest {
                     return Err(ResponseStatus::InvalidParameter);
                 }
 
-                assert!(subsys.nss.len() < 4096 / core::mem::size_of::<u32>());
+                assert!(NamespaceId::max(subsys) < (4096 / core::mem::size_of::<u32>()) as u32);
                 let aiansidl = AdminIdentifyAllocatedNamespaceIdListResponse {
                     nsid: {
-                        let start = self.nsid + 1;
-                        let end = subsys.nss.len() as u32;
+                        let mut allocated: heapless::Vec<u32, MAX_NAMESPACES> = subsys
+                            .nss
+                            .iter()
+                            .map(|ns| ns.id.0)
+                            .filter(|nsid| *nsid > self.nsid)
+                            .collect();
+                        allocated.sort_unstable();
                         let mut vec = WireVec::new();
-                        for nsid in start..=end {
+                        for nsid in allocated {
                             if vec.push(nsid).is_err() {
                                 debug!("Failed to insert NSID {nsid}");
                                 return Err(ResponseStatus::InternalError);

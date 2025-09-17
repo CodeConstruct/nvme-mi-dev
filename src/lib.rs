@@ -413,6 +413,61 @@ pub enum NamespaceIdentifierType {
     Csi(nvme::CommandSetIdentifier),
 }
 
+// Base v2.1, 3.2.1
+// Base v2.1, 3.2.1.5, Figure 71
+#[derive(Clone, Copy, Debug)]
+enum NamespaceIdDisposition<'a> {
+    Invalid,
+    Broadcast,
+    Unallocated,
+    Inactive(&'a Namespace),
+    Active(&'a Namespace),
+}
+
+// NSID
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NamespaceId(u32);
+
+impl NamespaceId {
+    fn disposition<'a>(&self, subsys: &'a Subsystem) -> NamespaceIdDisposition<'a> {
+        if self.0 == 0 {
+            return NamespaceIdDisposition::Invalid;
+        }
+
+        if self.0 == u32::MAX {
+            return NamespaceIdDisposition::Broadcast;
+        }
+
+        assert!(subsys.nss.capacity() <= u32::MAX.try_into().unwrap());
+        if self.0 > subsys.nss.capacity() as u32 {
+            return NamespaceIdDisposition::Invalid;
+        }
+
+        let Some(ns) = subsys.nss.iter().find(|nsid| self.0 == nsid.id.0) else {
+            return NamespaceIdDisposition::Unallocated;
+        };
+
+        if !subsys
+            .ctlrs
+            .iter()
+            .flat_map(|c| c.active_ns.iter())
+            .any(|&nsid| nsid.0 == self.0)
+        {
+            return NamespaceIdDisposition::Inactive(ns);
+        }
+
+        NamespaceIdDisposition::Active(ns)
+    }
+
+    fn max(subsys: &Subsystem) -> u32 {
+        subsys
+            .nss
+            .capacity()
+            .try_into()
+            .expect("Too many namespaces")
+    }
+}
+
 #[derive(Debug)]
 pub struct Namespace {
     id: NamespaceId,
@@ -422,10 +477,6 @@ pub struct Namespace {
     block_order: u8,
     nids: [NamespaceIdentifierType; 2],
 }
-
-// NSID
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct NamespaceId(u32);
 
 impl Namespace {
     fn generate_uuid(seed: &[u8], nsid: NamespaceId) -> Uuid {
