@@ -98,6 +98,16 @@ mod identify {
     use crate::common::setup;
     use mctp::MsgIC;
 
+    #[rustfmt::skip]
+    const RESP_ADMIN_STATUS_INVALID_NAMESPACE: [u8; 23] = [
+        0x90, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x17, 0x80,
+        0xfb, 0x4e, 0x5e, 0x4f
+    ];
+
     #[test]
     fn controller_short() {
         setup();
@@ -1555,6 +1565,285 @@ mod identify {
         ];
 
         let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
+    }
+
+    #[test]
+    fn identify_namespace_for_allocated_namespace_id_invalid_nsid() {
+        setup();
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a1a);
+
+        #[rustfmt::skip]
+        const REQ: [u8; 71] = [
+            0x10, 0x00, 0x00,
+            0x06, 0x00, 0x00, 0x00,
+
+            // SQE DWORD 1
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // DOFST
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x10, 0x00, 0x00,
+
+            // Reserved
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // SQE DWORD 10
+            0x11, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // MIC
+            0xe7, 0xd2, 0xf8, 0x68
+        ];
+
+        let resp = ExpectedRespChannel::new(&RESP_ADMIN_STATUS_INVALID_NAMESPACE);
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
+    }
+
+    #[test]
+    fn identify_namespace_for_allocated_namespace_id_broadcast_nsid() {
+        setup();
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a1a);
+
+        #[rustfmt::skip]
+        const REQ: [u8; 71] = [
+            0x10, 0x00, 0x00,
+            0x06, 0x00, 0x00, 0x00,
+
+            // SQE DWORD 1
+            0xff, 0xff, 0xff, 0xff,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // DOFST
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x10, 0x00, 0x00,
+
+            // Reserved
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // SQE DWORD 10
+            0x11, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // MIC
+            0x29, 0x28, 0x0c, 0xcd
+        ];
+
+        let resp = ExpectedRespChannel::new(&RESP_ADMIN_STATUS_INVALID_NAMESPACE);
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
+    }
+
+    #[test]
+    fn identify_namespace_for_allocated_namespace_id_unallocated_nsid() {
+        setup();
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a1a);
+
+        #[rustfmt::skip]
+        const REQ: [u8; 71] = [
+            0x10, 0x00, 0x00,
+            0x06, 0x00, 0x00, 0x00,
+
+            // SQE DWORD 1
+            0x02, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // DOFST
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x10, 0x00, 0x00,
+
+            // Reserved
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // SQE DWORD 10
+            0x11, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // MIC
+            0x51, 0x9a, 0x8f, 0x83
+        ];
+
+        #[rustfmt::skip]
+        const RESP_DATA: [u8; 19] = [
+            0x90, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x01, 0x00
+        ];
+
+        const RESP_LEN: usize = 4119;
+        let mut resp: [u8; RESP_LEN] = [0; RESP_LEN];
+        resp[..RESP_DATA.len()].copy_from_slice(&RESP_DATA);
+        resp[(RESP_LEN - 4)..].copy_from_slice(&[0x87, 0xd7, 0x1f, 0xaa]);
+
+        let resp = ExpectedRespChannel::new(&resp);
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
+    }
+
+    #[test]
+    fn identify_namespace_for_allocated_namespace_id_inactive_nsid() {
+        setup();
+
+        let lbads = 9u8;
+        let blocks = 1024u64;
+        let nvmcap = (blocks as u128) * 2_u128.pow(lbads as u32);
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a0a);
+
+        #[rustfmt::skip]
+        const REQ: [u8; 71] = [
+            0x10, 0x00, 0x00,
+            0x06, 0x00, 0x00, 0x00,
+
+            // SQE DWORD 1
+            0x01, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // DOFST
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x10, 0x00, 0x00,
+
+            // Reserved
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // SQE DWORD 10
+            0x11, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // MIC
+            0xbc, 0x76, 0x43, 0x1d
+        ];
+
+        let blocks_repr = blocks.to_le_bytes();
+        let nvmcap_repr = nvmcap.to_le_bytes();
+        let lbads_repr = [lbads];
+
+        #[rustfmt::skip]
+        let resp_fields: Vec<ExpectedField> = vec![
+            // NSZE
+            (19, &blocks_repr),
+            // NCAP
+            (19+8, &blocks_repr),
+            // NVMCAP
+            (19+48, &nvmcap_repr),
+            // LBAF0_LBADS
+            (19+130, &lbads_repr)
+        ];
+
+        let resp = RelaxedRespChannel::new(resp_fields);
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
+    }
+
+    #[test]
+    fn identify_namespace_for_allocated_namespace_id_active_nsid() {
+        setup();
+
+        let lbads = 9u8;
+        let blocks = 1024u64;
+        let nvmcap = (blocks as u128) * 2_u128.pow(lbads as u32);
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a1a);
+
+        #[rustfmt::skip]
+        const REQ: [u8; 71] = [
+            0x10, 0x00, 0x00,
+            0x06, 0x00, 0x00, 0x00,
+
+            // SQE DWORD 1
+            0x01, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // DOFST
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x10, 0x00, 0x00,
+
+            // Reserved
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // SQE DWORD 10
+            0x11, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // MIC
+            0xbc, 0x76, 0x43, 0x1d
+        ];
+
+        let blocks_repr = blocks.to_le_bytes();
+        let nvmcap_repr = nvmcap.to_le_bytes();
+        let lbads_repr = [lbads];
+
+        #[rustfmt::skip]
+        let resp_fields: Vec<ExpectedField> = vec![
+            // NSZE
+            (19, &blocks_repr),
+            // NCAP
+            (19+8, &blocks_repr),
+            // NVMCAP
+            (19+48, &nvmcap_repr),
+            // LBAF0_LBADS
+            (19+130, &lbads_repr)
+        ];
+
+        let resp = RelaxedRespChannel::new(resp_fields);
         smol::block_on(async {
             mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
                 .await

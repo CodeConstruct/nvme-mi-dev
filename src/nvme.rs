@@ -108,6 +108,7 @@ enum AdminIoCqeGenericCommandStatus {
     SuccessfulCompletion = 0x00,
     InvalidFieldInCommand = 0x02,
     InternalError = 0x06,
+    InvalidNamespaceOrFormat = 0x0b,
 }
 unsafe impl Discriminant<u8> for AdminIoCqeGenericCommandStatus {}
 
@@ -384,6 +385,7 @@ enum AdminIdentifyCnsRequestType {
     IoActiveNamespaceIdList = 0x07,
     IdentifyNamespace = 0x08,
     AllocatedNamespaceIdList = 0x10,
+    IdentifyNamespaceForAllocatedNamespaceId = 0x11,
     NvmSubsystemControllerList = 0x13,
     SecondaryControllerList = 0x15,
 }
@@ -412,6 +414,26 @@ pub struct AdminIdentifyNvmIdentifyNamespaceResponse {
     lbaf0_rp: u8,
 }
 impl Encode<4096> for AdminIdentifyNvmIdentifyNamespaceResponse {}
+
+impl From<&crate::Namespace> for AdminIdentifyNvmIdentifyNamespaceResponse {
+    fn from(value: &crate::Namespace) -> Self {
+        Self {
+            nsze: value.size,
+            ncap: value.capacity,
+            nuse: value.used,
+            nsfeat: ((value.size == value.capacity) as u8),
+            nlbaf: 0,
+            flbas: 0,
+            mc: 0,
+            dpc: 0,
+            dps: 0,
+            nvmcap: 2_u128.pow(value.block_order as u32) * value.size as u128,
+            lbaf0: 0,
+            lbaf0_lbads: value.block_order,
+            lbaf0_rp: 0,
+        }
+    }
+}
 
 // Base v2.1, 5.1.13.1, Figure 311
 #[derive(Clone, Copy, Debug, DekuRead, DekuWrite)]

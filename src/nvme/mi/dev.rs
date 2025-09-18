@@ -1261,23 +1261,7 @@ impl RequestHandler for AdminIdentifyRequest {
                         Ok(AdminIdentifyNvmIdentifyNamespaceResponse::default())
                     }
                     // 4.1.5.1 NVM Command Set Spec, v1.0c
-                    NamespaceIdDisposition::Active(ns) => {
-                        Ok(AdminIdentifyNvmIdentifyNamespaceResponse {
-                            nsze: ns.size,
-                            ncap: ns.capacity,
-                            nuse: ns.used,
-                            nsfeat: ((ns.size == ns.capacity) as u8),
-                            nlbaf: 0,
-                            flbas: 0,
-                            mc: 0,
-                            dpc: 0,
-                            dps: 0,
-                            nvmcap: 2_u128.pow(ns.block_order as u32) * ns.size as u128,
-                            lbaf0: 0,
-                            lbaf0_lbads: ns.block_order,
-                            lbaf0_rp: 0,
-                        })
-                    }
+                    NamespaceIdDisposition::Active(ns) => Ok(ns.into()),
                 }?
                 .encode()?;
 
@@ -1479,6 +1463,37 @@ impl RequestHandler for AdminIdentifyRequest {
                     admin_constrain_body(self.dofst, self.dlen, &aiansidl.0)?,
                 )
                 .await
+            }
+            AdminIdentifyCnsRequestType::IdentifyNamespaceForAllocatedNamespaceId => {
+                // Base v2.1, 5.1.13.2.10
+                match match NamespaceId(self.nsid).disposition(subsys) {
+                    NamespaceIdDisposition::Invalid | NamespaceIdDisposition::Broadcast => {
+                        Err(AdminIoCqeGenericCommandStatus::InvalidNamespaceOrFormat)
+                    }
+                    NamespaceIdDisposition::Unallocated => {
+                        AdminIdentifyNvmIdentifyNamespaceResponse::default()
+                            .encode()
+                            .map_err(AdminIoCqeGenericCommandStatus::from)
+                    }
+                    NamespaceIdDisposition::Inactive(ns) | NamespaceIdDisposition::Active(ns) => {
+                        let ainvminr: AdminIdentifyNvmIdentifyNamespaceResponse = ns.into();
+                        ainvminr
+                            .encode()
+                            .map_err(AdminIoCqeGenericCommandStatus::from)
+                    }
+                } {
+                    Ok(response) => {
+                        admin_send_response_body(
+                            resp,
+                            admin_constrain_body(self.dofst, self.dlen, &response.0)?,
+                        )
+                        .await
+                    }
+                    Err(err) => {
+                        admin_send_status(resp, AdminIoCqeStatusType::GenericCommandStatus(err))
+                            .await
+                    }
+                }
             }
             AdminIdentifyCnsRequestType::NvmSubsystemControllerList => {
                 assert!(
