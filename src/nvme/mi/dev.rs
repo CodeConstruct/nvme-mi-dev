@@ -936,7 +936,10 @@ where
     Ok(())
 }
 
-async fn admin_send_invalid_field<C>(resp: &mut C) -> Result<(), ResponseStatus>
+async fn admin_send_status<C>(
+    resp: &mut C,
+    status: AdminIoCqeStatusType,
+) -> Result<(), ResponseStatus>
 where
     C: AsyncRespChannel,
 {
@@ -949,9 +952,7 @@ where
         cqedw3: AdminIoCqeStatus {
             cid: 0,
             p: true,
-            status: AdminIoCqeStatusType::GenericCommandStatus(
-                AdminIoCqeGenericCommandStatus::InvalidFieldInCommand,
-            ),
+            status,
             crd: crate::nvme::CommandRetryDelay::None,
             m: false,
             dnr: true,
@@ -1019,7 +1020,13 @@ impl RequestHandler for AdminGetLogPageRequest {
             if flags.contains(LidSupportedAndEffectsFlags::Ios) {
                 todo!("Add OT support");
             } else {
-                return admin_send_invalid_field(resp).await;
+                return admin_send_status(
+                    resp,
+                    AdminIoCqeStatusType::GenericCommandStatus(
+                        AdminIoCqeGenericCommandStatus::InvalidFieldInCommand,
+                    ),
+                )
+                .await;
             }
         }
 
@@ -1079,14 +1086,26 @@ impl RequestHandler for AdminGetLogPageRequest {
                 // Base v2.1, 5.1.2, Figure 199
                 let lpol = self.lpo & !3u64;
                 if lpol > 512 {
-                    return admin_send_invalid_field(resp).await;
+                    return admin_send_status(
+                        resp,
+                        AdminIoCqeStatusType::GenericCommandStatus(
+                            AdminIoCqeGenericCommandStatus::InvalidFieldInCommand,
+                        ),
+                    )
+                    .await;
                 }
 
                 if self.nsid != 0 && self.nsid != u32::MAX {
                     if ctlr.lpa.contains(LogPageAttributes::Smarts) {
                         todo!();
                     } else {
-                        return admin_send_invalid_field(resp).await;
+                        return admin_send_status(
+                            resp,
+                            AdminIoCqeStatusType::GenericCommandStatus(
+                                AdminIoCqeGenericCommandStatus::InvalidFieldInCommand,
+                            ),
+                        )
+                        .await;
                     }
                 }
 
