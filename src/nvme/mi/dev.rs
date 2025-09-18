@@ -1454,7 +1454,7 @@ impl RequestHandler for AdminIdentifyRequest {
                         let mut vec = WireVec::new();
                         for nsid in start..=end {
                             if vec.push(nsid).is_err() {
-                                debug!("Failed to inset NSID {nsid}");
+                                debug!("Failed to insert NSID {nsid}");
                                 return Err(ResponseStatus::InternalError);
                             };
                         }
