@@ -85,7 +85,7 @@ enum CommandRetryDelay {
 }
 unsafe impl Discriminant<u8> for CommandRetryDelay {}
 
-// Base v2.1, 4.3.2, Figure 101
+// Base v2.1, 4.2.3, Figure 101
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u8)]
 enum AdminIoCqeStatusType {
