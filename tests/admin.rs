@@ -35,6 +35,16 @@ const RESP_ADMIN_SUCCESS: [u8; 23] = [
     0x30, 0xd5, 0xa2, 0x9b
 ];
 
+#[rustfmt::skip]
+const RESP_ADMIN_STATUS_INVALID_FIELD: [u8; 23] = [
+    0x90, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x05, 0x80,
+    0x94, 0x8f, 0xde, 0x57,
+];
+
 mod prohibited {
     use super::RESP_INVALID_COMMAND;
     use crate::common::{DeviceType, ExpectedRespChannel, new_device, setup};
@@ -89,6 +99,7 @@ mod prohibited {
 mod identify {
     use super::RESP_INVALID_COMMAND_SIZE;
     use super::RESP_INVALID_PARAMETER;
+    use crate::RESP_ADMIN_STATUS_INVALID_FIELD;
     use crate::common::DeviceType;
     use crate::common::ExpectedField;
     use crate::common::ExpectedRespChannel;
@@ -1851,6 +1862,331 @@ mod identify {
     }
 
     #[test]
+    fn namespace_attached_controller_list_invalid_nsid() {
+        setup();
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a1a);
+
+        #[rustfmt::skip]
+        const REQ: [u8; 71] = [
+            0x10, 0x00, 0x00,
+            0x06, 0x00, 0x00, 0x00,
+
+            // SQE DWORD 1
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // DOFST
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x10, 0x00, 0x00,
+
+            // Reserved
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // SQE DWORD 10
+            0x12, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // MIC
+            0x84, 0xe3, 0xc4, 0xa3
+        ];
+
+        #[rustfmt::skip]
+        const RESP_DATA: [u8; 19] = [
+            0x90, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x01, 0x00
+        ];
+
+        const RESP_LEN: usize = 4119;
+        let mut resp: [u8; RESP_LEN] = [0; RESP_LEN];
+        resp[..RESP_DATA.len()].copy_from_slice(&RESP_DATA);
+        resp[(RESP_LEN - 4)..].copy_from_slice(&[0x87, 0xd7, 0x1f, 0xaa]);
+
+        let resp = ExpectedRespChannel::new(&resp);
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
+    }
+
+    #[test]
+    fn namespace_attached_controller_list_broadcast_nsid() {
+        setup();
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a1a);
+
+        #[rustfmt::skip]
+        const REQ: [u8; 71] = [
+            0x10, 0x00, 0x00,
+            0x06, 0x00, 0x00, 0x00,
+
+            // SQE DWORD 1
+            0xff, 0xff, 0xff, 0xff,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // DOFST
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x10, 0x00, 0x00,
+
+            // Reserved
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // SQE DWORD 10
+            0x12, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // MIC
+            0x4a, 0x19, 0x30, 0x06
+        ];
+
+        let resp = ExpectedRespChannel::new(&RESP_ADMIN_STATUS_INVALID_FIELD);
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
+    }
+
+    #[test]
+    fn namespace_attached_controller_list_unallocated_nsid() {
+        setup();
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a1a);
+
+        #[rustfmt::skip]
+        const REQ: [u8; 71] = [
+            0x10, 0x00, 0x00,
+            0x06, 0x00, 0x00, 0x00,
+
+            // SQE DWORD 1
+            0x02, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // DOFST
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x10, 0x00, 0x00,
+
+            // Reserved
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // SQE DWORD 10
+            0x12, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // MIC
+            0x32, 0xab, 0xb3, 0x48
+        ];
+
+        #[rustfmt::skip]
+        const RESP_DATA: [u8; 19] = [
+            0x90, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x01, 0x00
+        ];
+
+        const RESP_LEN: usize = 4119;
+        let mut resp: [u8; RESP_LEN] = [0; RESP_LEN];
+        resp[..RESP_DATA.len()].copy_from_slice(&RESP_DATA);
+        resp[(RESP_LEN - 4)..].copy_from_slice(&[0x87, 0xd7, 0x1f, 0xaa]);
+
+        let resp = ExpectedRespChannel::new(&resp);
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
+    }
+
+    #[test]
+    fn namespace_attached_controller_list_inactive_nsid() {
+        setup();
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a0a);
+
+        #[rustfmt::skip]
+        const REQ: [u8; 71] = [
+            0x10, 0x00, 0x00,
+            0x06, 0x00, 0x00, 0x00,
+
+            // SQE DWORD 1
+            0x01, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // DOFST
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x10, 0x00, 0x00,
+
+            // Reserved
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // SQE DWORD 10
+            0x12, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // MIC
+            0xdf, 0x47, 0x7f, 0xd6
+        ];
+
+        #[rustfmt::skip]
+        const RESP_DATA: [u8; 19] = [
+            0x90, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x01, 0x00
+        ];
+
+        const RESP_LEN: usize = 4119;
+        let mut resp: [u8; RESP_LEN] = [0; RESP_LEN];
+        resp[..RESP_DATA.len()].copy_from_slice(&RESP_DATA);
+        resp[(RESP_LEN - 4)..].copy_from_slice(&[0x87, 0xd7, 0x1f, 0xaa]);
+
+        let resp = ExpectedRespChannel::new(&resp);
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
+    }
+
+    #[test]
+    fn namespace_attached_controller_list_active_nsid_unconstrained() {
+        setup();
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a1a);
+
+        #[rustfmt::skip]
+        const REQ: [u8; 71] = [
+            0x10, 0x00, 0x00,
+            0x06, 0x00, 0x00, 0x00,
+
+            // SQE DWORD 1
+            0x01, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // DOFST
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x10, 0x00, 0x00,
+
+            // Reserved
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // SQE DWORD 10
+            0x12, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // MIC
+            0xdf, 0x47, 0x7f, 0xd6
+        ];
+
+        #[rustfmt::skip]
+        let resp_fields: Vec<ExpectedField> = vec![
+            (0, &[0x90]),
+            (19, &[1, 0]),
+            (19 + 2, &[0, 0]),
+        ];
+
+        let resp = RelaxedRespChannel::new(resp_fields);
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
+    }
+
+    #[test]
+    fn namespace_attached_controller_list_active_nsid_constrained() {
+        setup();
+
+        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN1a1a);
+
+        #[rustfmt::skip]
+        const REQ: [u8; 71] = [
+            0x10, 0x00, 0x00,
+            0x06, 0x00, 0x00, 0x00,
+
+            // SQE DWORD 1
+            0x01, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // DOFST
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x10, 0x00, 0x00,
+
+            // Reserved
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // SQE DWORD 10
+            0x12, 0x00, 0x01, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+
+            // MIC
+            0x6b, 0xa9, 0x6a, 0x8a
+        ];
+
+        #[rustfmt::skip]
+        let resp_fields: Vec<ExpectedField> = vec![
+            (0, &[0x90]),
+            (19, &[0, 0]),
+        ];
+
+        let resp = RelaxedRespChannel::new(resp_fields);
+        smol::block_on(async {
+            mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
+                .await
+        });
+    }
+
+    #[test]
     fn secondary_controller_list() {
         setup();
 
@@ -1909,23 +2245,11 @@ mod get_log_page {
     };
 
     use crate::{
-        RESP_INVALID_COMMAND_SIZE, RESP_INVALID_PARAMETER,
+        RESP_ADMIN_STATUS_INVALID_FIELD, RESP_INVALID_COMMAND_SIZE, RESP_INVALID_PARAMETER,
         common::{
             DeviceType, ExpectedField, ExpectedRespChannel, RelaxedRespChannel, new_device, setup,
         },
     };
-
-    // Base v2.1, 5.1.12
-    // Admin command response with SCT / SC set
-    #[rustfmt::skip]
-    const RESP_ADMIN_STATUS_INVALID_FIELD: [u8; 23] = [
-        0x90, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x05, 0x80,
-        0x94, 0x8f, 0xde, 0x57,
-    ];
 
     #[test]
     fn get_supported_log_pages_short() {

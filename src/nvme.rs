@@ -386,6 +386,7 @@ enum AdminIdentifyCnsRequestType {
     IdentifyNamespace = 0x08,
     AllocatedNamespaceIdList = 0x10,
     IdentifyNamespaceForAllocatedNamespaceId = 0x11,
+    NamespaceAttachedControllerList = 0x12,
     NvmSubsystemControllerList = 0x13,
     SecondaryControllerList = 0x15,
 }

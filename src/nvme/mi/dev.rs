@@ -1495,6 +1495,50 @@ impl RequestHandler for AdminIdentifyRequest {
                     }
                 }
             }
+            AdminIdentifyCnsRequestType::NamespaceAttachedControllerList => {
+                match match NamespaceId(self.nsid).disposition(subsys) {
+                    NamespaceIdDisposition::Invalid => ControllerListResponse::new()
+                        .encode()
+                        .map_err(AdminIoCqeGenericCommandStatus::from),
+                    NamespaceIdDisposition::Broadcast => {
+                        Err(AdminIoCqeGenericCommandStatus::InvalidFieldInCommand)
+                    }
+                    NamespaceIdDisposition::Unallocated | NamespaceIdDisposition::Inactive(_) => {
+                        ControllerListResponse::new()
+                            .encode()
+                            .map_err(AdminIoCqeGenericCommandStatus::from)
+                    }
+                    NamespaceIdDisposition::Active(ns) => {
+                        let mut clr = ControllerListResponse::new();
+                        for cid in subsys.ctlrs.iter().filter_map(|c| {
+                            if c.id.0 >= self.cntid && c.active_ns.contains(&ns.id) {
+                                Some(c.id)
+                            } else {
+                                None
+                            }
+                        }) {
+                            if let Err(id) = clr.ids.push(cid.0) {
+                                debug!("Failed to push controller ID {id}");
+                                return Err(ResponseStatus::InternalError);
+                            }
+                        }
+                        clr.update()?;
+                        clr.encode().map_err(AdminIoCqeGenericCommandStatus::from)
+                    }
+                } {
+                    Ok(response) => {
+                        admin_send_response_body(
+                            resp,
+                            admin_constrain_body(self.dofst, self.dlen, &response.0)?,
+                        )
+                        .await
+                    }
+                    Err(status) => {
+                        admin_send_status(resp, AdminIoCqeStatusType::GenericCommandStatus(status))
+                            .await
+                    }
+                }
+            }
             AdminIdentifyCnsRequestType::NvmSubsystemControllerList => {
                 assert!(
                     subsys.ctlrs.len() <= 2047,
