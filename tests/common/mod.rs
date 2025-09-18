@@ -100,10 +100,10 @@ impl mctp::AsyncRespChannel for ExpectedRespChannel<'_> {
     async fn send_vectored(&mut self, _integrity_check: MsgIC, bufs: &[&[u8]]) -> mctp::Result<()> {
         self.sent = true;
 
-        assert!(
-            self.resp.is_empty() == bufs.iter().all(|b| b.is_empty()),
-            "Failed emptiness consensus:\n\tExpected: {:02x?}\n\tFound: {bufs:02x?}",
-            self.resp
+        assert_eq!(
+            self.resp.is_empty(),
+            bufs.iter().all(|b| b.is_empty()),
+            "Failed emptiness consensus"
         );
         assert_eq!(bufs.iter().map(|b| b.len()).sum::<usize>(), self.resp.len());
         assert!(
