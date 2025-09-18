@@ -5,8 +5,9 @@
 pub mod mi;
 
 use deku::ctx::Endian;
-use deku::{DekuRead, DekuWrite, deku_derive};
+use deku::{DekuError, DekuRead, DekuWrite, deku_derive};
 use flagset::flags;
+use log::debug;
 
 use crate::wire::WireFlagSet;
 use crate::wire::WireString;
@@ -106,8 +107,16 @@ unsafe impl Discriminant<u8> for AdminIoCqeStatusType {}
 enum AdminIoCqeGenericCommandStatus {
     SuccessfulCompletion = 0x00,
     InvalidFieldInCommand = 0x02,
+    InternalError = 0x06,
 }
 unsafe impl Discriminant<u8> for AdminIoCqeGenericCommandStatus {}
+
+impl From<DekuError> for AdminIoCqeGenericCommandStatus {
+    fn from(err: DekuError) -> Self {
+        debug!("Codec operation failed: {err}");
+        Self::InternalError
+    }
+}
 
 // Base v2.1, 4.6.1, Figure 137
 // TODO: Unify with ControllerListResponse
