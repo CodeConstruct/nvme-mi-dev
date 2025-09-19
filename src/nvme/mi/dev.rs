@@ -1242,34 +1242,47 @@ impl RequestHandler for AdminIdentifyRequest {
 
         match &self.req {
             AdminIdentifyCnsRequestType::NvmIdentifyNamespace => {
-                let ainvminr = match NamespaceId(self.nsid).disposition(subsys) {
+                match match NamespaceId(self.nsid).disposition(subsys) {
                     NamespaceIdDisposition::Invalid => {
                         debug!("Invalid NSID: {}", self.nsid);
-                        Err(ResponseStatus::InvalidParameter)
+                        Err(AdminIoCqeGenericCommandStatus::InvalidNamespaceOrFormat)
                     }
                     NamespaceIdDisposition::Broadcast => {
-                        Ok(AdminIdentifyNvmIdentifyNamespaceResponse {
+                        AdminIdentifyNvmIdentifyNamespaceResponse {
                             lbaf0_lbads: 9, // TODO: Tie to controller model
                             ..Default::default()
-                        })
+                        }
+                        .encode()
+                        .map_err(AdminIoCqeGenericCommandStatus::from)
                     }
                     NamespaceIdDisposition::Unallocated => {
                         debug!("Unallocated NSID: {}", self.nsid);
-                        Err(ResponseStatus::InvalidParameter)
+                        Err(AdminIoCqeGenericCommandStatus::InvalidNamespaceOrFormat)
                     }
                     NamespaceIdDisposition::Inactive(_) => {
-                        Ok(AdminIdentifyNvmIdentifyNamespaceResponse::default())
+                        AdminIdentifyNvmIdentifyNamespaceResponse::default()
+                            .encode()
+                            .map_err(AdminIoCqeGenericCommandStatus::from)
                     }
                     // 4.1.5.1 NVM Command Set Spec, v1.0c
-                    NamespaceIdDisposition::Active(ns) => Ok(ns.into()),
-                }?
-                .encode()?;
-
-                admin_send_response_body(
-                    resp,
-                    admin_constrain_body(self.dofst, self.dlen, &ainvminr.0)?,
-                )
-                .await
+                    NamespaceIdDisposition::Active(ns) => {
+                        Into::<AdminIdentifyNvmIdentifyNamespaceResponse>::into(ns)
+                            .encode()
+                            .map_err(AdminIoCqeGenericCommandStatus::from)
+                    }
+                } {
+                    Ok(response) => {
+                        admin_send_response_body(
+                            resp,
+                            admin_constrain_body(self.dofst, self.dlen, &response.0)?,
+                        )
+                        .await
+                    }
+                    Err(err) => {
+                        admin_send_status(resp, AdminIoCqeStatusType::GenericCommandStatus(err))
+                            .await
+                    }
+                }
             }
             AdminIdentifyCnsRequestType::IdentifyController => {
                 let Some(ctlr) = subsys.ctlrs.get(ctx.ctlid as usize) else {
@@ -1343,13 +1356,22 @@ impl RequestHandler for AdminIdentifyRequest {
                     apsta: 0,
                     sanicap: subsys.sanicap.into(),
                 }
-                .encode()?;
+                .encode()
+                .map_err(AdminIoCqeGenericCommandStatus::from);
 
-                admin_send_response_body(
-                    resp,
-                    admin_constrain_body(self.dofst, self.dlen, &aicr.0)?,
-                )
-                .await
+                match aicr {
+                    Ok(response) => {
+                        admin_send_response_body(
+                            resp,
+                            admin_constrain_body(self.dofst, self.dlen, &response.0)?,
+                        )
+                        .await
+                    }
+                    Err(err) => {
+                        admin_send_status(resp, AdminIoCqeStatusType::GenericCommandStatus(err))
+                            .await
+                    }
+                }
             }
             AdminIdentifyCnsRequestType::ActiveNamespaceIDList => {
                 // 5.1.13.2.2, Base v2.1
@@ -1374,17 +1396,27 @@ impl RequestHandler for AdminIdentifyRequest {
                         return Err(ResponseStatus::InternalError);
                     };
                 }
-                let aianidlr = aianidlr.encode()?;
+                let aianidlr = aianidlr
+                    .encode()
+                    .map_err(AdminIoCqeGenericCommandStatus::from);
 
-                admin_send_response_body(
-                    resp,
-                    admin_constrain_body(self.dofst, self.dlen, &aianidlr.0)?,
-                )
-                .await
+                match aianidlr {
+                    Ok(response) => {
+                        admin_send_response_body(
+                            resp,
+                            admin_constrain_body(self.dofst, self.dlen, &response.0)?,
+                        )
+                        .await
+                    }
+                    Err(err) => {
+                        admin_send_status(resp, AdminIoCqeStatusType::GenericCommandStatus(err))
+                            .await
+                    }
+                }
             }
             AdminIdentifyCnsRequestType::NamespaceIdentificationDescriptorList => {
                 // 5.1.13.2.3, Base v2.1
-                let ainsidlr = match NamespaceId(self.nsid).disposition(subsys) {
+                match match NamespaceId(self.nsid).disposition(subsys) {
                     NamespaceIdDisposition::Invalid => {
                         if self.nsid == u32::MAX - 1 {
                             debug!(
@@ -1393,18 +1425,18 @@ impl RequestHandler for AdminIdentifyRequest {
                         } else {
                             debug!("Invalid NSID: {}", self.nsid);
                         }
-                        Err(ResponseStatus::InvalidParameter)
+                        Err(AdminIoCqeGenericCommandStatus::InvalidNamespaceOrFormat)
                     }
                     NamespaceIdDisposition::Broadcast => {
                         debug!("Invalid NSID: {}", self.nsid);
-                        Err(ResponseStatus::InvalidParameter)
+                        Err(AdminIoCqeGenericCommandStatus::InvalidNamespaceOrFormat)
                     }
                     NamespaceIdDisposition::Unallocated => {
                         debug!("Unallocated NSID: {}", self.nsid);
-                        Err(ResponseStatus::InvalidParameter)
+                        Err(AdminIoCqeGenericCommandStatus::InvalidNamespaceOrFormat)
                     }
                     NamespaceIdDisposition::Inactive(ns) | NamespaceIdDisposition::Active(ns) => {
-                        Ok(AdminIdentifyNamespaceIdentificationDescriptorListResponse {
+                        AdminIdentifyNamespaceIdentificationDescriptorListResponse {
                             nids: {
                                 let mut vec = WireVec::new();
                                 for nid in &ns.nids {
@@ -1418,16 +1450,23 @@ impl RequestHandler for AdminIdentifyRequest {
                                 }
                                 vec
                             },
-                        })
+                        }
+                        .encode()
+                        .map_err(AdminIoCqeGenericCommandStatus::from)
                     }
-                }?
-                .encode()?;
-
-                admin_send_response_body(
-                    resp,
-                    admin_constrain_body(self.dofst, self.dlen, &ainsidlr.0)?,
-                )
-                .await
+                } {
+                    Ok(response) => {
+                        admin_send_response_body(
+                            resp,
+                            admin_constrain_body(self.dofst, self.dlen, &response.0)?,
+                        )
+                        .await
+                    }
+                    Err(err) => {
+                        admin_send_status(resp, AdminIoCqeStatusType::GenericCommandStatus(err))
+                            .await
+                    }
+                }
             }
             AdminIdentifyCnsRequestType::AllocatedNamespaceIdList => {
                 // 5.1.13.2.9, Base v2.1
@@ -1456,13 +1495,22 @@ impl RequestHandler for AdminIdentifyRequest {
                         vec
                     },
                 }
-                .encode()?;
+                .encode()
+                .map_err(AdminIoCqeGenericCommandStatus::from);
 
-                admin_send_response_body(
-                    resp,
-                    admin_constrain_body(self.dofst, self.dlen, &aiansidl.0)?,
-                )
-                .await
+                match aiansidl {
+                    Ok(response) => {
+                        admin_send_response_body(
+                            resp,
+                            admin_constrain_body(self.dofst, self.dlen, &response.0)?,
+                        )
+                        .await
+                    }
+                    Err(err) => {
+                        admin_send_status(resp, AdminIoCqeStatusType::GenericCommandStatus(err))
+                            .await
+                    }
+                }
             }
             AdminIdentifyCnsRequestType::IdentifyNamespaceForAllocatedNamespaceId => {
                 // Base v2.1, 5.1.13.2.10
@@ -1553,10 +1601,19 @@ impl RequestHandler for AdminIdentifyRequest {
                     };
                 }
                 cl.update()?;
-                let cl = cl.encode()?;
-
-                admin_send_response_body(resp, admin_constrain_body(self.dofst, self.dlen, &cl.0)?)
-                    .await
+                match cl.encode().map_err(AdminIoCqeGenericCommandStatus::from) {
+                    Ok(response) => {
+                        admin_send_response_body(
+                            resp,
+                            admin_constrain_body(self.dofst, self.dlen, &response.0)?,
+                        )
+                        .await
+                    }
+                    Err(status) => {
+                        admin_send_status(resp, AdminIoCqeStatusType::GenericCommandStatus(status))
+                            .await
+                    }
+                }
             }
             AdminIdentifyCnsRequestType::SecondaryControllerList => {
                 let Some(ctlr) = subsys.ctlrs.get(ctx.ctlid as usize) else {

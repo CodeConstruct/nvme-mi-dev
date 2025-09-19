@@ -633,7 +633,7 @@ mod identify {
             0x12, 0x14, 0x1c, 0x57
         ];
 
-        let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
+        let resp = ExpectedRespChannel::new(&RESP_ADMIN_STATUS_INVALID_NAMESPACE);
         smol::block_on(async {
             mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
                 .await
@@ -724,7 +724,7 @@ mod identify {
             0x49, 0xb0, 0xa7, 0x22
         ];
 
-        let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
+        let resp = ExpectedRespChannel::new(&RESP_ADMIN_STATUS_INVALID_NAMESPACE);
         smol::block_on(async {
             mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
                 .await
@@ -1078,7 +1078,7 @@ mod identify {
             0xe4, 0x7b, 0x6f, 0x4c
         ];
 
-        let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
+        let resp = ExpectedRespChannel::new(&RESP_ADMIN_STATUS_INVALID_NAMESPACE);
         smol::block_on(async {
             mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
                 .await
@@ -1123,7 +1123,7 @@ mod identify {
             0xbf, 0xdf, 0xd4, 0x39
         ];
 
-        let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
+        let resp = ExpectedRespChannel::new(&RESP_ADMIN_STATUS_INVALID_NAMESPACE);
         smol::block_on(async {
             mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
                 .await
@@ -1168,7 +1168,7 @@ mod identify {
             0x71, 0x25, 0x20, 0x9c
         ];
 
-        let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
+        let resp = ExpectedRespChannel::new(&RESP_ADMIN_STATUS_INVALID_NAMESPACE);
         smol::block_on(async {
             mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
                 .await
@@ -1213,7 +1213,7 @@ mod identify {
             0x9c, 0xc9, 0xec, 0x02
         ];
 
-        let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
+        let resp = ExpectedRespChannel::new(&RESP_ADMIN_STATUS_INVALID_NAMESPACE);
         smol::block_on(async {
             mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
                 .await
@@ -1258,7 +1258,7 @@ mod identify {
             0xc7, 0x6d, 0x57, 0x77
         ];
 
-        let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
+        let resp = ExpectedRespChannel::new(&RESP_ADMIN_STATUS_INVALID_NAMESPACE);
         smol::block_on(async {
             mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
                 .await
