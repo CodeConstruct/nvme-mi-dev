@@ -1240,9 +1240,9 @@ impl RequestHandler for AdminIdentifyRequest {
             return Err(ResponseStatus::InvalidCommandSize);
         }
 
-        match &self.req {
+        let res = match &self.req {
             AdminIdentifyCnsRequestType::NvmIdentifyNamespace => {
-                match match NamespaceId(self.nsid).disposition(subsys) {
+                match NamespaceId(self.nsid).disposition(subsys) {
                     NamespaceIdDisposition::Invalid => {
                         debug!("Invalid NSID: {}", self.nsid);
                         Err(AdminIoCqeGenericCommandStatus::InvalidNamespaceOrFormat)
@@ -1270,107 +1270,81 @@ impl RequestHandler for AdminIdentifyRequest {
                             .encode()
                             .map_err(AdminIoCqeGenericCommandStatus::from)
                     }
-                } {
-                    Ok(response) => {
-                        admin_send_response_body(
-                            resp,
-                            admin_constrain_body(self.dofst, self.dlen, &response.0)?,
-                        )
-                        .await
-                    }
-                    Err(err) => {
-                        admin_send_status(resp, AdminIoCqeStatusType::GenericCommandStatus(err))
-                            .await
-                    }
                 }
             }
             AdminIdentifyCnsRequestType::IdentifyController => {
-                let Some(ctlr) = subsys.ctlrs.get(ctx.ctlid as usize) else {
-                    debug!("No such CTLID: {}", ctx.ctlid);
-                    return Err(ResponseStatus::InvalidParameter);
-                };
-
-                let aicr = AdminIdentifyControllerResponse {
-                    vid: subsys.info.pci_vid,
-                    ssvid: subsys.info.pci_svid,
-                    sn: WireString::from(subsys.sn)?,
-                    mn: WireString::from(subsys.mn)?,
-                    fr: WireString::from(subsys.fr)?,
-                    rab: 0,
-                    ieee: {
-                        // 4.5.3, Base v2.1
-                        let mut fixup = subsys.info.ieee_oui;
-                        fixup.reverse();
-                        fixup
-                    },
-                    cmic: ((subsys.ctlrs.len() > 1) as u8) << 1 // MCTRS
+                if let Some(ctlr) = subsys.ctlrs.get(ctx.ctlid as usize) {
+                    AdminIdentifyControllerResponse {
+                        vid: subsys.info.pci_vid,
+                        ssvid: subsys.info.pci_svid,
+                        sn: WireString::from(subsys.sn)?,
+                        mn: WireString::from(subsys.mn)?,
+                        fr: WireString::from(subsys.fr)?,
+                        rab: 0,
+                        ieee: {
+                            // 4.5.3, Base v2.1
+                            let mut fixup = subsys.info.ieee_oui;
+                            fixup.reverse();
+                            fixup
+                        },
+                        cmic: ((subsys.ctlrs.len() > 1) as u8) << 1 // MCTRS
                         | ((subsys.ports.len() > 1) as u8), // MPORTS
-                    mdts: 0,
-                    cntlid: ctlr.id.0,
-                    ver: 0,
-                    rtd3r: 0,
-                    rtd3e: 0,
-                    oaes: 0,
-                    // TODO: Tie to data model
-                    ctratt: ((false as u32) << 14) // DNVMS
+                        mdts: 0,
+                        cntlid: ctlr.id.0,
+                        ver: 0,
+                        rtd3r: 0,
+                        rtd3e: 0,
+                        oaes: 0,
+                        // TODO: Tie to data model
+                        ctratt: ((false as u32) << 14) // DNVMS
                         | ((false as u32) << 13) // DEG
                         | ((false as u32) << 4) // EGS
                         | ((false as u32) << 2), // NSETS
-                    cntrltype: ctlr.cntrltype.into(),
-                    // TODO: Tie to data model
-                    nvmsr: ((false as u8) << 1) // NVMEE
+                        cntrltype: ctlr.cntrltype.into(),
+                        // TODO: Tie to data model
+                        nvmsr: ((false as u8) << 1) // NVMEE
                         | (true as u8), // NVMESD
-                    vwci: 0,
-                    mec: ((subsys.ports.iter().any(|p| matches!(p.typ, crate::PortType::Pcie(_)))) as u8) << 1 // PCIEME
+                        vwci: 0,
+                        mec: ((subsys.ports.iter().any(|p| matches!(p.typ, crate::PortType::Pcie(_)))) as u8) << 1 // PCIEME
                         | (subsys.ports.iter().any(|p| matches!(p.typ, crate::PortType::TwoWire(_)))) as u8, // TWPME
-                    ocas: 0,
-                    acl: 0,
-                    aerl: 0,
-                    frmw: 0,
-                    lpa: ctlr.lpa.into(),
-                    elpe: 0,
-                    npss: 0,
-                    avscc: 0,
-                    wctemp: 0x157,
-                    cctemp: 0x157,
-                    fwug: 0,
-                    kas: 0,
-                    cqt: 0,
-                    sqes: 0,
-                    cqes: 0,
-                    maxcmd: 0,
-                    nn: NamespaceId::max(subsys),
-                    oncs: 0,
-                    fuses: 0,
-                    fna: ctlr.fna.into(),
-                    vwc: 0,
-                    awun: 0,
-                    awupf: 0,
-                    icsvscc: 0,
-                    nwpc: 0,
-                    mnan: 0,
-                    subnqn: WireString::new(),
-                    fcatt: 0,
-                    msdbd: 0,
-                    ofcs: 0,
-                    apsta: 0,
-                    sanicap: subsys.sanicap.into(),
-                }
-                .encode()
-                .map_err(AdminIoCqeGenericCommandStatus::from);
-
-                match aicr {
-                    Ok(response) => {
-                        admin_send_response_body(
-                            resp,
-                            admin_constrain_body(self.dofst, self.dlen, &response.0)?,
-                        )
-                        .await
+                        ocas: 0,
+                        acl: 0,
+                        aerl: 0,
+                        frmw: 0,
+                        lpa: ctlr.lpa.into(),
+                        elpe: 0,
+                        npss: 0,
+                        avscc: 0,
+                        wctemp: 0x157,
+                        cctemp: 0x157,
+                        fwug: 0,
+                        kas: 0,
+                        cqt: 0,
+                        sqes: 0,
+                        cqes: 0,
+                        maxcmd: 0,
+                        nn: NamespaceId::max(subsys),
+                        oncs: 0,
+                        fuses: 0,
+                        fna: ctlr.fna.into(),
+                        vwc: 0,
+                        awun: 0,
+                        awupf: 0,
+                        icsvscc: 0,
+                        nwpc: 0,
+                        mnan: 0,
+                        subnqn: WireString::new(),
+                        fcatt: 0,
+                        msdbd: 0,
+                        ofcs: 0,
+                        apsta: 0,
+                        sanicap: subsys.sanicap.into(),
                     }
-                    Err(err) => {
-                        admin_send_status(resp, AdminIoCqeStatusType::GenericCommandStatus(err))
-                            .await
-                    }
+                    .encode()
+                    .map_err(AdminIoCqeGenericCommandStatus::from)
+                } else {
+                    debug!("No such CTLID: {}", ctx.ctlid);
+                    Err(AdminIoCqeGenericCommandStatus::InvalidFieldInCommand)
                 }
             }
             AdminIdentifyCnsRequestType::ActiveNamespaceIDList => {
@@ -1396,27 +1370,13 @@ impl RequestHandler for AdminIdentifyRequest {
                         return Err(ResponseStatus::InternalError);
                     };
                 }
-                let aianidlr = aianidlr
+                aianidlr
                     .encode()
-                    .map_err(AdminIoCqeGenericCommandStatus::from);
-
-                match aianidlr {
-                    Ok(response) => {
-                        admin_send_response_body(
-                            resp,
-                            admin_constrain_body(self.dofst, self.dlen, &response.0)?,
-                        )
-                        .await
-                    }
-                    Err(err) => {
-                        admin_send_status(resp, AdminIoCqeStatusType::GenericCommandStatus(err))
-                            .await
-                    }
-                }
+                    .map_err(AdminIoCqeGenericCommandStatus::from)
             }
             AdminIdentifyCnsRequestType::NamespaceIdentificationDescriptorList => {
                 // 5.1.13.2.3, Base v2.1
-                match match NamespaceId(self.nsid).disposition(subsys) {
+                match NamespaceId(self.nsid).disposition(subsys) {
                     NamespaceIdDisposition::Invalid => {
                         if self.nsid == u32::MAX - 1 {
                             debug!(
@@ -1454,18 +1414,6 @@ impl RequestHandler for AdminIdentifyRequest {
                         .encode()
                         .map_err(AdminIoCqeGenericCommandStatus::from)
                     }
-                } {
-                    Ok(response) => {
-                        admin_send_response_body(
-                            resp,
-                            admin_constrain_body(self.dofst, self.dlen, &response.0)?,
-                        )
-                        .await
-                    }
-                    Err(err) => {
-                        admin_send_status(resp, AdminIoCqeStatusType::GenericCommandStatus(err))
-                            .await
-                    }
                 }
             }
             AdminIdentifyCnsRequestType::AllocatedNamespaceIdList => {
@@ -1476,7 +1424,7 @@ impl RequestHandler for AdminIdentifyRequest {
                 }
 
                 assert!(NamespaceId::max(subsys) < (4096 / core::mem::size_of::<u32>()) as u32);
-                let aiansidl = AdminIdentifyAllocatedNamespaceIdListResponse {
+                AdminIdentifyAllocatedNamespaceIdListResponse {
                     nsid: {
                         let mut allocated: heapless::Vec<u32, MAX_NAMESPACES> = subsys
                             .nss
@@ -1496,25 +1444,11 @@ impl RequestHandler for AdminIdentifyRequest {
                     },
                 }
                 .encode()
-                .map_err(AdminIoCqeGenericCommandStatus::from);
-
-                match aiansidl {
-                    Ok(response) => {
-                        admin_send_response_body(
-                            resp,
-                            admin_constrain_body(self.dofst, self.dlen, &response.0)?,
-                        )
-                        .await
-                    }
-                    Err(err) => {
-                        admin_send_status(resp, AdminIoCqeStatusType::GenericCommandStatus(err))
-                            .await
-                    }
-                }
+                .map_err(AdminIoCqeGenericCommandStatus::from)
             }
             AdminIdentifyCnsRequestType::IdentifyNamespaceForAllocatedNamespaceId => {
                 // Base v2.1, 5.1.13.2.10
-                match match NamespaceId(self.nsid).disposition(subsys) {
+                match NamespaceId(self.nsid).disposition(subsys) {
                     NamespaceIdDisposition::Invalid | NamespaceIdDisposition::Broadcast => {
                         Err(AdminIoCqeGenericCommandStatus::InvalidNamespaceOrFormat)
                     }
@@ -1529,22 +1463,10 @@ impl RequestHandler for AdminIdentifyRequest {
                             .encode()
                             .map_err(AdminIoCqeGenericCommandStatus::from)
                     }
-                } {
-                    Ok(response) => {
-                        admin_send_response_body(
-                            resp,
-                            admin_constrain_body(self.dofst, self.dlen, &response.0)?,
-                        )
-                        .await
-                    }
-                    Err(err) => {
-                        admin_send_status(resp, AdminIoCqeStatusType::GenericCommandStatus(err))
-                            .await
-                    }
                 }
             }
             AdminIdentifyCnsRequestType::NamespaceAttachedControllerList => {
-                match match NamespaceId(self.nsid).disposition(subsys) {
+                match NamespaceId(self.nsid).disposition(subsys) {
                     NamespaceIdDisposition::Invalid => ControllerListResponse::new()
                         .encode()
                         .map_err(AdminIoCqeGenericCommandStatus::from),
@@ -1573,18 +1495,6 @@ impl RequestHandler for AdminIdentifyRequest {
                         clr.update()?;
                         clr.encode().map_err(AdminIoCqeGenericCommandStatus::from)
                     }
-                } {
-                    Ok(response) => {
-                        admin_send_response_body(
-                            resp,
-                            admin_constrain_body(self.dofst, self.dlen, &response.0)?,
-                        )
-                        .await
-                    }
-                    Err(status) => {
-                        admin_send_status(resp, AdminIoCqeStatusType::GenericCommandStatus(status))
-                            .await
-                    }
                 }
             }
             AdminIdentifyCnsRequestType::NvmSubsystemControllerList => {
@@ -1601,19 +1511,7 @@ impl RequestHandler for AdminIdentifyRequest {
                     };
                 }
                 cl.update()?;
-                match cl.encode().map_err(AdminIoCqeGenericCommandStatus::from) {
-                    Ok(response) => {
-                        admin_send_response_body(
-                            resp,
-                            admin_constrain_body(self.dofst, self.dlen, &response.0)?,
-                        )
-                        .await
-                    }
-                    Err(status) => {
-                        admin_send_status(resp, AdminIoCqeStatusType::GenericCommandStatus(status))
-                            .await
-                    }
-                }
+                cl.encode().map_err(AdminIoCqeGenericCommandStatus::from)
             }
             AdminIdentifyCnsRequestType::SecondaryControllerList => {
                 let Some(ctlr) = subsys.ctlrs.get(ctx.ctlid as usize) else {
@@ -1625,15 +1523,24 @@ impl RequestHandler for AdminIdentifyRequest {
                     todo!("Support listing secondary controllers");
                 }
 
-                admin_send_response_body(
-                    resp,
-                    admin_constrain_body(self.dofst, self.dlen, &[0u8; 4096])?,
-                )
-                .await
+                Ok(([0u8; 4096], 4096usize))
             }
             _ => {
                 debug!("Unimplemented CNS: {self:?}");
-                Err(ResponseStatus::InternalError)
+                return Err(ResponseStatus::InternalError);
+            }
+        };
+
+        match res {
+            Ok(response) => {
+                admin_send_response_body(
+                    resp,
+                    admin_constrain_body(self.dofst, self.dlen, &response.0)?,
+                )
+                .await
+            }
+            Err(err) => {
+                admin_send_status(resp, AdminIoCqeStatusType::GenericCommandStatus(err)).await
             }
         }
     }
