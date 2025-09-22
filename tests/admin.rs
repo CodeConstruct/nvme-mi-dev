@@ -2245,7 +2245,7 @@ mod get_log_page {
     };
 
     use crate::{
-        RESP_ADMIN_STATUS_INVALID_FIELD, RESP_INVALID_COMMAND_SIZE, RESP_INVALID_PARAMETER,
+        RESP_ADMIN_STATUS_INVALID_FIELD, RESP_INVALID_COMMAND_SIZE,
         common::{
             DeviceType, ExpectedField, ExpectedRespChannel, RelaxedRespChannel, new_device, setup,
         },
@@ -2380,7 +2380,7 @@ mod get_log_page {
             0x29, 0xe2, 0x53, 0x0a
         ];
 
-        let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
+        let resp = ExpectedRespChannel::new(&RESP_ADMIN_STATUS_INVALID_FIELD);
         smol::block_on(async {
             mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
                 .await
@@ -2568,7 +2568,7 @@ mod get_log_page {
             0x80, 0x60, 0xc4, 0x3b
         ];
 
-        let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
+        let resp = ExpectedRespChannel::new(&RESP_ADMIN_STATUS_INVALID_FIELD);
         smol::block_on(async {
             mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
                 .await
@@ -3713,7 +3713,7 @@ mod namespace_attachment {
     use mctp::MsgIC;
 
     use crate::{
-        RESP_INVALID_COMMAND_SIZE, RESP_INVALID_PARAMETER,
+        RESP_ADMIN_STATUS_INVALID_FIELD, RESP_INVALID_COMMAND_SIZE,
         common::{DeviceType, ExpectedRespChannel, new_device, setup},
     };
 
@@ -3910,7 +3910,7 @@ mod namespace_attachment {
         req[..REQ_DATA.len()].copy_from_slice(&REQ_DATA);
         req[{ len - REQ_MIC.len() }..].copy_from_slice(&REQ_MIC);
 
-        let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
+        let resp = ExpectedRespChannel::new(&RESP_ADMIN_STATUS_INVALID_FIELD);
         smol::block_on(async {
             mep.handle_async(&mut subsys, &req, MsgIC(true), resp, async |_| Ok(()))
                 .await
@@ -4293,7 +4293,7 @@ mod namespace_attachment {
         req[..REQ_DATA.len()].copy_from_slice(&REQ_DATA);
         req[{ len - REQ_MIC.len() }..].copy_from_slice(&REQ_MIC);
 
-        let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
+        let resp = ExpectedRespChannel::new(&RESP_ADMIN_STATUS_INVALID_FIELD);
         smol::block_on(async {
             mep.handle_async(&mut subsys, &req, MsgIC(true), resp, async |_| Ok(()))
                 .await
@@ -4488,7 +4488,7 @@ mod sanitize {
     use mctp::MsgIC;
 
     use crate::{
-        RESP_ADMIN_SUCCESS, RESP_INVALID_COMMAND_SIZE, RESP_INVALID_PARAMETER,
+        RESP_ADMIN_STATUS_INVALID_FIELD, RESP_ADMIN_SUCCESS, RESP_INVALID_COMMAND_SIZE,
         common::{DeviceType, ExpectedRespChannel, new_device, setup},
     };
 
@@ -4756,7 +4756,7 @@ mod sanitize {
             0xc8, 0x47, 0x8d, 0x88
         ];
 
-        let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
+        let resp = ExpectedRespChannel::new(&RESP_ADMIN_STATUS_INVALID_FIELD);
         smol::block_on(async {
             mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
                 .await
@@ -4813,7 +4813,7 @@ mod format_nvm {
     use mctp::MsgIC;
 
     use crate::{
-        RESP_ADMIN_SUCCESS, RESP_INVALID_COMMAND_SIZE, RESP_INVALID_PARAMETER,
+        RESP_ADMIN_STATUS_INVALID_FIELD, RESP_ADMIN_SUCCESS, RESP_INVALID_COMMAND_SIZE,
         common::{DeviceType, ExpectedRespChannel, new_device, setup},
     };
 
@@ -4945,7 +4945,7 @@ mod format_nvm {
             0x0f, 0x14, 0xe6, 0x14
         ];
 
-        let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
+        let resp = ExpectedRespChannel::new(&RESP_ADMIN_STATUS_INVALID_FIELD);
         smol::block_on(async {
             mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
                 .await
@@ -4990,7 +4990,7 @@ mod format_nvm {
             0x7a, 0x05, 0xbd, 0xb8
         ];
 
-        let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
+        let resp = ExpectedRespChannel::new(&RESP_ADMIN_STATUS_INVALID_FIELD);
         smol::block_on(async {
             mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
                 .await
@@ -5035,7 +5035,7 @@ mod format_nvm {
             0x27, 0xdd, 0x59, 0xa2
         ];
 
-        let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
+        let resp = ExpectedRespChannel::new(&RESP_ADMIN_STATUS_INVALID_FIELD);
         smol::block_on(async {
             mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
                 .await
@@ -5080,7 +5080,7 @@ mod format_nvm {
             0xd1, 0xad, 0x95, 0x56
         ];
 
-        let resp = ExpectedRespChannel::new(&RESP_INVALID_PARAMETER);
+        let resp = ExpectedRespChannel::new(&RESP_ADMIN_STATUS_INVALID_FIELD);
         smol::block_on(async {
             mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
                 .await

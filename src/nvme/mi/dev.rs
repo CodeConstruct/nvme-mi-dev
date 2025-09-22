@@ -993,7 +993,13 @@ impl RequestHandler for AdminGetLogPageRequest {
             | AdminGetLogPageLidRequestType::FeatureIdentifiersSupportedAndEffects => {
                 if self.csi != 0 {
                     debug!("Support CSI");
-                    return Err(ResponseStatus::InternalError);
+                    return admin_send_status(
+                        resp,
+                        AdminIoCqeStatusType::GenericCommandStatus(
+                            AdminIoCqeGenericCommandStatus::InternalError,
+                        ),
+                    )
+                    .await;
                 }
             }
             AdminGetLogPageLidRequestType::ErrorInformation
@@ -1003,7 +1009,13 @@ impl RequestHandler for AdminGetLogPageRequest {
 
         let Some(ctlr) = subsys.ctlrs.get(ctx.ctlid as usize) else {
             debug!("Unrecognised CTLID: {}", ctx.ctlid);
-            return Err(ResponseStatus::InvalidParameter);
+            return admin_send_status(
+                resp,
+                AdminIoCqeStatusType::GenericCommandStatus(
+                    AdminIoCqeGenericCommandStatus::InvalidFieldInCommand,
+                ),
+            )
+            .await;
         };
 
         let Some(flags) = ctlr.lsaes.get(self.req.id() as usize) else {
@@ -1011,7 +1023,13 @@ impl RequestHandler for AdminGetLogPageRequest {
                 "LSAE mismatch with known LID {:?} on controller {}",
                 self.req, ctlr.id.0
             );
-            return Err(ResponseStatus::InternalError);
+            return admin_send_status(
+                resp,
+                AdminIoCqeStatusType::GenericCommandStatus(
+                    AdminIoCqeGenericCommandStatus::InvalidFieldInCommand,
+                ),
+            )
+            .await;
         };
 
         // Base v2.1, 5.1.12
@@ -1043,7 +1061,13 @@ impl RequestHandler for AdminGetLogPageRequest {
             AdminGetLogPageLidRequestType::SupportedLogPages => {
                 if (self.numdw + 1) * 4 != 1024 {
                     debug!("Implement support for NUMDL / NUMDU");
-                    return Err(ResponseStatus::InternalError);
+                    return admin_send_status(
+                        resp,
+                        AdminIoCqeStatusType::GenericCommandStatus(
+                            AdminIoCqeGenericCommandStatus::InternalError,
+                        ),
+                    )
+                    .await;
                 }
 
                 let mut lsids = WireVec::new();
@@ -1069,7 +1093,13 @@ impl RequestHandler for AdminGetLogPageRequest {
             AdminGetLogPageLidRequestType::ErrorInformation => {
                 if (self.numdw + 1) * 4 != 64 {
                     debug!("Implement support for NUMDL / NUMDU");
-                    return Err(ResponseStatus::InternalError);
+                    return admin_send_status(
+                        resp,
+                        AdminIoCqeStatusType::GenericCommandStatus(
+                            AdminIoCqeGenericCommandStatus::InternalError,
+                        ),
+                    )
+                    .await;
                 }
                 admin_send_response_body(
                     resp,
@@ -1080,7 +1110,13 @@ impl RequestHandler for AdminGetLogPageRequest {
             AdminGetLogPageLidRequestType::SmartHealthInformation => {
                 if (self.numdw + 1) * 4 != 512 {
                     debug!("Implement support for NUMDL / NUMDU");
-                    return Err(ResponseStatus::InternalError);
+                    return admin_send_status(
+                        resp,
+                        AdminIoCqeStatusType::GenericCommandStatus(
+                            AdminIoCqeGenericCommandStatus::InternalError,
+                        ),
+                    )
+                    .await;
                 }
 
                 // Base v2.1, 5.1.2, Figure 199
@@ -1168,7 +1204,13 @@ impl RequestHandler for AdminGetLogPageRequest {
             AdminGetLogPageLidRequestType::FeatureIdentifiersSupportedAndEffects => {
                 if (self.numdw + 1) * 4 != 1024 {
                     debug!("Implement support for NUMDL / NUMDU");
-                    return Err(ResponseStatus::InternalError);
+                    return admin_send_status(
+                        resp,
+                        AdminIoCqeStatusType::GenericCommandStatus(
+                            AdminIoCqeGenericCommandStatus::InternalError,
+                        ),
+                    )
+                    .await;
                 }
 
                 admin_send_response_body(
@@ -1185,7 +1227,13 @@ impl RequestHandler for AdminGetLogPageRequest {
             AdminGetLogPageLidRequestType::SanitizeStatus => {
                 if (self.numdw + 1) * 4 != 512 {
                     debug!("Implement support for NUMDL / NUMDU");
-                    return Err(ResponseStatus::InternalError);
+                    return admin_send_status(
+                        resp,
+                        AdminIoCqeStatusType::GenericCommandStatus(
+                            AdminIoCqeGenericCommandStatus::InternalError,
+                        ),
+                    )
+                    .await;
                 }
 
                 let sslpr = SanitizeStatusLogPageResponse {
@@ -1577,13 +1625,25 @@ impl RequestHandler for AdminNamespaceManagementRequest {
             crate::nvme::mi::AdminNamespaceManagementSelect::Create(req) => {
                 if self.csi != 0 {
                     debug!("Support CSI {}", self.csi);
-                    return Err(ResponseStatus::InternalError);
+                    return admin_send_status(
+                        resp,
+                        AdminIoCqeStatusType::GenericCommandStatus(
+                            AdminIoCqeGenericCommandStatus::InternalError,
+                        ),
+                    )
+                    .await;
                 }
 
                 let Ok(nsid) = subsys.add_namespace(req.ncap) else {
                     debug!("Failed to create namespace");
                     // TODO: Implement Base v2.1, 5.1.21.1, Figure 370
-                    return Err(ResponseStatus::InternalError);
+                    return admin_send_status(
+                        resp,
+                        AdminIoCqeStatusType::GenericCommandStatus(
+                            AdminIoCqeGenericCommandStatus::InternalError,
+                        ),
+                    )
+                    .await;
                 };
                 let mh = MessageHeader::respond(MessageType::NvmeAdminCommand).encode()?;
 
@@ -1700,7 +1760,13 @@ impl RequestHandler for AdminNamespaceAttachmentRequest {
 
         if self.nsid == u32::MAX {
             debug!("Refusing to perform {:?} for broadcast NSID", self.sel);
-            return Err(ResponseStatus::InvalidParameter);
+            return admin_send_status(
+                resp,
+                AdminIoCqeStatusType::GenericCommandStatus(
+                    AdminIoCqeGenericCommandStatus::InvalidFieldInCommand,
+                ),
+            )
+            .await;
         }
 
         // TODO: Handle MAXCNA
@@ -1803,12 +1869,24 @@ impl RequestHandler for AdminSanitizeRequest {
 
         let Ok(config) = TryInto::<AdminSanitizeConfiguration>::try_into(self.config) else {
             debug!("Invalid sanitize configuration: {}", self.config);
-            return Err(ResponseStatus::InvalidParameter);
+            return admin_send_status(
+                resp,
+                AdminIoCqeStatusType::GenericCommandStatus(
+                    AdminIoCqeGenericCommandStatus::InvalidFieldInCommand,
+                ),
+            )
+            .await;
         };
 
         if subsys.sanicap.ndi && config.ndas {
             debug!("Request for No-Deallocate After Sanitize when No-Deallocate is inhibited");
-            return Err(ResponseStatus::InvalidParameter);
+            return admin_send_status(
+                resp,
+                AdminIoCqeStatusType::GenericCommandStatus(
+                    AdminIoCqeGenericCommandStatus::InvalidFieldInCommand,
+                ),
+            )
+            .await;
         }
 
         // TODO: Implement action latency, progress state machine, error states
@@ -1877,22 +1955,46 @@ impl RequestHandler for AdminFormatNvmRequest {
 
         let Some(ctlr) = subsys.ctlrs.iter().find(|c| c.id.0 == ctx.ctlid) else {
             debug!("Unrecognised CTLID: {}", ctx.ctlid);
-            return Err(ResponseStatus::InvalidParameter);
+            return admin_send_status(
+                resp,
+                AdminIoCqeStatusType::GenericCommandStatus(
+                    AdminIoCqeGenericCommandStatus::InvalidFieldInCommand,
+                ),
+            )
+            .await;
         };
 
         let Ok(config) = TryInto::<AdminFormatNvmConfiguration>::try_into(self.config) else {
             debug!("Invalid configuration for Admin Format NVM");
-            return Err(ResponseStatus::InvalidParameter);
+            return admin_send_status(
+                resp,
+                AdminIoCqeStatusType::GenericCommandStatus(
+                    AdminIoCqeGenericCommandStatus::InvalidFieldInCommand,
+                ),
+            )
+            .await;
         };
 
         if config.lbafi != 0 {
             debug!("Unsupported LBA format index: {}", config.lbafi);
-            return Err(ResponseStatus::InvalidParameter);
+            return admin_send_status(
+                resp,
+                AdminIoCqeStatusType::GenericCommandStatus(
+                    AdminIoCqeGenericCommandStatus::InvalidFieldInCommand,
+                ),
+            )
+            .await;
         }
 
         if !ctlr.active_ns.iter().any(|ns| ns.0 == self.nsid) && self.nsid != u32::MAX {
             debug!("Unrecognised NSID: {}", self.nsid);
-            return Err(ResponseStatus::InvalidParameter);
+            return admin_send_status(
+                resp,
+                AdminIoCqeStatusType::GenericCommandStatus(
+                    AdminIoCqeGenericCommandStatus::InvalidFieldInCommand,
+                ),
+            )
+            .await;
         }
 
         // TODO: handle config.ses
