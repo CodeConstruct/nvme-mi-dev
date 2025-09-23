@@ -221,7 +221,13 @@ mod read_nvme_mi_data_structure {
     fn port_information_twowire() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
+        let mut subsys = Subsystem::new(SubsystemInfo::invalid());
+        let _ = subsys.add_port(PortType::Pcie(PciePort::new())).unwrap();
+        let twp = TwoWirePort::builder()
+            .msmbfreq(nvme_mi_dev::nvme::mi::SmbusFrequency::Freq400Khz)
+            .build();
+        let twpid = subsys.add_port(PortType::TwoWire(twp)).unwrap();
+        let mut mep = ManagementEndpoint::new(twpid);
 
         #[rustfmt::skip]
         const REQ: [u8; 19] = [
@@ -1272,7 +1278,13 @@ mod configuration_set {
     fn smbus_i2c_frequency_supported() {
         setup();
 
-        let (mut mep, mut subsys) = new_device(DeviceType::P1p1tC1iN0a0a);
+        let mut subsys = Subsystem::new(SubsystemInfo::invalid());
+        let _ = subsys.add_port(PortType::Pcie(PciePort::new())).unwrap();
+        let twp = TwoWirePort::builder()
+            .msmbfreq(nvme_mi_dev::nvme::mi::SmbusFrequency::Freq400Khz)
+            .build();
+        let twpid = subsys.add_port(PortType::TwoWire(twp)).unwrap();
+        let mut mep = ManagementEndpoint::new(twpid);
 
         #[rustfmt::skip]
         const REQ_GET_INIT: [u8; 19] = [

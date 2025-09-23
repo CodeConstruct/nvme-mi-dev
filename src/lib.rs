@@ -130,14 +130,48 @@ impl TwoWirePort {
             mvpdfreq: nvme::mi::SmbusFrequency::FreqNotSupported,
             cmeaddr: 0x1d,
             i3csprt: false,
-            msmbfreq: nvme::mi::SmbusFrequency::Freq400Khz,
+            msmbfreq: nvme::mi::SmbusFrequency::Freq100Khz,
             nvmebms: false,
             smbfreq: nvme::mi::SmbusFrequency::Freq100Khz,
         }
     }
+
+    pub fn builder() -> TwoWirePortBuilder {
+        Default::default()
+    }
 }
 
 impl Default for TwoWirePort {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+pub struct TwoWirePortBuilder {
+    msmbfreq: nvme::mi::SmbusFrequency,
+}
+
+impl TwoWirePortBuilder {
+    pub fn new() -> Self {
+        Self {
+            msmbfreq: nvme::mi::SmbusFrequency::Freq100Khz,
+        }
+    }
+
+    pub fn msmbfreq(&mut self, freq: nvme::mi::SmbusFrequency) -> &mut Self {
+        self.msmbfreq = freq;
+        self
+    }
+
+    pub fn build(&self) -> TwoWirePort {
+        TwoWirePort {
+            msmbfreq: self.msmbfreq,
+            ..Default::default()
+        }
+    }
+}
+
+impl Default for TwoWirePortBuilder {
     fn default() -> Self {
         Self::new()
     }
