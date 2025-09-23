@@ -84,6 +84,7 @@ pub enum ResponseStatus {
     InvalidParameter = 0x04,
     InvalidCommandSize = 0x05,
     InvalidCommandInputDataSize = 0x06,
+    AccessDenied = 0x07,
 }
 unsafe impl Discriminant<u8> for ResponseStatus {}
 
@@ -908,3 +909,40 @@ struct AdminCommandResponseHeader {
     cqedw3: u32,
 }
 impl Encode<16> for AdminCommandResponseHeader {}
+
+// MI v2.0, 7, Figure 146
+#[derive(Debug, DekuRead, DekuWrite)]
+#[deku(endian = "little")]
+struct PcieCommandRequestHeader {
+    _opcode: u8,
+    #[deku(seek_from_current = "1")]
+    ctlid: u16,
+    #[deku(ctx = "*_opcode")]
+    op: PcieCommandRequestType,
+}
+
+// MI v2.0, 7, Figure 148
+#[derive(Debug, DekuRead, DekuWrite, Eq, PartialEq)]
+#[deku(ctx = "endian: Endian, opcode: u8", id = "opcode", endian = "endian")]
+#[repr(u8)]
+enum PcieCommandRequestType {
+    #[deku(id = 0x00)]
+    ConfigurationRead(PcieConfigurationAccessRequest),
+    #[deku(id = 0x01)]
+    ConfigurationWrite(PcieConfigurationAccessRequest),
+    MemoryRead = 0x02,
+    MemoryWrite = 0x03,
+    IoRead = 0x04,
+    IoWrite = 0x05,
+}
+unsafe impl Discriminant<u8> for PcieCommandRequestType {}
+
+// MI v2.0, 7, Figure 151-152
+#[derive(Debug, DekuRead, DekuWrite, Eq, PartialEq)]
+#[deku(ctx = "endian: Endian", endian = "endian")]
+struct PcieConfigurationAccessRequest {
+    length: u16,
+    #[deku(seek_from_current = "2")]
+    #[deku(pad_bytes_after = "6")]
+    offset: u16,
+}

@@ -32,10 +32,11 @@ use crate::{
             ControllerPropertyFlags, MessageType, NvmSubsystemHealthDataStructureResponse,
             NvmSubsystemInformationResponse, NvmeManagementResponse, NvmeMiCommandRequestHeader,
             NvmeMiCommandRequestType, NvmeMiDataStructureManagementResponse,
-            NvmeMiDataStructureRequestType, PciePortDataResponse, PortInformationResponse,
-            TwoWirePortDataResponse,
+            NvmeMiDataStructureRequestType, PcieCommandRequestHeader, PciePortDataResponse,
+            PortInformationResponse, TwoWirePortDataResponse,
         },
     },
+    pcie::PciDeviceFunctionConfigurationSpace,
     wire::{WireString, WireVec},
 };
 
@@ -116,6 +117,18 @@ impl RequestHandler for MessageHeader {
                     Ok(((rest, _), ch)) => ch.handle(ch, mep, subsys, rest, resp, app).await,
                     Err(err) => {
                         debug!("Unable to parse AdminCommandHeader from message buffer: {err:?}");
+                        // TODO: This is a bad assumption: Can see DekuError::InvalidParam too
+                        Err(ResponseStatus::InvalidCommandSize)
+                    }
+                }
+            }
+            MessageType::PcieCommand => {
+                match &PcieCommandRequestHeader::from_bytes((rest, 0)) {
+                    Ok(((rest, _), ch)) => ch.handle(ch, mep, subsys, rest, resp, app).await,
+                    Err(err) => {
+                        debug!(
+                            "Unable to parse PcieCommandRequestHeader from message buffer: {err:?}"
+                        );
                         // TODO: This is a bad assumption: Can see DekuError::InvalidParam too
                         Err(ResponseStatus::InvalidCommandSize)
                     }
@@ -2000,6 +2013,82 @@ impl RequestHandler for AdminFormatNvmRequest {
         // TODO: handle config.ses
 
         admin_send_response_body(resp, &[]).await
+    }
+}
+
+impl RequestHandler for PcieCommandRequestHeader {
+    type Ctx = PcieCommandRequestHeader;
+
+    async fn handle<A, C>(
+        &self,
+        ctx: &Self::Ctx,
+        _mep: &mut crate::ManagementEndpoint,
+        subsys: &mut crate::Subsystem,
+        rest: &[u8],
+        resp: &mut C,
+        _app: A,
+    ) -> Result<(), ResponseStatus>
+    where
+        A: AsyncFnMut(crate::CommandEffect) -> Result<(), CommandEffectError>,
+        C: mctp::AsyncRespChannel,
+    {
+        match &ctx.op {
+            super::PcieCommandRequestType::ConfigurationRead(req) => {
+                if !rest.is_empty() {
+                    debug!("Invalid request size for PcieCommand");
+                    return Err(ResponseStatus::InvalidCommandSize);
+                }
+
+                if req.length != 4096 {
+                    debug!("Implement length support");
+                    return Err(ResponseStatus::InternalError);
+                }
+
+                if req.offset != 0 {
+                    debug!("Implement offset support");
+                    return Err(ResponseStatus::InternalError);
+                }
+
+                let mh = MessageHeader::respond(MessageType::PcieCommand).encode()?;
+
+                let status = [0u8; 4]; /* Success */
+
+                let cr = PciDeviceFunctionConfigurationSpace::builder()
+                    .vid(subsys.info.pci_vid)
+                    .did(subsys.info.pci_did)
+                    .svid(subsys.info.pci_svid)
+                    .sdid(subsys.info.pci_sdid)
+                    .build()
+                    .encode()?;
+
+                send_response(resp, &[&mh.0, &status, &cr.0]).await;
+                Ok(())
+            }
+            super::PcieCommandRequestType::ConfigurationWrite(req) => {
+                let response = if rest.len() == req.length as usize {
+                    debug!("Unsupported write at {} for {}", req.offset, req.length);
+                    ResponseStatus::AccessDenied
+                } else {
+                    debug!(
+                        "Request data size {} does not match requested write size {}",
+                        rest.len(),
+                        req.length
+                    );
+                    ResponseStatus::InvalidCommandInputDataSize
+                };
+
+                let mh = MessageHeader::respond(MessageType::PcieCommand).encode()?;
+
+                let status = [response.id(), 0, 0, 0];
+
+                send_response(resp, &[&mh.0, &status]).await;
+                Ok(())
+            }
+            _ => {
+                debug!("Unimplemented OPCODE: {:?}", ctx._opcode);
+                Err(ResponseStatus::InternalError)
+            }
+        }
     }
 }
 

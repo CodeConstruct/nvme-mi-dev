@@ -16,6 +16,7 @@ use nvme::{
 use uuid::Uuid;
 
 pub mod nvme;
+mod pcie;
 mod wire;
 
 extern crate deku;
