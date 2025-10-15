@@ -3,7 +3,7 @@
  * Copyright (c) 2025 Code Construct
  */
 
-use deku::ctx::Endian;
+use deku::ctx::{Endian, Order};
 use deku::{DekuError, DekuRead, DekuWrite};
 use flagset::{FlagSet, flags};
 use log::debug;
@@ -19,7 +19,14 @@ use super::{AdminGetLogPageLidRequestType, AdminIdentifyCnsRequestType};
 pub mod dev;
 
 // MI v2.0, 3.1.1, Figure 20, NMIMT
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, DekuRead, DekuWrite, PartialEq, Eq)]
+#[deku(
+    bits = "4",
+    bit_order = "order",
+    ctx = "endian: Endian, order: Order",
+    endian = "endian",
+    id_type = "u8"
+)]
 #[repr(u8)]
 enum MessageType {
     ControlPrimitive = 0x00,
@@ -28,52 +35,28 @@ enum MessageType {
     PcieCommand = 0x04,
     AsynchronousEvent = 0x05,
 }
-unsafe impl Discriminant<u8> for MessageType {}
-
-impl TryFrom<u8> for MessageType {
-    type Error = u8;
-
-    fn try_from(value: u8) -> Result<Self, u8> {
-        match value {
-            0x00 => Ok(Self::ControlPrimitive),
-            0x01 => Ok(Self::NvmeMiCommand),
-            0x02 => Ok(Self::NvmeAdminCommand),
-            0x04 => Ok(Self::PcieCommand),
-            0x05 => Ok(Self::AsynchronousEvent),
-            _ => Err(value),
-        }
-    }
-}
 
 // MI v2.0, 3.1.1, Figure 20
 #[derive(Debug, DekuRead, DekuWrite)]
-#[deku(endian = "little")]
+#[deku(bit_order = "lsb", endian = "little")]
 struct MessageHeader {
-    #[deku(pad_bytes_after = "2")]
-    nmimt: u8,
+    #[deku(bits = "1", pad_bits_after = "2")]
+    csi: u8,
+    nmimt: MessageType,
+    #[deku(bits = "1", pad_bytes_after = "2")]
+    ror: bool,
 }
 impl Encode<3> for MessageHeader {}
 
 impl MessageHeader {
     fn respond(nmimt: MessageType) -> Self {
         Self {
-            nmimt: ((true as u8) << 7) | ((nmimt.id() & 0xf) << 3),
+            csi: 0,
+            nmimt,
+            ror: true,
         }
     }
-
-    fn nmimt(&self) -> Result<MessageType, u8> {
-        ((self.nmimt >> 3) & 0xf).try_into()
-    }
-
-    fn csi(&self) -> bool {
-        (self.nmimt & 0x01) != 0
-    }
-
-    fn ror(&self) -> bool {
-        (self.nmimt & 0x80) != 0
-    }
 }
-
 // MI v2.0, 4.1.2, Figure 29
 #[derive(Debug, DekuRead, DekuWrite, PartialEq)]
 #[deku(endian = "endian", ctx = "endian: Endian", id_type = "u8")]

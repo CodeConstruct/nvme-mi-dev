@@ -97,11 +97,7 @@ impl RequestHandler for MessageHeader {
         debug!("{self:x?}");
         // TODO: Command and Feature Lockdown handling
         // TODO: Handle subsystem reset, section 8.1, v2.0
-        let Ok(nmimt) = ctx.nmimt() else {
-            return Err(ResponseStatus::InvalidCommandOpcode);
-        };
-
-        match nmimt {
+        match ctx.nmimt {
             MessageType::NvmeMiCommand => {
                 match &NvmeMiCommandRequestHeader::from_bytes((rest, 0)) {
                     Ok(((rest, _), ch)) => ch.handle(ch, mep, subsys, rest, resp, app).await,
@@ -135,7 +131,7 @@ impl RequestHandler for MessageHeader {
                 }
             }
             _ => {
-                debug!("Unimplemented NMINT: {:?}", ctx.nmimt());
+                debug!("Unimplemented NMINT: {:?}", ctx.nmimt);
                 Err(ResponseStatus::InternalError)
             }
         }
@@ -2170,31 +2166,30 @@ impl crate::ManagementEndpoint {
             return;
         }
 
-        let Ok(((rest, _), mh)) = MessageHeader::from_bytes((msg, 0)) else {
-            debug!("Message too short to extract NVMeMIMessageHeader");
+        let res = MessageHeader::from_bytes((msg, 0));
+        let Ok(((rest, _), mh)) = &res else {
+            debug!(
+                "Message too short to extract NVMeMIMessageHeader: {:?}",
+                res
+            );
             return;
         };
 
-        if mh.csi() {
+        if mh.csi != 0 {
             debug!("Support second command slot");
             return;
         }
 
-        if mh.ror() {
-            debug!("NVMe-MI message was not a request: {:?}", mh.ror());
+        if mh.ror {
+            debug!("NVMe-MI message was not a request: {:?}", mh.ror);
             return;
         }
-
-        let Ok(nmimt) = mh.nmimt() else {
-            debug!("Message contains unrecognised NMIMT: {mh:x?}");
-            return;
-        };
 
         if let Err(status) = mh.handle(&mh, self, subsys, rest, &mut resp, app).await {
             let mut digest = ISCSI.digest();
             digest.update(&[0x80 | 0x04]);
 
-            let Ok(mh) = MessageHeader::respond(nmimt).encode() else {
+            let Ok(mh) = MessageHeader::respond(mh.nmimt).encode() else {
                 debug!("Failed to encode MessageHeader for error response");
                 return;
             };
