@@ -35,7 +35,7 @@ where
     {
         let val = <<T as Flags>::Type>::from_reader_with_ctx(reader, ctx)?;
         let fs = FlagSet::new(val)
-            .map_err(|_| deku_error!(DekuError::Parse, "Found invalid flag set", "{}", val))?;
+            .map_err(|_| deku_error!(DekuError::Parse, "Found invalid flag set", "{:?}", val))?;
         Ok(WireFlagSet(fs))
     }
 }
