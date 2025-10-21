@@ -419,8 +419,8 @@ flags! {
 #[derive(Debug, DekuRead, DekuWrite, Eq, PartialEq)]
 #[deku(ctx = "endian: Endian", endian = "endian")]
 struct NvmSubsystemHealthStatusPollRequest {
-    dword0: u32,
-    dword1: u32,
+    #[deku(bits = "1", pad_bits_after = "7", pad_bytes_before = "7")]
+    cs: bool,
 }
 
 // MI v2.0, 5.6, Figure 107

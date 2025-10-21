@@ -265,7 +265,7 @@ impl RequestHandler for NvmeMiCommandRequestHeader {
                 .encode()?;
 
                 // CS: See Figure 106, NVMe MI v2.0
-                if (shsp.dword1 & (1u32 << 31)) != 0 {
+                if shsp.cs {
                     mep.ccsf.0.clear();
                 }
 
