@@ -224,7 +224,7 @@ mod read_nvme_mi_data_structure {
         let mut subsys = Subsystem::new(SubsystemInfo::invalid());
         let _ = subsys.add_port(PortType::Pcie(PciePort::new())).unwrap();
         let twp = TwoWirePort::builder()
-            .msmbfreq(nvme_mi_dev::nvme::mi::SmbusFrequency::Freq400Khz)
+            .msmbfreq(nvme_mi_dev::smbus::BusFrequency::Freq400Khz)
             .build();
         let twpid = subsys.add_port(PortType::TwoWire(twp)).unwrap();
         let mut mep = ManagementEndpoint::new(twpid);
@@ -1281,7 +1281,7 @@ mod configuration_set {
         let mut subsys = Subsystem::new(SubsystemInfo::invalid());
         let _ = subsys.add_port(PortType::Pcie(PciePort::new())).unwrap();
         let twp = TwoWirePort::builder()
-            .msmbfreq(nvme_mi_dev::nvme::mi::SmbusFrequency::Freq400Khz)
+            .msmbfreq(nvme_mi_dev::smbus::BusFrequency::Freq400Khz)
             .build();
         let twpid = subsys.add_port(PortType::TwoWire(twp)).unwrap();
         let mut mep = ManagementEndpoint::new(twpid);

@@ -3,7 +3,7 @@
  * Copyright (c) 2025 Code Construct
  */
 
-use deku::ctx::{Endian, Order};
+use deku::ctx::{BitSize, Endian, Order};
 use deku::{DekuError, DekuRead, DekuWrite};
 use flagset::{FlagSet, flags};
 use log::debug;
@@ -161,13 +161,51 @@ enum NvmeMiConfigurationIdentifierRequestType {
     AsynchronousEvent = 0x04,
 }
 
+// MI v2.0, 5.1.1, Figure 77, SFREQ
+#[derive(Debug, Clone, Copy, DekuRead, DekuWrite, Eq, PartialEq, PartialOrd)]
+#[deku(
+    bits = "bits.0",
+    id_type = "u8",
+    ctx = "endian: Endian, bits: BitSize",
+    endian = "endian"
+)]
+#[repr(u8)]
+enum SmbusFrequency {
+    Reserved = 0x00,
+    Freq100Khz = 0x01,
+    Freq400Khz = 0x02,
+    Freq1Mhz = 0x03,
+}
+
+impl From<SmbusFrequency> for crate::smbus::BusFrequency {
+    fn from(value: SmbusFrequency) -> Self {
+        match value {
+            SmbusFrequency::Reserved => Self::NotSupported,
+            SmbusFrequency::Freq100Khz => Self::Freq100Khz,
+            SmbusFrequency::Freq400Khz => Self::Freq400Khz,
+            SmbusFrequency::Freq1Mhz => Self::Freq1Mhz,
+        }
+    }
+}
+
+impl From<crate::smbus::BusFrequency> for SmbusFrequency {
+    fn from(value: crate::smbus::BusFrequency) -> Self {
+        match value {
+            crate::smbus::BusFrequency::NotSupported => Self::Reserved,
+            crate::smbus::BusFrequency::Freq100Khz => Self::Freq100Khz,
+            crate::smbus::BusFrequency::Freq400Khz => Self::Freq400Khz,
+            crate::smbus::BusFrequency::Freq1Mhz => Self::Freq1Mhz,
+        }
+    }
+}
+
 // MI v2.0, 5.1.1, Figure 77
 #[derive(Debug, DekuWrite, PartialEq)]
 #[deku(endian = "little")]
 struct GetSmbusI2cFrequencyResponse {
     status: ResponseStatus,
-    #[deku(pad_bytes_after = "2")]
-    mr_sfreq: crate::nvme::mi::SmbusFrequency,
+    #[deku(bits = "4", pad_bits_before = "4", pad_bytes_after = "2")]
+    sfreq: SmbusFrequency,
 }
 impl Encode<4> for GetSmbusI2cFrequencyResponse {}
 
@@ -201,13 +239,10 @@ struct NvmeMiConfigurationSetRequest {
 #[derive(Debug, DekuRead, DekuWrite, Eq, PartialEq)]
 #[deku(ctx = "endian: Endian", endian = "endian")]
 struct SmbusI2cFrequencyRequest {
-    // XXX: This is inaccurate as SFREQ is specified as 4 bits, not 8
-    // TODO: Support deku/bits feature without deku/alloc
-    dw0_sfreq: crate::nvme::mi::SmbusFrequency,
-    // Skip intermediate bytes in DWORD 0
-    #[deku(seek_from_current = "1")]
-    dw0_portid: u8,
-    _dw1: u32,
+    #[deku(bits = "4", pad_bits_before = "4", pad_bytes_after = "1")]
+    sfreq: SmbusFrequency,
+    #[deku(pad_bytes_after = "4")]
+    portid: u8,
 }
 
 // MI v2.0, 5.2.2, Figure 87
@@ -670,28 +705,18 @@ struct PciePortDataResponse {
 }
 impl Encode<24> for PciePortDataResponse {}
 
-// MI v2.0, Figure 116, MVPDFREQ
-#[allow(dead_code)]
-#[derive(Clone, Copy, Debug, DekuRead, DekuWrite, Eq, Ord, PartialEq, PartialOrd)]
-#[deku(endian = "endian", ctx = "endian: Endian")]
-#[deku(id_type = "u8")]
-#[repr(u8)]
-pub enum SmbusFrequency {
-    FreqNotSupported = 0x00,
-    Freq100Khz = 0x01,
-    Freq400Khz = 0x02,
-    Freq1Mhz = 0x03,
-}
-unsafe impl Discriminant<u8> for SmbusFrequency {}
-
 // MI v2.0, 5.7.2, Figure 116
 #[derive(Debug, DekuWrite)]
 #[deku(endian = "little")]
 struct TwoWirePortDataResponse {
     cvpdaddr: u8,
-    mvpdfreq: u8,
+    #[deku(bits = "8")]
+    mvpdfreq: SmbusFrequency,
     cmeaddr: u8,
-    twprt: u8,
+    #[deku(bits = "1", pad_bits_after = "5")]
+    twprt_i3csprt: bool,
+    #[deku(bits = "2")]
+    twprt_msmbfreq: SmbusFrequency,
     nvmebm: u8,
 }
 impl Encode<24> for TwoWirePortDataResponse {}

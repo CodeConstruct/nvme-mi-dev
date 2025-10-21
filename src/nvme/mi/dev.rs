@@ -397,27 +397,27 @@ impl RequestHandler for NvmeMiConfigurationSetRequest {
                     return Err(ResponseStatus::InvalidCommandSize);
                 }
 
-                let Some(port) = subsys.ports.get_mut(sifr.dw0_portid as usize) else {
-                    debug!("Unrecognised port ID: {}", sifr.dw0_portid);
+                let Some(port) = subsys.ports.get_mut(sifr.portid as usize) else {
+                    debug!("Unrecognised port ID: {}", sifr.portid);
                     return Err(ResponseStatus::InvalidParameter);
                 };
 
                 let crate::PortType::TwoWire(twprt) = &mut port.typ else {
-                    debug!("Port {} is not a TwoWire port: {:?}", sifr.dw0_portid, port);
+                    debug!("Port {} is not a TwoWire port: {:?}", sifr.portid, port);
                     return Err(ResponseStatus::InvalidParameter);
                 };
 
-                if sifr.dw0_sfreq > twprt.msmbfreq {
-                    debug!("Unsupported SMBus frequency: {:?}", sifr.dw0_sfreq);
+                if sifr.sfreq > twprt.msmbfreq.into() {
+                    debug!("Unsupported SMBus frequency: {:?}", sifr.sfreq);
                     return Err(ResponseStatus::InvalidParameter);
                 }
 
                 app(CommandEffect::SetSmbusFreq {
                     port_id: port.id,
-                    freq: sifr.dw0_sfreq,
+                    freq: sifr.sfreq.into(),
                 })
                 .await?;
-                twprt.smbfreq = sifr.dw0_sfreq;
+                twprt.smbfreq = sifr.sfreq.into();
 
                 let mh = MessageHeader::respond(MessageType::NvmeMiCommand).encode()?;
 
@@ -510,13 +510,13 @@ impl RequestHandler for NvmeMiConfigurationGetRequest {
                     return Err(ResponseStatus::InvalidCommandSize);
                 }
 
-                let Some(port) = subsys.ports.get(sifr.dw0_portid as usize) else {
-                    debug!("Unrecognised port ID: {}", sifr.dw0_portid);
+                let Some(port) = subsys.ports.get(sifr.portid as usize) else {
+                    debug!("Unrecognised port ID: {}", sifr.portid);
                     return Err(ResponseStatus::InvalidParameter);
                 };
 
                 let crate::PortType::TwoWire(twprt) = port.typ else {
-                    debug!("Port {} is not a TwoWire port: {:?}", sifr.dw0_portid, port);
+                    debug!("Port {} is not a TwoWire port: {:?}", sifr.portid, port);
                     return Err(ResponseStatus::InvalidParameter);
                 };
 
@@ -524,7 +524,7 @@ impl RequestHandler for NvmeMiConfigurationGetRequest {
 
                 let fr = GetSmbusI2cFrequencyResponse {
                     status: ResponseStatus::Success,
-                    mr_sfreq: twprt.smbfreq,
+                    sfreq: twprt.smbfreq.into(),
                 }
                 .encode()?;
 
@@ -668,9 +668,10 @@ impl RequestHandler for NvmeMiDataStructureRequest {
                     crate::PortType::TwoWire(twprt) => {
                         let twpd = TwoWirePortDataResponse {
                             cvpdaddr: twprt.cvpdaddr,
-                            mvpdfreq: twprt.mvpdfreq.id(),
+                            mvpdfreq: twprt.mvpdfreq.into(),
                             cmeaddr: twprt.cmeaddr,
-                            twprt: (twprt.i3csprt as u8) << 7 | twprt.msmbfreq.id() & 3,
+                            twprt_i3csprt: twprt.i3csprt,
+                            twprt_msmbfreq: twprt.msmbfreq.into(),
                             nvmebm: twprt.nvmebms.into(),
                         }
                         .encode()?;
@@ -2185,7 +2186,7 @@ impl crate::ManagementEndpoint {
             return;
         }
 
-        if let Err(status) = mh.handle(&mh, self, subsys, rest, &mut resp, app).await {
+        if let Err(status) = mh.handle(mh, self, subsys, rest, &mut resp, app).await {
             let mut digest = ISCSI.digest();
             digest.update(&[0x80 | 0x04]);
 

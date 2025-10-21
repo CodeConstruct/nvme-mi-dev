@@ -26,6 +26,16 @@ const MAX_NAMESPACES: usize = 4;
 const MAX_PORTS: usize = 2;
 const MAX_NIDTS: usize = 2;
 
+pub mod smbus {
+    #[derive(Debug, Clone, Copy, Eq, PartialEq)]
+    pub enum BusFrequency {
+        NotSupported,
+        Freq100Khz,
+        Freq400Khz,
+        Freq1Mhz,
+    }
+}
+
 #[derive(Debug)]
 pub enum CommandEffect {
     SetMtu {
@@ -34,7 +44,7 @@ pub enum CommandEffect {
     },
     SetSmbusFreq {
         port_id: PortId,
-        freq: nvme::mi::SmbusFrequency,
+        freq: smbus::BusFrequency,
     },
 }
 
@@ -115,25 +125,25 @@ impl Default for PciePort {
 pub struct TwoWirePort {
     // MI v2.0, 5.7.2, Figure 116
     cvpdaddr: u8,
-    mvpdfreq: nvme::mi::SmbusFrequency,
+    mvpdfreq: smbus::BusFrequency,
     cmeaddr: u8,
     i3csprt: bool,
-    msmbfreq: nvme::mi::SmbusFrequency,
+    msmbfreq: smbus::BusFrequency,
     nvmebms: bool,
     // Local state
-    smbfreq: nvme::mi::SmbusFrequency,
+    smbfreq: smbus::BusFrequency,
 }
 
 impl TwoWirePort {
     pub fn new() -> Self {
         Self {
             cvpdaddr: 0,
-            mvpdfreq: nvme::mi::SmbusFrequency::FreqNotSupported,
+            mvpdfreq: smbus::BusFrequency::NotSupported,
             cmeaddr: 0x1d,
             i3csprt: false,
-            msmbfreq: nvme::mi::SmbusFrequency::Freq100Khz,
+            msmbfreq: smbus::BusFrequency::Freq100Khz,
             nvmebms: false,
-            smbfreq: nvme::mi::SmbusFrequency::Freq100Khz,
+            smbfreq: smbus::BusFrequency::Freq100Khz,
         }
     }
 
@@ -149,17 +159,17 @@ impl Default for TwoWirePort {
 }
 
 pub struct TwoWirePortBuilder {
-    msmbfreq: nvme::mi::SmbusFrequency,
+    msmbfreq: smbus::BusFrequency,
 }
 
 impl TwoWirePortBuilder {
     pub fn new() -> Self {
         Self {
-            msmbfreq: nvme::mi::SmbusFrequency::Freq100Khz,
+            msmbfreq: smbus::BusFrequency::Freq100Khz,
         }
     }
 
-    pub fn msmbfreq(&mut self, freq: nvme::mi::SmbusFrequency) -> &mut Self {
+    pub fn msmbfreq(&mut self, freq: smbus::BusFrequency) -> &mut Self {
         self.msmbfreq = freq;
         self
     }
