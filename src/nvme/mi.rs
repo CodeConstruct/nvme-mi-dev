@@ -496,31 +496,14 @@ struct CompositeControllerStatusDataStructureResponse {
 impl Encode<4> for CompositeControllerStatusDataStructureResponse {}
 
 // MI v2.0, 5.6, Figure 108, NSS
-// TODO: Convert to Flags/FlagSet
-#[derive(Debug)]
-pub struct NvmSubsystemStatus {
-    atf: bool,
-    sfm: bool,
-    df: bool,
-    rnr: bool,
-    rd: bool,
-}
-
-impl Default for NvmSubsystemStatus {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl NvmSubsystemStatus {
-    pub fn new() -> Self {
-        Self {
-            atf: false,
-            sfm: false,
-            df: true,
-            rnr: true,
-            rd: false,
-        }
+flags! {
+    pub enum NvmSubsystemStatusFlags: u8 {
+        P1la = 1 << 2,
+        P0la = 1 << 3,
+        Rnr = 1 << 4,
+        Df = 1 << 5,
+        Sfm = 1 << 6,
+        Atf = 1 << 7,
     }
 }
 
@@ -528,7 +511,7 @@ impl NvmSubsystemStatus {
 #[derive(Debug, DekuRead, DekuWrite)]
 #[deku(endian = "little")]
 struct NvmSubsystemHealthDataStructureResponse {
-    nss: u8,
+    nss: WireFlagSet<NvmSubsystemStatusFlags>,
     sw: u8,
     ctemp: u8,
     pldu: u8,

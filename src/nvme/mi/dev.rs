@@ -8,7 +8,7 @@ use heapless::Vec;
 use log::debug;
 use mctp::{AsyncRespChannel, MsgIC};
 
-use crate::nvme::mi::PortCapabilityFlags;
+use crate::nvme::mi::{NvmSubsystemStatusFlags, PortCapabilityFlags};
 use crate::{
     CommandEffect, CommandEffectError, Controller, ControllerError, ControllerType, Discriminant,
     MAX_CONTROLLERS, MAX_NAMESPACES, NamespaceId, NamespaceIdDisposition, SubsystemError,
@@ -224,17 +224,21 @@ impl RequestHandler for NvmeMiCommandRequestHeader {
                 let pdlu = core::cmp::min(255, 100 * ctlr.write_age / ctlr.write_lifespan);
 
                 let nvmshds = NvmSubsystemHealthDataStructureResponse {
-                    nss: (subsys.health.nss.atf as u8) << 7
-                        | (subsys.health.nss.sfm as u8) << 6
-                        | (subsys.health.nss.df as u8) << 5
-                        | (subsys.health.nss.rnr as u8) << 4
-                        | ((pprt.cls != crate::pcie::LinkSpeed::Inactive) as u8) << 3 // P0LA
-                        | (false as u8) << 2, // P1LA
+                    nss: {
+                        let mut flags = subsys.health.nss;
+
+                        if pprt.cls != crate::pcie::LinkSpeed::Inactive {
+                            flags |= NvmSubsystemStatusFlags::P0la;
+                        }
+
+                        flags
+                    }
+                    .into(),
                     #[allow(clippy::nonminimal_bool)]
                     sw: (!false as u8) << 5 // PMRRO
                         | (!false as u8) << 4 // VMBF
                         | (!ctlr.ro as u8) << 3 // AMRO
-                        | (!subsys.health.nss.rd as u8) << 2 // NDR
+                        | (!ctlr.ro as u8) << 2 // NDR
                         | (!(ctlr.temp_range.lower <= ctlr.temp && ctlr.temp <= ctlr.temp_range.upper) as u8) << 1 // TTC
                         | (!((100 * ctlr.spare / ctlr.capacity) < ctlr.spare_range.lower) as u8),
                     ctemp: ctemp as u8,

@@ -439,13 +439,14 @@ impl Controller {
 
 #[derive(Debug)]
 struct SubsystemHealth {
-    nss: nvme::mi::NvmSubsystemStatus,
+    nss: FlagSet<crate::nvme::mi::NvmSubsystemStatusFlags>,
 }
 
 impl SubsystemHealth {
     fn new() -> Self {
         Self {
-            nss: nvme::mi::NvmSubsystemStatus::new(),
+            nss: crate::nvme::mi::NvmSubsystemStatusFlags::Rnr
+                | crate::nvme::mi::NvmSubsystemStatusFlags::Df,
         }
     }
 }
