@@ -797,8 +797,10 @@ impl RequestHandler for NvmeMiDataStructureRequest {
 
                 let ci = ControllerInformationResponse {
                     portid: ctlr.port.0,
-                    prii: 1,
-                    pri: pprt.b << 8 | pprt.d << 4 | pprt.f,
+                    prii_pcieriv: true,
+                    pri_pcibn: pprt.b,
+                    pri_pcidn: pprt.d,
+                    pri_pcifn: pprt.f,
                     pcivid: subsys.info.pci_vid,
                     pcidid: subsys.info.pci_did,
                     pcisvid: subsys.info.pci_svid,

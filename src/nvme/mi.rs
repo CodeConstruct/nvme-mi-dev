@@ -815,8 +815,14 @@ impl Encode<24> for TwoWirePortDataResponse {}
 struct ControllerInformationResponse {
     #[deku(pad_bytes_after = "4")]
     portid: u8,
-    prii: u8,
-    pri: u16,
+    #[deku(bits = "1", pad_bits_before = "7")]
+    prii_pcieriv: bool,
+    #[deku(bits = "8")]
+    pri_pcibn: u16,
+    #[deku(bits = "5")]
+    pri_pcidn: u16,
+    #[deku(bits = "3")]
+    pri_pcifn: u16,
     pcivid: u16,
     pcidid: u16,
     pcisvid: u16,
