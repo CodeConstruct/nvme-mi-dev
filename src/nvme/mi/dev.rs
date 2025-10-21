@@ -9,6 +9,10 @@ use log::debug;
 use mctp::{AsyncRespChannel, MsgIC};
 
 use crate::nvme::mi::{NvmSubsystemStatusFlags, PortCapabilityFlags};
+use crate::nvme::{
+    ControllerAttributeFlags, ControllerMultipathIoNamespaceSharingCapabilityFlags,
+    ManagementEndpointCapabilityFlags, NvmSubsystemReportFlags,
+};
 use crate::{
     CommandEffect, CommandEffectError, Controller, ControllerError, ControllerType, Discriminant,
     MAX_CONTROLLERS, MAX_NAMESPACES, NamespaceId, NamespaceIdDisposition, SubsystemError,
@@ -1385,8 +1389,22 @@ impl RequestHandler for AdminIdentifyRequest {
                             fixup.reverse();
                             fixup
                         },
-                        cmic: ((subsys.ctlrs.len() > 1) as u8) << 1 // MCTRS
-                        | ((subsys.ports.len() > 1) as u8), // MPORTS
+                        cmic: {
+                            let mut flags = FlagSet::empty();
+
+                            if subsys.ctlrs.len() > 1 {
+                                flags |=
+                                    ControllerMultipathIoNamespaceSharingCapabilityFlags::Mctrs;
+                            }
+
+                            if subsys.ports.len() > 1 {
+                                flags |=
+                                    ControllerMultipathIoNamespaceSharingCapabilityFlags::Mports;
+                            }
+
+                            flags
+                        }
+                        .into(),
                         mdts: 0,
                         cntlid: ctlr.id.0,
                         ver: 0,
@@ -1394,17 +1412,43 @@ impl RequestHandler for AdminIdentifyRequest {
                         rtd3e: 0,
                         oaes: 0,
                         // TODO: Tie to data model
-                        ctratt: ((false as u32) << 14) // DNVMS
-                        | ((false as u32) << 13) // DEG
-                        | ((false as u32) << 4) // EGS
-                        | ((false as u32) << 2), // NSETS
+                        ctratt: {
+                            let mut flags = FlagSet::empty();
+
+                            flags -= ControllerAttributeFlags::Nsets;
+                            flags -= ControllerAttributeFlags::Egs;
+                            flags -= ControllerAttributeFlags::Deg;
+                            flags -= ControllerAttributeFlags::Dnvms;
+
+                            flags
+                        }
+                        .into(),
                         cntrltype: ctlr.cntrltype.into(),
                         // TODO: Tie to data model
-                        nvmsr: ((false as u8) << 1) // NVMEE
-                        | (true as u8), // NVMESD
+                        nvmsr: { FlagSet::empty() | NvmSubsystemReportFlags::Nvmesd }.into(),
                         vwci: 0,
-                        mec: ((subsys.ports.iter().any(|p| matches!(p.typ, crate::PortType::Pcie(_)))) as u8) << 1 // PCIEME
-                        | (subsys.ports.iter().any(|p| matches!(p.typ, crate::PortType::TwoWire(_)))) as u8, // TWPME
+                        mec: {
+                            let mut flags = FlagSet::empty();
+
+                            if subsys
+                                .ports
+                                .iter()
+                                .any(|p| matches!(p.typ, crate::PortType::Pcie(_)))
+                            {
+                                flags |= ManagementEndpointCapabilityFlags::Pcieme;
+                            }
+
+                            if subsys
+                                .ports
+                                .iter()
+                                .any(|p| matches!(p.typ, crate::PortType::TwoWire(_)))
+                            {
+                                flags |= ManagementEndpointCapabilityFlags::Twpme;
+                            }
+
+                            flags
+                        }
+                        .into(),
                         ocas: 0,
                         acl: 0,
                         aerl: 0,

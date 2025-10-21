@@ -448,6 +448,42 @@ pub enum CommandSetIdentifier {
     ComputationalPrograms = 0x04,
 }
 
+// Base v2.1, 5.1.13.2.1, Figure 312, CMIC
+flags! {
+    enum ControllerMultipathIoNamespaceSharingCapabilityFlags: u8 {
+        Mports,
+        Mctrs,
+        Ft,
+        Anars,
+    }
+}
+
+// Base v2.1, 5.1.13.2.1, Figure 312, CTRATT
+flags! {
+    enum ControllerAttributeFlags: u32 {
+        Hids,
+        Nopspm,
+        Nsets,
+        Rrlvls,
+        Egs,
+        Plm,
+        Tbkas,
+        Ng,
+        Sqa,
+        Ulist,
+        Mds,
+        Fcm,
+        Vcm,
+        Deg,
+        Dnvms,
+        Elbas,
+        Mem,
+        Hmbr,
+        Rhii,
+        Fdps,
+    }
+}
+
 // Base v2.1, 5.1.13.2.1, Figure 312, CNTRLTYPE
 #[derive(Clone, Copy, Debug, DekuRead, DekuWrite, PartialEq)]
 #[deku(id_type = "u8", endian = "endian", ctx = "endian: Endian")]
@@ -466,6 +502,22 @@ impl From<crate::ControllerType> for ControllerType {
             crate::ControllerType::Discovery => Self::DiscoveryController,
             crate::ControllerType::Administrative => Self::AdministrativeController,
         }
+    }
+}
+
+// Base v2.1, 5.1.13.2.1, Figure 312, NVMSR
+flags! {
+    enum NvmSubsystemReportFlags: u8 {
+        Nvmesd,
+        Nvmee,
+    }
+}
+
+// Base v2.1, 5.1.13.2.1, Figure 312, MEC
+flags! {
+    enum ManagementEndpointCapabilityFlags: u8 {
+        Twpme,
+        Pcieme,
     }
 }
 
@@ -551,20 +603,20 @@ struct AdminIdentifyControllerResponse {
     fr: WireString<8>,
     rab: u8,
     ieee: [u8; 3],
-    cmic: u8,
+    cmic: WireFlagSet<ControllerMultipathIoNamespaceSharingCapabilityFlags>,
     mdts: u8,
     cntlid: u16,
     ver: u32,
     rtd3r: u32,
     rtd3e: u32,
     oaes: u32,
-    ctratt: u32,
+    ctratt: WireFlagSet<ControllerAttributeFlags>,
     #[deku(seek_from_current = "11")]
     cntrltype: crate::nvme::ControllerType,
     #[deku(seek_from_current = "141")]
-    nvmsr: u8,
+    nvmsr: WireFlagSet<NvmSubsystemReportFlags>,
     vwci: u8,
-    mec: u8,
+    mec: WireFlagSet<ManagementEndpointCapabilityFlags>,
     ocas: u16,
     acl: u8,
     aerl: u8,
