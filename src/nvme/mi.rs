@@ -603,14 +603,14 @@ struct NvmSubsystemInformationResponse {
 impl Encode<32> for NvmSubsystemInformationResponse {}
 
 // MI v2.0, 5.7.2, Figure 114, PRTTYP
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, DekuRead, DekuWrite, PartialEq, Eq)]
+#[deku(ctx = "endian: Endian", endian = "endian", id_type = "u8")]
 #[repr(u8)]
 pub enum PortType {
     Inactive = 0x00,
     Pcie = 0x01,
     TwoWire = 0x02,
 }
-unsafe impl Discriminant<u8> for PortType {}
 
 impl From<&crate::PortType> for PortType {
     fn from(value: &crate::PortType) -> Self {
@@ -622,12 +622,20 @@ impl From<&crate::PortType> for PortType {
     }
 }
 
+// MI v2.0, 5.7.2, Figure 114, PRTCAP
+flags! {
+    enum PortCapabilityFlags: u8 {
+        Ciaps,
+        Aems,
+    }
+}
+
 // MI v2.0, 5.7.2, Figure 114
 #[derive(Debug, DekuWrite)]
 #[deku(endian = "little")]
 struct PortInformationResponse {
-    prttyp: u8,
-    prtcap: u8,
+    prttyp: PortType,
+    prtcap: WireFlagSet<PortCapabilityFlags>,
     mmtus: u16,
     mebs: u32,
 }

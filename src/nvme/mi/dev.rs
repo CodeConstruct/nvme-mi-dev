@@ -8,6 +8,7 @@ use heapless::Vec;
 use log::debug;
 use mctp::{AsyncRespChannel, MsgIC};
 
+use crate::nvme::mi::PortCapabilityFlags;
 use crate::{
     CommandEffect, CommandEffectError, Controller, ControllerError, ControllerType, Discriminant,
     MAX_CONTROLLERS, MAX_NAMESPACES, NamespaceId, NamespaceIdDisposition, SubsystemError,
@@ -635,9 +636,21 @@ impl RequestHandler for NvmeMiDataStructureRequest {
                     return Err(ResponseStatus::InvalidParameter);
                 };
                 let pi = PortInformationResponse {
-                    // FIXME: Change prttyp to crate::nvme::mi::PortType
-                    prttyp: Into::<crate::nvme::mi::PortType>::into(&port.typ).id(),
-                    prtcap: (port.caps.aems as u8) << 1 | (port.caps.ciaps as u8),
+                    prttyp: Into::<crate::nvme::mi::PortType>::into(&port.typ),
+                    prtcap: {
+                        let mut flags = FlagSet::empty();
+
+                        if port.caps.ciaps {
+                            flags |= PortCapabilityFlags::Ciaps;
+                        }
+
+                        if port.caps.aems {
+                            flags |= PortCapabilityFlags::Aems;
+                        }
+
+                        flags
+                    }
+                    .into(),
                     mmtus: port.mmtus,
                     mebs: port.mebs,
                 }
