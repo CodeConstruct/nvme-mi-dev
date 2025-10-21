@@ -5,6 +5,38 @@
 use deku::ctx::Endian;
 use deku::{DekuRead, DekuWrite};
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum PayloadSize {
+    Payload128B,
+    Payload256B,
+    Payload512B,
+    Payload1Kb,
+    Payload2Kb,
+    Payload4Kb,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum LinkSpeed {
+    Inactive,
+    Gts2p5,
+    Gts5,
+    Gts8,
+    Gts16,
+    Gts32,
+    Gts64,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum LinkWidth {
+    X1,
+    X2,
+    X4,
+    X8,
+    X12,
+    X16,
+    X32,
+}
+
 // PCIe Base 4.0r1.0, 7.5.1.2, Figure 7-10
 #[derive(Debug, DekuRead, DekuWrite)]
 #[deku(endian = "little")]

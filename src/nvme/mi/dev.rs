@@ -33,7 +33,7 @@ use crate::{
             NvmSubsystemInformationResponse, NvmeManagementResponse, NvmeMiCommandRequestHeader,
             NvmeMiCommandRequestType, NvmeMiDataStructureManagementResponse,
             NvmeMiDataStructureRequestType, PcieCommandRequestHeader, PciePortDataResponse,
-            PortInformationResponse, TwoWirePortDataResponse,
+            PcieSupportedLinkSpeeds, PortInformationResponse, TwoWirePortDataResponse,
         },
     },
     pcie::PciDeviceFunctionConfigurationSpace,
@@ -227,7 +227,7 @@ impl RequestHandler for NvmeMiCommandRequestHeader {
                         | (subsys.health.nss.sfm as u8) << 6
                         | (subsys.health.nss.df as u8) << 5
                         | (subsys.health.nss.rnr as u8) << 4
-                        | ((pprt.cls != crate::nvme::mi::PcieLinkSpeed::Inactive) as u8) << 3 // P0LA
+                        | ((pprt.cls != crate::pcie::LinkSpeed::Inactive) as u8) << 3 // P0LA
                         | (false as u8) << 2, // P1LA
                     #[allow(clippy::nonminimal_bool)]
                     sw: (!false as u8) << 5 // PMRRO
@@ -647,7 +647,15 @@ impl RequestHandler for NvmeMiDataStructureRequest {
                     crate::PortType::Pcie(pprt) => {
                         let ppd = PciePortDataResponse {
                             pciemps: pprt.mps.into(),
-                            pcieslsv: 0x3fu8,
+                            pcieslsv: {
+                                PcieSupportedLinkSpeeds::Gts2p5
+                                    | PcieSupportedLinkSpeeds::Gts5
+                                    | PcieSupportedLinkSpeeds::Gts8
+                                    | PcieSupportedLinkSpeeds::Gts16
+                                    | PcieSupportedLinkSpeeds::Gts32
+                                    | PcieSupportedLinkSpeeds::Gts64
+                            }
+                            .into(),
                             pciecls: pprt.cls.into(),
                             pciemlw: pprt.mlw.into(),
                             pcienlw: pprt.nlw.into(),

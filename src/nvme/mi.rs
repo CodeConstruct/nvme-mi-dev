@@ -634,10 +634,10 @@ struct PortInformationResponse {
 impl Encode<8> for PortInformationResponse {}
 
 // MI v2.0, 5.7.2, Figure 115, PCIEMPS
-#[allow(dead_code)]
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, DekuRead, DekuWrite, Debug, Eq, PartialEq)]
+#[deku(ctx = "endian: Endian", endian = "endian", id_type = "u8")]
 #[repr(u8)]
-pub enum PciePayloadSize {
+enum PciePayloadSize {
     Payload128B = 0x00,
     Payload256B = 0x01,
     Payload512B = 0x02,
@@ -646,17 +646,50 @@ pub enum PciePayloadSize {
     Payload4Kb = 0x05,
 }
 
-impl From<PciePayloadSize> for u8 {
-    fn from(pps: PciePayloadSize) -> Self {
-        pps as Self
+impl From<crate::pcie::PayloadSize> for PciePayloadSize {
+    fn from(value: crate::pcie::PayloadSize) -> Self {
+        match value {
+            crate::pcie::PayloadSize::Payload128B => Self::Payload128B,
+            crate::pcie::PayloadSize::Payload256B => Self::Payload256B,
+            crate::pcie::PayloadSize::Payload512B => Self::Payload512B,
+            crate::pcie::PayloadSize::Payload1Kb => Self::Payload1Kb,
+            crate::pcie::PayloadSize::Payload2Kb => Self::Payload2Kb,
+            crate::pcie::PayloadSize::Payload4Kb => Self::Payload4Kb,
+        }
+    }
+}
+
+impl From<PciePayloadSize> for crate::pcie::PayloadSize {
+    fn from(value: PciePayloadSize) -> Self {
+        match value {
+            PciePayloadSize::Payload128B => Self::Payload128B,
+            PciePayloadSize::Payload256B => Self::Payload256B,
+            PciePayloadSize::Payload512B => Self::Payload512B,
+            PciePayloadSize::Payload1Kb => Self::Payload1Kb,
+            PciePayloadSize::Payload2Kb => Self::Payload2Kb,
+            PciePayloadSize::Payload4Kb => Self::Payload4Kb,
+        }
+    }
+}
+
+// MI v2.0, 5.7.2, Figure 115, PCIESLSV
+flags! {
+    #[repr(u8)]
+    enum PcieSupportedLinkSpeeds: u8 {
+        Gts2p5,
+        Gts5,
+        Gts8,
+        Gts16,
+        Gts32,
+        Gts64,
     }
 }
 
 // MI v2.0, 5.7.2, Figure 115, PCIECLS
-#[allow(dead_code)]
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, DekuRead, DekuWrite, Eq, PartialEq)]
+#[deku(ctx = "endian: Endian", endian = "endian", id_type = "u8")]
 #[repr(u8)]
-pub enum PcieLinkSpeed {
+enum PcieLinkSpeed {
     Inactive = 0x00,
     Gts2p5 = 0x01,
     Gts5 = 0x02,
@@ -666,17 +699,39 @@ pub enum PcieLinkSpeed {
     Gts64 = 0x06,
 }
 
-impl From<PcieLinkSpeed> for u8 {
-    fn from(pls: PcieLinkSpeed) -> Self {
-        pls as Self
+impl From<crate::pcie::LinkSpeed> for PcieLinkSpeed {
+    fn from(value: crate::pcie::LinkSpeed) -> Self {
+        match value {
+            crate::pcie::LinkSpeed::Inactive => Self::Inactive,
+            crate::pcie::LinkSpeed::Gts2p5 => Self::Gts2p5,
+            crate::pcie::LinkSpeed::Gts5 => Self::Gts5,
+            crate::pcie::LinkSpeed::Gts8 => Self::Gts8,
+            crate::pcie::LinkSpeed::Gts16 => Self::Gts16,
+            crate::pcie::LinkSpeed::Gts32 => Self::Gts32,
+            crate::pcie::LinkSpeed::Gts64 => Self::Gts64,
+        }
+    }
+}
+
+impl From<PcieLinkSpeed> for crate::pcie::LinkSpeed {
+    fn from(value: PcieLinkSpeed) -> Self {
+        match value {
+            PcieLinkSpeed::Inactive => Self::Inactive,
+            PcieLinkSpeed::Gts2p5 => Self::Gts2p5,
+            PcieLinkSpeed::Gts5 => Self::Gts5,
+            PcieLinkSpeed::Gts8 => Self::Gts8,
+            PcieLinkSpeed::Gts16 => Self::Gts16,
+            PcieLinkSpeed::Gts32 => Self::Gts32,
+            PcieLinkSpeed::Gts64 => Self::Gts64,
+        }
     }
 }
 
 // MI v2.0, 5.7.2, Figure 115, PCIEMLW
-#[allow(dead_code)]
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, DekuRead, DekuWrite, Eq, PartialEq)]
+#[deku(ctx = "endian: Endian", endian = "endian", id_type = "u8")]
 #[repr(u8)]
-pub enum PcieLinkWidth {
+enum PcieLinkWidth {
     X1 = 1,
     X2 = 2,
     X4 = 4,
@@ -686,21 +741,43 @@ pub enum PcieLinkWidth {
     X32 = 32,
 }
 
-impl From<PcieLinkWidth> for u8 {
-    fn from(plw: PcieLinkWidth) -> Self {
-        plw as Self
+impl From<crate::pcie::LinkWidth> for PcieLinkWidth {
+    fn from(value: crate::pcie::LinkWidth) -> Self {
+        match value {
+            crate::pcie::LinkWidth::X1 => Self::X1,
+            crate::pcie::LinkWidth::X2 => Self::X2,
+            crate::pcie::LinkWidth::X4 => Self::X4,
+            crate::pcie::LinkWidth::X8 => Self::X8,
+            crate::pcie::LinkWidth::X12 => Self::X12,
+            crate::pcie::LinkWidth::X16 => Self::X16,
+            crate::pcie::LinkWidth::X32 => Self::X32,
+        }
+    }
+}
+
+impl From<PcieLinkWidth> for crate::pcie::LinkWidth {
+    fn from(value: PcieLinkWidth) -> Self {
+        match value {
+            PcieLinkWidth::X1 => Self::X1,
+            PcieLinkWidth::X2 => Self::X2,
+            PcieLinkWidth::X4 => Self::X4,
+            PcieLinkWidth::X8 => Self::X8,
+            PcieLinkWidth::X12 => Self::X12,
+            PcieLinkWidth::X16 => Self::X16,
+            PcieLinkWidth::X32 => Self::X32,
+        }
     }
 }
 
 // MI v2.0, 5.7.2, Figure 115
-#[derive(Debug, DekuWrite)]
+#[derive(Debug, DekuRead, DekuWrite)]
 #[deku(endian = "little")]
 struct PciePortDataResponse {
-    pciemps: u8,
-    pcieslsv: u8,
-    pciecls: u8,
-    pciemlw: u8,
-    pcienlw: u8,
+    pciemps: PciePayloadSize,
+    pcieslsv: WireFlagSet<PcieSupportedLinkSpeeds>,
+    pciecls: PcieLinkSpeed,
+    pciemlw: PcieLinkWidth,
+    pcienlw: PcieLinkWidth,
     pciepn: u8,
 }
 impl Encode<24> for PciePortDataResponse {}

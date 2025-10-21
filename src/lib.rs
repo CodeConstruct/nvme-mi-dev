@@ -94,10 +94,10 @@ pub struct PciePort {
     d: u16,
     f: u16,
     seg: u8,
-    mps: nvme::mi::PciePayloadSize,
-    cls: nvme::mi::PcieLinkSpeed,
-    mlw: nvme::mi::PcieLinkWidth,
-    nlw: nvme::mi::PcieLinkWidth,
+    mps: pcie::PayloadSize,
+    cls: pcie::LinkSpeed,
+    mlw: pcie::LinkWidth,
+    nlw: pcie::LinkWidth,
 }
 
 impl PciePort {
@@ -107,10 +107,10 @@ impl PciePort {
             d: 0,
             f: 0,
             seg: 0,
-            mps: nvme::mi::PciePayloadSize::Payload128B,
-            cls: nvme::mi::PcieLinkSpeed::Gts2p5,
-            mlw: nvme::mi::PcieLinkWidth::X2,
-            nlw: nvme::mi::PcieLinkWidth::X1,
+            mps: pcie::PayloadSize::Payload128B,
+            cls: pcie::LinkSpeed::Gts2p5,
+            mlw: pcie::LinkWidth::X2,
+            nlw: pcie::LinkWidth::X1,
         }
     }
 }
