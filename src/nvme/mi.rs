@@ -507,12 +507,32 @@ flags! {
     }
 }
 
+// MI v2.0, 5.6, Figure 108, SW
+flags! {
+    pub enum SmartWarningFlags: u8 {
+        Ascbt,
+        Ttc,
+        Ndr,
+        Amro,
+        Vmbf,
+        Pmrro,
+    }
+}
+
+impl From<FlagSet<super::CriticalWarningFlags>> for WireFlagSet<SmartWarningFlags> {
+    fn from(value: FlagSet<super::CriticalWarningFlags>) -> Self {
+        FlagSet::<SmartWarningFlags>::new((!value.bits()) & 0x3f)
+            .expect("Undefined bits set")
+            .into()
+    }
+}
+
 // MI v2.0, 5.6, Figure 108
 #[derive(Debug, DekuRead, DekuWrite)]
 #[deku(endian = "little")]
 struct NvmSubsystemHealthDataStructureResponse {
     nss: WireFlagSet<NvmSubsystemStatusFlags>,
-    sw: u8,
+    sw: WireFlagSet<SmartWarningFlags>,
     ctemp: u8,
     pldu: u8,
 }

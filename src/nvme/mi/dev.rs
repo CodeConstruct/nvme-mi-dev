@@ -234,13 +234,26 @@ impl RequestHandler for NvmeMiCommandRequestHeader {
                         flags
                     }
                     .into(),
-                    #[allow(clippy::nonminimal_bool)]
-                    sw: (!false as u8) << 5 // PMRRO
-                        | (!false as u8) << 4 // VMBF
-                        | (!ctlr.ro as u8) << 3 // AMRO
-                        | (!ctlr.ro as u8) << 2 // NDR
-                        | (!(ctlr.temp_range.lower <= ctlr.temp && ctlr.temp <= ctlr.temp_range.upper) as u8) << 1 // TTC
-                        | (!((100 * ctlr.spare / ctlr.capacity) < ctlr.spare_range.lower) as u8),
+                    sw: {
+                        let mut flags = FlagSet::full();
+
+                        if ctlr.ro {
+                            flags -= super::SmartWarningFlags::Amro;
+                            flags -= super::SmartWarningFlags::Ndr;
+                        }
+
+                        if ctlr.temp_range.lower <= ctlr.temp && ctlr.temp <= ctlr.temp_range.upper
+                        {
+                            flags -= super::SmartWarningFlags::Ttc;
+                        }
+
+                        if (100 * ctlr.spare / ctlr.capacity) < ctlr.spare_range.lower {
+                            flags -= super::SmartWarningFlags::Ascbt;
+                        }
+
+                        flags
+                    }
+                    .into(),
                     ctemp: ctemp as u8,
                     pldu: pdlu as u8,
                 }
