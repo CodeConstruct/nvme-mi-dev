@@ -1009,7 +1009,7 @@ struct AdminCommandResponseHeader {
     #[deku(seek_from_start = "4")]
     cqedw0: u32,
     cqedw1: u32,
-    cqedw3: u32,
+    cqedw3: super::AdminIoCqeStatus,
 }
 impl Encode<16> for AdminCommandResponseHeader {}
 

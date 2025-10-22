@@ -23,7 +23,7 @@ use crate::{
         AdminIdentifyControllerResponse,
         AdminIdentifyNamespaceIdentificationDescriptorListResponse,
         AdminIdentifyNvmIdentifyNamespaceResponse, AdminIoCqeGenericCommandStatus,
-        AdminIoCqeStatus, AdminIoCqeStatusType, AdminSanitizeConfiguration, ControllerListResponse,
+        AdminIoCqeStatusType, AdminSanitizeConfiguration, ControllerListResponse,
         LidSupportedAndEffectsDataStructure, LidSupportedAndEffectsFlags, LogPageAttributes,
         NamespaceIdentifierType, SanitizeAction, SanitizeOperationStatus, SanitizeState,
         SanitizeStateInformation, SanitizeStatus, SanitizeStatusLogPageResponse,
@@ -971,16 +971,9 @@ where
         status: ResponseStatus::Success,
         cqedw0: 0,
         cqedw1: 0,
-        cqedw3: AdminIoCqeStatus {
-            cid: 0,
-            p: true,
-            status: AdminIoCqeStatusType::GenericCommandStatus(
-                AdminIoCqeGenericCommandStatus::SuccessfulCompletion,
-            ),
-            crd: crate::nvme::CommandRetryDelay::None,
-            m: false,
-            dnr: false,
-        }
+        cqedw3: AdminIoCqeStatusType::GenericCommandStatus(
+            AdminIoCqeGenericCommandStatus::SuccessfulCompletion,
+        )
         .into(),
     }
     .encode()?;
@@ -1003,15 +996,7 @@ where
         status: ResponseStatus::Success,
         cqedw0: 0,
         cqedw1: 0,
-        cqedw3: AdminIoCqeStatus {
-            cid: 0,
-            p: true,
-            status,
-            crd: crate::nvme::CommandRetryDelay::None,
-            m: false,
-            dnr: true,
-        }
-        .into(),
+        cqedw3: status.into(),
     }
     .encode()?;
 
@@ -1745,16 +1730,9 @@ impl RequestHandler for AdminNamespaceManagementRequest {
                     status: ResponseStatus::Success,
                     cqedw0: nsid.0,
                     cqedw1: 0,
-                    cqedw3: AdminIoCqeStatus {
-                        cid: 0,
-                        p: true,
-                        status: AdminIoCqeStatusType::GenericCommandStatus(
-                            AdminIoCqeGenericCommandStatus::SuccessfulCompletion,
-                        ),
-                        crd: crate::nvme::CommandRetryDelay::None,
-                        m: false,
-                        dnr: false,
-                    }
+                    cqedw3: AdminIoCqeStatusType::GenericCommandStatus(
+                        AdminIoCqeGenericCommandStatus::SuccessfulCompletion,
+                    )
                     .into(),
                 }
                 .encode()?;
@@ -1782,15 +1760,7 @@ impl RequestHandler for AdminNamespaceManagementRequest {
                     status: ResponseStatus::Success,
                     cqedw0: self.nsid, // TODO: Base v2.1, 5.1.21 unclear, test against hardware
                     cqedw1: 0,
-                    cqedw3: AdminIoCqeStatus {
-                        cid: 0,
-                        p: true,
-                        status,
-                        crd: crate::nvme::CommandRetryDelay::None,
-                        m: false,
-                        dnr: res.is_err(),
-                    }
-                    .into(),
+                    cqedw3: status.into(),
                 }
                 .encode()?;
 
@@ -1918,19 +1888,7 @@ impl RequestHandler for AdminNamespaceAttachmentRequest {
             status: ResponseStatus::Success,
             cqedw0: self.nsid,
             cqedw1: 0,
-            cqedw3: AdminIoCqeStatus {
-                cid: 0,
-                p: true,
-                status,
-                crd: crate::nvme::CommandRetryDelay::None,
-                m: false,
-                dnr: {
-                    AdminIoCqeStatusType::GenericCommandStatus(
-                        AdminIoCqeGenericCommandStatus::SuccessfulCompletion,
-                    ) != status
-                },
-            }
-            .into(),
+            cqedw3: status.into(),
         }
         .encode()?;
 

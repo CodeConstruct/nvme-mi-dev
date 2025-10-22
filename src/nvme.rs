@@ -4,7 +4,7 @@
  */
 pub mod mi;
 
-use deku::ctx::Endian;
+use deku::ctx::{BitSize, Endian, Order};
 use deku::{DekuError, DekuRead, DekuWrite, deku_derive};
 use flagset::flags;
 use log::debug;
@@ -43,40 +43,65 @@ flags! {
 }
 
 // Base v2.1, 4.2.1, Figure 98
+//
+// Switch to LSB order because the packing of these fields is just messy,
+// largely thanks to the position of P. However, the SC / SCT ordering also
+// throws ergonomic deku representations straight out the window.
+#[derive(Debug, DekuRead, DekuWrite)]
+#[deku(bit_order = "lsb", ctx = "endian: Endian", endian = "endian")]
 struct AdminIoCqeStatus {
     cid: u16,
+    #[deku(bits = 1)]
     p: bool,
-    status: AdminIoCqeStatusType,
+    #[deku(bits = 8)]
+    sc: u8,
+    #[deku(bits = 3)]
+    sct: u8,
+    #[deku(bits = 2)]
     crd: CommandRetryDelay,
+    #[deku(bits = 1)]
     m: bool,
+    #[deku(bits = 1)]
     dnr: bool,
 }
 
-impl From<AdminIoCqeStatus> for u32 {
-    fn from(value: AdminIoCqeStatus) -> Self {
-        let dnr: u32 = value.dnr.into();
-        let m: u32 = value.m.into();
-        let crd: u32 = value.crd.id().into();
-        debug_assert_eq!((crd & !3), 0);
-        let sct: u32 = value.status.id().into();
-        debug_assert_eq!((sct & !7), 0);
-        let sc: u32 = match value.status {
-            AdminIoCqeStatusType::GenericCommandStatus(s) => s.id(),
-            AdminIoCqeStatusType::CommandSpecificStatus(v) => v,
+impl From<AdminIoCqeStatusType> for AdminIoCqeStatus {
+    fn from(value: AdminIoCqeStatusType) -> Self {
+        match value {
+            AdminIoCqeStatusType::GenericCommandStatus(sts) => AdminIoCqeStatus {
+                cid: 0,
+                sc: sts as u8,
+                p: true,
+                dnr: sts != AdminIoCqeGenericCommandStatus::SuccessfulCompletion,
+                m: false,
+                crd: CommandRetryDelay::None,
+                sct: value.id(),
+            },
+            AdminIoCqeStatusType::CommandSpecificStatus(sts) => AdminIoCqeStatus {
+                cid: 0,
+                sc: sts,
+                p: true,
+                dnr: true,
+                m: false,
+                crd: CommandRetryDelay::None,
+                sct: value.id(),
+            },
             AdminIoCqeStatusType::MediaAndDataIntegrityErrors => todo!(),
             AdminIoCqeStatusType::PathRelatedStatus => todo!(),
             AdminIoCqeStatusType::VendorSpecific => todo!(),
         }
-        .into();
-        debug_assert_eq!((sc & !0xff), 0);
-        let p: u32 = value.p.into();
-        let cid: u32 = value.cid.into();
-        (dnr << 31) | (m << 30) | (crd << 28) | (sct << 25) | (sc << 17) | (p << 16) | cid
     }
 }
 
 // Base v2.1, 4.2.3, Figure 100, CRD
-#[expect(dead_code)]
+#[derive(Debug, DekuRead, DekuWrite)]
+#[deku(
+    bits = "bits.0",
+    bit_order = "order",
+    ctx = "endian: Endian, bits: BitSize, order: Order",
+    endian = "endian",
+    id_type = "u8"
+)]
 #[repr(u8)]
 enum CommandRetryDelay {
     None = 0x00,
@@ -84,7 +109,6 @@ enum CommandRetryDelay {
     Time2 = 0x02,
     Time3 = 0x03,
 }
-unsafe impl Discriminant<u8> for CommandRetryDelay {}
 
 // Base v2.1, 4.2.3, Figure 101
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
