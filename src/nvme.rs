@@ -309,7 +309,13 @@ flags! {
 }
 
 // Base v2.1, 5.1.12.1.33, Figure 291, SSTAT, SOS
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, DekuRead, DekuWrite, Eq, PartialEq)]
+#[deku(
+    bits = "bits.0",
+    ctx = "endian: Endian, bits: BitSize",
+    endian = "endian",
+    id_type = "u8"
+)]
 #[repr(u8)]
 pub enum SanitizeOperationStatus {
     #[default]
@@ -322,21 +328,17 @@ pub enum SanitizeOperationStatus {
 unsafe impl crate::Discriminant<u8> for SanitizeOperationStatus {}
 
 // Base v2.1, 5.1.12.1.33, Figure 291, SSTAT
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, DekuRead, DekuWrite)]
+#[deku(ctx = "endian: Endian", endian = "endian")]
 pub struct SanitizeStatus {
-    sos: SanitizeOperationStatus,
+    #[deku(bits = "5")]
     opc: u8,
-    gde: bool,
+    #[deku(bits = "3")]
+    sos: SanitizeOperationStatus,
+    #[deku(bits = "1", pad_bits_before = "6")]
     mvcncled: bool,
-}
-
-impl From<SanitizeStatus> for u16 {
-    fn from(value: SanitizeStatus) -> Self {
-        ((value.mvcncled as u16) << 9)
-            | ((value.gde as u16) << 8)
-            | ((value.opc & ((1 << 6) - 1)) << 3) as u16
-            | value.sos.id() as u16
-    }
+    #[deku(bits = "1")]
+    gde: bool,
 }
 
 // Base v2.1, 5.12.1.33, Fgure 291, SSI, SANS
@@ -373,7 +375,7 @@ impl From<SanitizeStateInformation> for u8 {
 #[deku(endian = "little")]
 struct SanitizeStatusLogPageResponse {
     sprog: u16,
-    sstat: u16,
+    sstat: SanitizeStatus,
     scdw10: u32,
     eto: u32,
     etbe: u32,

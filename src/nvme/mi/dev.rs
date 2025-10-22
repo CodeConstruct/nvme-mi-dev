@@ -1276,7 +1276,7 @@ impl RequestHandler for AdminGetLogPageRequest {
 
                 let sslpr = SanitizeStatusLogPageResponse {
                     sprog: u16::MAX,
-                    sstat: subsys.sstat.into(),
+                    sstat: subsys.sstat,
                     scdw10: {
                         if let Some(sconf) = subsys.sconf {
                             sconf.into()
@@ -1955,10 +1955,10 @@ impl RequestHandler for AdminSanitizeRequest {
                     fails: 0,
                 };
                 subsys.sstat = SanitizeStatus {
-                    sos: SanitizeOperationStatus::Sanitized,
                     opc: 0,
-                    gde: true,
+                    sos: SanitizeOperationStatus::Sanitized,
                     mvcncled: false,
+                    gde: true,
                 };
                 subsys.sconf = Some(self.config.try_into()?);
 
@@ -1970,10 +1970,10 @@ impl RequestHandler for AdminSanitizeRequest {
                     fails: 0,
                 };
                 subsys.sstat = SanitizeStatus {
-                    sos: SanitizeOperationStatus::Sanitized,
                     opc: config.owpass,
-                    gde: true,
+                    sos: SanitizeOperationStatus::Sanitized,
                     mvcncled: false,
+                    gde: true,
                 };
                 subsys.sconf = Some(self.config.try_into()?);
 
