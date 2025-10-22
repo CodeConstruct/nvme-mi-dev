@@ -10,7 +10,7 @@ deku = { version = "0.20.0", default-features = false }
 flagset = { version = "0.4.7", default-features = false }
 heapless = "0.8.0"
 hmac = { version = "0.12.1", default-features = false }
-log = "0.4.22"
+log = "0.4.28"
 mctp = { version = "0.2.0", default-features = false }
 sha2 = { version = "0.10.9", default-features = false }
 uuid = { version = "1.17.0", default-features = false }
