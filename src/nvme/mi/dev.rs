@@ -17,10 +17,9 @@ use crate::{
     CommandEffect, CommandEffectError, Controller, ControllerError, ControllerType, Discriminant,
     MAX_CONTROLLERS, MAX_NAMESPACES, NamespaceId, NamespaceIdDisposition, SubsystemError,
     nvme::{
-        AdminFormatNvmConfiguration, AdminGetLogPageLidRequestType,
-        AdminGetLogPageSupportedLogPagesResponse, AdminIdentifyActiveNamespaceIdListResponse,
-        AdminIdentifyAllocatedNamespaceIdListResponse, AdminIdentifyCnsRequestType,
-        AdminIdentifyControllerResponse,
+        AdminGetLogPageLidRequestType, AdminGetLogPageSupportedLogPagesResponse,
+        AdminIdentifyActiveNamespaceIdListResponse, AdminIdentifyAllocatedNamespaceIdListResponse,
+        AdminIdentifyCnsRequestType, AdminIdentifyControllerResponse,
         AdminIdentifyNamespaceIdentificationDescriptorListResponse,
         AdminIdentifyNvmIdentifyNamespaceResponse, AdminIoCqeGenericCommandStatus,
         AdminIoCqeStatusType, AdminSanitizeConfiguration, ControllerListResponse,
@@ -2016,19 +2015,8 @@ impl RequestHandler for AdminFormatNvmRequest {
             .await;
         };
 
-        let Ok(config) = TryInto::<AdminFormatNvmConfiguration>::try_into(self.config) else {
-            debug!("Invalid configuration for Admin Format NVM");
-            return admin_send_status(
-                resp,
-                AdminIoCqeStatusType::GenericCommandStatus(
-                    AdminIoCqeGenericCommandStatus::InvalidFieldInCommand,
-                ),
-            )
-            .await;
-        };
-
-        if config.lbafi != 0 {
-            debug!("Unsupported LBA format index: {}", config.lbafi);
+        if self.config.lbafi() != 0 {
+            debug!("Unsupported LBA format index: {}", self.config.lbafi());
             return admin_send_status(
                 resp,
                 AdminIoCqeStatusType::GenericCommandStatus(

@@ -9,7 +9,8 @@ use flagset::{FlagSet, flags};
 use log::debug;
 
 use crate::nvme::{
-    AdminNamespaceAttachmentSelect, AdminNamespaceManagementSelect, ControllerListRequest,
+    AdminFormatNvmConfiguration, AdminNamespaceAttachmentSelect, AdminNamespaceManagementSelect,
+    ControllerListRequest,
 };
 use crate::wire::{WireFlagSet, WireVec};
 use crate::{CommandEffectError, Discriminant, Encode, MAX_CONTROLLERS};
@@ -901,7 +902,7 @@ struct AdminFormatNvmRequest {
     dlen: u32,
     #[deku(seek_from_current = "8")]
     #[deku(pad_bytes_after = "20")]
-    config: u32,
+    config: AdminFormatNvmConfiguration,
 }
 
 // MI v2.0, 6, Figure 136

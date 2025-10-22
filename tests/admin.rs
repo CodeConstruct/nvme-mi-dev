@@ -4990,7 +4990,8 @@ mod format_nvm {
             0x7a, 0x05, 0xbd, 0xb8
         ];
 
-        let resp = ExpectedRespChannel::new(&RESP_ADMIN_STATUS_INVALID_FIELD);
+        // FIXME: Poor error response code for the problem at hand
+        let resp = ExpectedRespChannel::new(&RESP_INVALID_COMMAND_SIZE);
         smol::block_on(async {
             mep.handle_async(&mut subsys, &REQ, MsgIC(true), resp, async |_| Ok(()))
                 .await

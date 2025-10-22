@@ -154,50 +154,41 @@ struct ControllerListRequest {
 }
 
 // Base v2.1, 5.1.10, Figure 189, SES
-#[derive(Debug)]
+#[derive(Debug, DekuRead, DekuWrite, Eq, PartialEq)]
+#[deku(
+    bits = "bits.0",
+    ctx = "endian: Endian, bits: BitSize",
+    endian = "endian",
+    id_type = "u8"
+)]
 #[repr(u8)]
 enum SecureEraseSettings {
     NoOperation = 0b000,
     UserDataErase = 0b001,
     CryptographicErase = 0b010,
 }
-unsafe impl Discriminant<u8> for SecureEraseSettings {}
-
-impl TryFrom<u32> for SecureEraseSettings {
-    type Error = ();
-
-    fn try_from(value: u32) -> Result<Self, Self::Error> {
-        match value {
-            0b000 => Ok(Self::NoOperation),
-            0b001 => Ok(Self::UserDataErase),
-            0b010 => Ok(Self::CryptographicErase),
-            _ => Err(()),
-        }
-    }
-}
 
 // Base v2.1, 5.1.10, Figure 189
-#[derive(Debug)]
-#[expect(dead_code)]
+#[derive(Debug, DekuRead, DekuWrite, Eq, PartialEq)]
+#[deku(ctx = "endian: Endian", endian = "endian")]
 struct AdminFormatNvmConfiguration {
-    lbafi: u8,
-    mset: bool,
+    #[deku(bits = "3")]
     pi: u8,
-    pil: bool,
+    #[deku(bits = "1")]
+    mset: bool,
+    #[deku(bits = "4")]
+    lbafl: u8,
+    #[deku(bits = "2", pad_bits_before = "2")]
+    lbafu: u8,
+    #[deku(bits = "3")]
     ses: SecureEraseSettings,
+    #[deku(bits = "1", pad_bytes_after = "2")]
+    pil: bool,
 }
 
-impl TryFrom<u32> for AdminFormatNvmConfiguration {
-    type Error = ();
-
-    fn try_from(value: u32) -> Result<Self, Self::Error> {
-        Ok(Self {
-            lbafi: ((((value >> 12) & 0x3) << 4) | (value & 0xf)) as u8,
-            mset: ((value >> 4) & 1) == 1,
-            pi: ((value >> 5) & 0x3) as u8,
-            pil: ((value >> 6) & 1) == 1,
-            ses: TryFrom::try_from((value >> 9) & 0x7)?,
-        })
+impl AdminFormatNvmConfiguration {
+    fn lbafi(&self) -> u8 {
+        self.lbafu << 4 | self.lbafl
     }
 }
 
