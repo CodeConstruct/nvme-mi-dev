@@ -240,4 +240,3 @@ pub enum PciCapabilityType {
     #[deku(id = "0x10")]
     Pcie(PcieCapability),
 }
-unsafe impl crate::Discriminant<u8> for PciCapabilityType {}
