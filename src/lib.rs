@@ -638,7 +638,8 @@ pub struct Subsystem {
     nsids: u32,
     nss: heapless::Vec<Namespace, MAX_NAMESPACES>,
     health: SubsystemHealth,
-    sanicap: nvme::SanitizeCapabilities,
+    sanicap: FlagSet<nvme::SanitizeCapabilityFlags>,
+    nodmmas: nvme::NoDeallocateModifiesMediaAfterSanitize,
     ssi: nvme::SanitizeStateInformation,
     sstat: nvme::SanitizeStatus,
     sconf: Option<nvme::AdminSanitizeConfiguration>,
@@ -665,7 +666,11 @@ impl Subsystem {
             sstat: Default::default(),
             sconf: None,
             ssi: Default::default(),
-            sanicap: Default::default(),
+            sanicap: nvme::SanitizeCapabilityFlags::Ces
+                | nvme::SanitizeCapabilityFlags::Bes
+                | nvme::SanitizeCapabilityFlags::Ows
+                | nvme::SanitizeCapabilityFlags::Ndi,
+            nodmmas: Default::default(),
         }
     }
 

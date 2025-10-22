@@ -10,7 +10,7 @@ use log::debug;
 
 use crate::nvme::{
     AdminFormatNvmConfiguration, AdminNamespaceAttachmentSelect, AdminNamespaceManagementSelect,
-    ControllerListRequest,
+    AdminSanitizeConfiguration, ControllerListRequest,
 };
 use crate::wire::{WireFlagSet, WireVec};
 use crate::{CommandEffectError, Discriminant, Encode, MAX_CONTROLLERS};
@@ -997,7 +997,7 @@ struct AdminSanitizeRequest {
     dofst: u32,
     dlen: u32,
     #[deku(seek_from_current = "8")]
-    config: u32,
+    config: AdminSanitizeConfiguration,
     #[deku(pad_bytes_after = "16")]
     ovrpat: u32,
 }

@@ -11,7 +11,7 @@ use mctp::{AsyncRespChannel, MsgIC};
 use crate::nvme::mi::{NvmSubsystemStatusFlags, PortCapabilityFlags};
 use crate::nvme::{
     ControllerAttributeFlags, ControllerMultipathIoNamespaceSharingCapabilityFlags,
-    ManagementEndpointCapabilityFlags, NvmSubsystemReportFlags,
+    ManagementEndpointCapabilityFlags, NvmSubsystemReportFlags, SanitizeCapabilityFlags,
 };
 use crate::{
     CommandEffect, CommandEffectError, Controller, ControllerError, ControllerType, Discriminant,
@@ -22,11 +22,10 @@ use crate::{
         AdminIdentifyCnsRequestType, AdminIdentifyControllerResponse,
         AdminIdentifyNamespaceIdentificationDescriptorListResponse,
         AdminIdentifyNvmIdentifyNamespaceResponse, AdminIoCqeGenericCommandStatus,
-        AdminIoCqeStatusType, AdminSanitizeConfiguration, ControllerListResponse,
-        LidSupportedAndEffectsDataStructure, LidSupportedAndEffectsFlags, LogPageAttributes,
-        NamespaceIdentifierType, SanitizeAction, SanitizeOperationStatus, SanitizeState,
-        SanitizeStateInformation, SanitizeStatus, SanitizeStatusLogPageResponse,
-        SmartHealthInformationLogPageResponse,
+        AdminIoCqeStatusType, ControllerListResponse, LidSupportedAndEffectsDataStructure,
+        LidSupportedAndEffectsFlags, LogPageAttributes, NamespaceIdentifierType, SanitizeAction,
+        SanitizeOperationStatus, SanitizeState, SanitizeStateInformation, SanitizeStatus,
+        SanitizeStatusLogPageResponse, SmartHealthInformationLogPageResponse,
         mi::{
             AdminCommandRequestHeader, AdminCommandResponseHeader, AdminFormatNvmRequest,
             AdminNamespaceAttachmentRequest, AdminNamespaceManagementRequest, AdminSanitizeRequest,
@@ -1277,13 +1276,7 @@ impl RequestHandler for AdminGetLogPageRequest {
                 let sslpr = SanitizeStatusLogPageResponse {
                     sprog: u16::MAX,
                     sstat: subsys.sstat,
-                    scdw10: {
-                        if let Some(sconf) = subsys.sconf {
-                            sconf.into()
-                        } else {
-                            0
-                        }
-                    },
+                    scdw10: subsys.sconf.unwrap_or_default(),
                     eto: u32::MAX,
                     etbe: u32::MAX,
                     etce: u32::MAX,
@@ -1464,7 +1457,10 @@ impl RequestHandler for AdminIdentifyRequest {
                         msdbd: 0,
                         ofcs: 0,
                         apsta: 0,
-                        sanicap: subsys.sanicap.into(),
+                        sanicap: crate::nvme::SanitizeCapabilities {
+                            caps: subsys.sanicap.into(),
+                            nodmmas: subsys.nodmmas,
+                        },
                     }
                     .encode()
                     .map_err(AdminIoCqeGenericCommandStatus::from)
@@ -1918,18 +1914,7 @@ impl RequestHandler for AdminSanitizeRequest {
             return Err(ResponseStatus::InvalidCommandSize);
         }
 
-        let Ok(config) = TryInto::<AdminSanitizeConfiguration>::try_into(self.config) else {
-            debug!("Invalid sanitize configuration: {}", self.config);
-            return admin_send_status(
-                resp,
-                AdminIoCqeStatusType::GenericCommandStatus(
-                    AdminIoCqeGenericCommandStatus::InvalidFieldInCommand,
-                ),
-            )
-            .await;
-        };
-
-        if subsys.sanicap.ndi && config.ndas {
+        if subsys.sanicap.contains(SanitizeCapabilityFlags::Ndi) && self.config.ndas {
             debug!("Request for No-Deallocate After Sanitize when No-Deallocate is inhibited");
             return admin_send_status(
                 resp,
@@ -1941,7 +1926,7 @@ impl RequestHandler for AdminSanitizeRequest {
         }
 
         // TODO: Implement action latency, progress state machine, error states
-        match config.sanact {
+        match self.config.sanact {
             SanitizeAction::Reserved => Err(ResponseStatus::InvalidParameter),
             SanitizeAction::ExitFailureMode | SanitizeAction::ExitMediaVerificationState => {
                 if subsys.ssi.sans != SanitizeState::Idle {
@@ -1960,7 +1945,7 @@ impl RequestHandler for AdminSanitizeRequest {
                     mvcncled: false,
                     gde: true,
                 };
-                subsys.sconf = Some(self.config.try_into()?);
+                subsys.sconf = Some(self.config);
 
                 admin_send_response_body(resp, &[]).await
             }
@@ -1970,12 +1955,12 @@ impl RequestHandler for AdminSanitizeRequest {
                     fails: 0,
                 };
                 subsys.sstat = SanitizeStatus {
-                    opc: config.owpass,
+                    opc: self.config.owpass,
                     sos: SanitizeOperationStatus::Sanitized,
                     mvcncled: false,
                     gde: true,
                 };
-                subsys.sconf = Some(self.config.try_into()?);
+                subsys.sconf = Some(self.config);
 
                 admin_send_response_body(resp, &[]).await
             }
