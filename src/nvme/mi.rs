@@ -1039,7 +1039,6 @@ enum PcieCommandRequestType {
     IoRead = 0x04,
     IoWrite = 0x05,
 }
-unsafe impl Discriminant<u8> for PcieCommandRequestType {}
 
 // MI v2.0, 7, Figure 151-152
 #[derive(Debug, DekuRead, DekuWrite, Eq, PartialEq)]
