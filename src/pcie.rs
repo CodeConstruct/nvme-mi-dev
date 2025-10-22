@@ -104,8 +104,7 @@ impl PciDeviceFunctionConfigurationSpace {
                             d2: false,
                             pme: 0,
                         }
-                    }
-                    .into(),
+                    },
                     pmcsr: 0,
                     data: 0,
                 }),
@@ -175,36 +174,32 @@ impl PciDeviceFunctionConfigurationSpaceBuilder {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, DekuRead, DekuWrite)]
+#[deku(bit_order = "lsb", ctx = "endian: Endian", endian = "endian")]
 pub struct PowerManagementCapabilities {
+    #[deku(bits = "3")]
     version: u8,
+    #[deku(bits = "1")]
     pme_clock: bool,
+    #[deku(bits = "1")]
     ready_d0: bool,
+    #[deku(bits = "1")]
     dsi: bool,
+    #[deku(bits = "3")]
     aux_current: u8,
+    #[deku(bits = "1")]
     d1: bool,
+    #[deku(bits = "1")]
     d2: bool,
+    #[deku(bits = "5")]
     pme: u8,
-}
-
-impl From<PowerManagementCapabilities> for u16 {
-    fn from(value: PowerManagementCapabilities) -> Self {
-        ((value.pme as u16 & 0xf) << 11)
-            | ((value.d2 as u16) << 10)
-            | ((value.d1 as u16) << 9)
-            | ((value.aux_current as u16 & 0x7) << 6)
-            | ((value.dsi as u16) << 5)
-            | ((value.ready_d0 as u16) << 4)
-            | ((value.pme_clock as u16) << 3)
-            | (value.version as u16 & 0x7)
-    }
 }
 
 #[derive(Debug, DekuRead, DekuWrite)]
 #[deku(ctx = "endian: Endian", endian = "endian")]
 pub struct PciPowerManagementCapability {
     next: u8,
-    pmc: u16,
+    pmc: PowerManagementCapabilities,
     pmcsr: u16,
     #[deku(seek_from_current = "1")]
     data: u8,

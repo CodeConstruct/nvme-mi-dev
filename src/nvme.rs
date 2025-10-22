@@ -134,7 +134,6 @@ enum AdminIoCqeGenericCommandStatus {
     InternalError = 0x06,
     InvalidNamespaceOrFormat = 0x0b,
 }
-unsafe impl Discriminant<u8> for AdminIoCqeGenericCommandStatus {}
 
 impl From<DekuError> for AdminIoCqeGenericCommandStatus {
     fn from(err: DekuError) -> Self {
