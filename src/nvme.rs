@@ -342,9 +342,14 @@ pub struct SanitizeStatus {
 }
 
 // Base v2.1, 5.12.1.33, Fgure 291, SSI, SANS
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, DekuRead, DekuWrite, Eq, PartialEq)]
+#[deku(
+    bits = "bits.0",
+    ctx = "endian: Endian, bits: BitSize",
+    endian = "endian",
+    id_type = "u8"
+)]
 #[repr(u8)]
-#[expect(dead_code)]
 enum SanitizeState {
     #[default]
     Idle = 0x00,
@@ -358,16 +363,13 @@ enum SanitizeState {
 unsafe impl crate::Discriminant<u8> for SanitizeState {}
 
 // Base v2.1, 5.1.12.1.33, Figure 291, SSI
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, DekuRead, DekuWrite)]
+#[deku(ctx = "endian: Endian", endian = "endian")]
 pub struct SanitizeStateInformation {
-    sans: SanitizeState,
+    #[deku(bits = "4")]
     fails: u8,
-}
-
-impl From<SanitizeStateInformation> for u8 {
-    fn from(value: SanitizeStateInformation) -> Self {
-        (value.fails << 4) | (value.sans.id())
-    }
+    #[deku(bits = "4")]
+    sans: SanitizeState,
 }
 
 // Base v2.1, 5.1.12.1.33, Figure 291
@@ -384,7 +386,7 @@ struct SanitizeStatusLogPageResponse {
     etbenmm: u32,
     etcenmm: u32,
     etpvds: u32,
-    ssi: u8,
+    ssi: SanitizeStateInformation,
 }
 impl Encode<512> for SanitizeStatusLogPageResponse {}
 

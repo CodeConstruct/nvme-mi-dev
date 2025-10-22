@@ -1291,7 +1291,7 @@ impl RequestHandler for AdminGetLogPageRequest {
                     etbenmm: u32::MAX,
                     etcenmm: u32::MAX,
                     etpvds: u32::MAX,
-                    ssi: subsys.ssi.into(),
+                    ssi: subsys.ssi,
                 }
                 .encode()?;
 
