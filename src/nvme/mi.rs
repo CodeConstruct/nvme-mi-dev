@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: GPL-3.0-only
+/*
+ * Copyright (c) 2025 Code Construct
+ */
+
 use deku::ctx::Endian;
 use deku::{DekuError, DekuRead, DekuWrite};
 use flagset::{FlagSet, flags};
@@ -11,10 +16,6 @@ use crate::{CommandEffectError, Discriminant, Encode, MAX_CONTROLLERS};
 
 use super::{AdminGetLogPageLidRequestType, AdminIdentifyCnsRequestType};
 
-// SPDX-License-Identifier: GPL-3.0-only
-/*
- * Copyright (c) 2025 Code Construct
- */
 pub mod dev;
 
 // MI v2.0, 3.1.1, Figure 20, NMIMT
