@@ -6,7 +6,7 @@ license = "GPL-3.0-only"
 
 [dependencies]
 crc = "3.2.1"
-deku = { git = "https://github.com/codeconstruct/deku.git", tag = "cc/deku-v0.19.1/bit-precise-no-alloc-2", default-features = false, features = ["bits"] }
+deku = { git = "https://github.com/sharksforarms/deku.git", rev = "4fb3527a86222f3680c27df473bde534974a5cdc", default-features = false, features = ["bits"] }
 flagset = { version = "0.4.7", default-features = false }
 heapless = "0.8.0"
 hmac = { version = "0.12.1", default-features = false }

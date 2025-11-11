@@ -274,7 +274,7 @@ dependencies = [
 [[package]]
 name = "deku"
 version = "0.20.0"
-source = "git+https://github.com/codeconstruct/deku.git?tag=cc%2Fdeku-v0.19.1%2Fbit-precise-no-alloc-2#54ab0160bd1e9cfdcc3a7f81993a6168d02893e8"
+source = "git+https://github.com/sharksforarms/deku.git?rev=4fb3527a86222f3680c27df473bde534974a5cdc#4fb3527a86222f3680c27df473bde534974a5cdc"
 dependencies = [
  "bitvec",
  "deku_derive",
@@ -285,7 +285,7 @@ dependencies = [
 [[package]]
 name = "deku_derive"
 version = "0.20.0"
-source = "git+https://github.com/codeconstruct/deku.git?tag=cc%2Fdeku-v0.19.1%2Fbit-precise-no-alloc-2#54ab0160bd1e9cfdcc3a7f81993a6168d02893e8"
+source = "git+https://github.com/sharksforarms/deku.git?rev=4fb3527a86222f3680c27df473bde534974a5cdc#4fb3527a86222f3680c27df473bde534974a5cdc"
 dependencies = [
  "darling",
  "proc-macro2",
