@@ -2,7 +2,12 @@
 name = "nvme-mi-dev"
 version = "0.1.0"
 edition = "2024"
+description = "A device-side implementation of NVMe-MI"
+documentation = "https://docs.rs/nvme-mi-dev"
+repository = "https://github.com/CodeConstruct/nvme-mi-dev"
 license = "GPL-3.0-only"
+keywords = [ "NVMe-MI" ]
+categories = [ "embedded", "no-std::no-alloc", "parser-implementations", "simulation" ]
 
 [dependencies]
 crc = "3.2.1"
